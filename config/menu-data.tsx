@@ -40,8 +40,8 @@ const menuData: IMenuData[] = [
             },
             {
                 icon: HandPlatter,
-                title: 'collections',
-                path: '/collections',
+                title: 'type_plats',
+                path: '/type-plat',
             },
             {
                 icon: IconBuildingSkyscraper,

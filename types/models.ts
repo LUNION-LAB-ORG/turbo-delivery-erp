@@ -74,3 +74,15 @@ export interface DeliveryMan {
     numeroCni: string | null;
     matricule: string;
 }
+
+export interface TypePlat {
+    id: string;
+    status: number;
+    deleted: boolean;
+    dateCreation: string;
+    dateEdition: string;
+    libelle: string;
+    description?: string; // Champ optionnel
+    picture?: string | null; // Champ optionnel
+    pictureUrl?: string | null; // Champ optionnel
+}

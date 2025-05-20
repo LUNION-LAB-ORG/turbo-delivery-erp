@@ -1,6 +1,7 @@
 import NextAuth, { User } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import usersEndpoints from '@/src/endpoints/users.endpoint';
+
+const loginEndpoiint = '/api/V1/turbo/erp/user/login';
 
 export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
     providers: [
@@ -14,7 +15,7 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
             async authorize(credentials) {
                 if (!credentials?.username || !credentials?.password) return null;
 
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_ERP_URL}${usersEndpoints.login}`, {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_ERP_URL}${loginEndpoiint}`, {
                     method: 'POST',
                     body: JSON.stringify({ username: credentials.username, password: credentials.password }),
                     headers: { 'Content-Type': 'application/json' },

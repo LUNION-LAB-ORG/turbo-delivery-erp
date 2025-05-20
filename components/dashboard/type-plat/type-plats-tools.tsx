@@ -1,12 +1,12 @@
 'use client';
 
-import { TypePlat } from '@/types/models';
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Button } from '@nextui-org/react';
+import { Collection } from '@/types/models';
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Button } from "@heroui/react";
 import { useState } from 'react';
 import { IconDotsVertical } from '@tabler/icons-react';
 import TypePlatEdit from './type-plats-edit';
 
-const TypePlatsTools = ({ typePlat }: { typePlat: TypePlat }) => {
+const TypePlatsTools = ({ typePlat }: { typePlat: Collection }) => {
     const [open, setOpen] = useState<boolean>(false);
     return (
         <>

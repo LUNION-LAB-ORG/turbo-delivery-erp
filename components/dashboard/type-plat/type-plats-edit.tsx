@@ -3,23 +3,23 @@
 import IconX from '@/components/icon/icon-x';
 import { updateTypePlat } from '@/src/actions/type-plats.actions';
 import { _createTypePlatSchema, createTypePlatSchema } from '@/src/schemas/type-plats.schema';
-import { TypePlat } from '@/types/models';
+import { Collection } from '@/types/models';
 import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input } from '@nextui-org/react';
+import { Button, Input } from "@heroui/react";
 import { useRouter } from 'next/navigation';
 import React, { Fragment } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 
-const TypePlatEdit = ({ typePlat, open, setOpen }: { typePlat: TypePlat; open: boolean; setOpen: (open: boolean) => void }) => {
+const TypePlatEdit = ({ typePlat, open, setOpen }: { typePlat: Collection; open: boolean; setOpen: (open: boolean) => void }) => {
     const { pending } = useFormStatus();
     const router = useRouter();
 
     const [state, formAction] = useFormState(
         async (prevState: any, formData: FormData) => {
-            const result = await updateTypePlat(prevState, formData, typePlat.id);
+            const result = await updateTypePlat(formData, typePlat.id);
 
             if (result.status === 'success') {
                 toast.success(result.message || 'Bravo ! vous avez réussi');

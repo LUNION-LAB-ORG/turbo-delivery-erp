@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 const plugin = require('tailwindcss/plugin');
 
-const { nextui } = require('@nextui-org/react');
+const { heroui } = require("@heroui/react");
 
 const rotateX = plugin(function ({ addUtilities }) {
     addUtilities({
@@ -17,7 +17,7 @@ module.exports = {
         './pages/**/*.{js,ts,jsx,tsx}',
         './components/**/*.{js,ts,jsx,tsx}',
         './src/**/*.{js,ts,jsx,tsx}',
-        './node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}',
+        "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
     ],
     darkMode: 'class',
     theme: {
@@ -130,6 +130,7 @@ module.exports = {
                 },
             }),
             keyframes: {
+               
                 'accordion-down': {
                     from: { height: '0' },
                     to: { height: 'var(--radix-accordion-content-height)' },
@@ -209,11 +210,12 @@ module.exports = {
         },
     },
     plugins: [
-        nextui(),
+        heroui(),
         require('@tailwindcss/forms')({
             strategy: 'class',
         }),
         require('@tailwindcss/typography'),
         rotateX,
+        require('tailwind-scrollbar'),
     ],
 };

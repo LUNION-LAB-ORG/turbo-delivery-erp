@@ -4,7 +4,7 @@ import IconX from '@/components/icon/icon-x';
 import { deleteRestaureUser } from '@/src/actions/users.actions';
 import { User } from '@/types/models';
 import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
-import { Button } from '@nextui-org/react';
+import { Button } from "@heroui/react";
 import React, { Fragment } from 'react';
 import { useFormStatus } from 'react-dom';
 import { toast } from 'react-toastify';

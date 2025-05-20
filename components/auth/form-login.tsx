@@ -14,15 +14,15 @@ import { FormChangePassword } from './form-change-password';
 export function FormLogin() {
     const router = useRouter();
     const [state, formAction] = useFormState(
-        async (prevState: any, formData: FormData) => {
-            const result = await loginUser(prevState, formData);
-
-            if (result.status === 'error') {
-                toast.error(result.message);
-            } else {
-                toast.success(result.message);
-                router.push('/');
-            }
+        async (_: any, formData: FormData) => {
+            const result = await loginUser(formData);
+            router.push('/');
+            // if (result.status === 'error') {
+            //     toast.error(result.message);
+            // } else {
+            //     toast.success(result.message);
+            //     router.push('/');
+            // }
 
             return result;
         },

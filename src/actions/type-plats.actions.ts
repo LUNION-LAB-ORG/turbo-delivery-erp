@@ -1,87 +1,125 @@
 'use server';
 
-import { apiClient } from '@/lib/api-client';
 import { ActionResult } from '@/types/index.d';
 
-import { TypePlat } from '@/types/models';
-import typePlatsEndpoints from '@/src/endpoints/type-plats.endpoint';
+import { Collection } from '@/types/models';
 import { createFormData, processFormData } from '@/utils/formdata-zod.utilities';
 import { createTypePlatSchema } from '../schemas/type-plats.schema';
+import { apiClientHttp } from '@/lib/api-client-http';
 
-export async function getTypePlats(): Promise<TypePlat[] | null> {
-    const response = await apiClient.get(typePlatsEndpoints.getAll);
-    if (!response.ok) {
+const BASE_URL = '/api/turbo/erp/collection';
+
+const typePlatsEndpoints = {
+    getAll: { endpoint: BASE_URL, method: 'GET' },
+    add: { endpoint: `${BASE_URL}/add`, method: 'POST' },
+    update: { endpoint: (id: string) => `${BASE_URL}/update/${id}`, method: 'POST' },
+    delete: { endpoint: (id: string) => `${BASE_URL}/delete/${id}`, method: 'DELETE' },
+    info: { endpoint: (id: string) => `${BASE_URL}/detail/${id}`, method: 'GET' },
+};
+
+export async function getTypePlats(): Promise<Collection[]> {
+    try {
+        const data = await apiClientHttp.request<Collection[]>({
+            endpoint: typePlatsEndpoints.getAll.endpoint,
+            method: typePlatsEndpoints.getAll.method,
+            service: 'erp',
+        });
+
+        return data;
+    } catch (error) {
+        return [];
+    }
+}
+
+export async function createTypePlat(formData: FormData): Promise<ActionResult<Collection>> {
+    try {
+        const { success, data: formdata,errorsInArray } = processFormData(createTypePlatSchema, formData, {
+            useDynamicValidation: true,
+        });
+
+        if (!success && errorsInArray) {
+            return {
+                status: 'error',
+                message: errorsInArray[0].message ?? 'Données manquantes ou mal formatées',
+            };
+        }
+
+        const sendFormData = createFormData(formdata);
+
+        const data = await apiClientHttp.request<Collection>({
+            endpoint: typePlatsEndpoints.add.endpoint,
+            method: typePlatsEndpoints.add.method,
+            data: sendFormData,
+            config: {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            },
+            service: 'erp',
+        });
+
+        return {
+            status: 'success',
+            message: 'Type de plat créé avec succès',
+            data,
+        };
+    } catch (error) {
+        return {
+            status: 'error',
+            message: 'Erreur lors de la création du type de plat',
+        };
+    }
+}
+
+export async function updateTypePlat(formData: FormData, id: string): Promise<ActionResult<Collection>> {
+    try {
+        const { success, data: formdata,errorsInArray } = processFormData(createTypePlatSchema, formData, {
+            useDynamicValidation: true,
+        });
+
+        if (!success && errorsInArray) {
+            return {
+                status: 'error',
+                message: errorsInArray[0].message ?? 'Données manquantes ou mal formatées',
+            };
+        }
+        const sendFormData = createFormData(formdata);
+
+        const data = await apiClientHttp.request<Collection>({
+            endpoint: typePlatsEndpoints.update.endpoint(id),
+            method: typePlatsEndpoints.update.method,
+            data: sendFormData,
+            config: {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            },
+            service: 'erp',
+        });
+
+        return {
+            status: 'success',
+            message: 'Type de plat modifié avec succès',
+            data,
+        };
+    } catch (error) {
+        return {
+            status: 'error',
+            message: 'Erreur lors de la modification du type de plat',
+        };
+    }
+}
+
+export async function getTypePlat(id: string): Promise<Collection | null> {
+    try {
+        const data = await apiClientHttp.request<Collection>({
+            endpoint: typePlatsEndpoints.info.endpoint(id),
+            method: typePlatsEndpoints.info.method,
+            service: 'erp',
+        });
+
+        return data;
+    } catch (error) {
         return null;
     }
-    const result = await response.json();
-    return result;
-}
-
-export async function createTypePlat(prevState: any, formData: FormData): Promise<ActionResult<TypePlat>> {
-    const { success, data: formdata } = processFormData(
-        createTypePlatSchema,
-        formData,
-        {
-            useDynamicValidation: true,
-        },
-        prevState,
-    );
-
-    if (!success) {
-        prevState.status = 'error';
-        prevState.message = 'Erreur lors de la validation des données';
-        return prevState;
-    }
-    const sendFormData = createFormData(formdata);
-
-    const response = await apiClient.post(typePlatsEndpoints.add, sendFormData, { type: 'formData' });
-    if (!response.ok) {
-        prevState.status = 'error';
-        prevState.message = 'Erreur lors de la création du type de plat';
-        return prevState;
-    }
-    const result = await response.json();
-    prevState.data = result;
-    prevState.status = 'success';
-    prevState.message = 'Type de plat créé avec succès';
-    return prevState;
-}
-
-export async function updateTypePlat(prevState: any, formData: FormData, id: string): Promise<ActionResult<TypePlat>> {
-    const { success, data: formdata } = processFormData(
-        createTypePlatSchema,
-        formData,
-        {
-            useDynamicValidation: true,
-        },
-        prevState,
-    );
-
-    if (!success) {
-        prevState.status = 'error';
-        prevState.message = 'Erreur lors de la validation des données';
-        return prevState;
-    }
-    const sendFormData = createFormData(formdata);
-
-    const response = await apiClient.post(typePlatsEndpoints.update(id), sendFormData, { type: 'formData' });
-    if (!response.ok) {
-        prevState.status = 'error';
-        prevState.message = 'Erreur lors de la mise à jour du type de plat';
-        return prevState;
-    }
-    const result = await response.json();
-    prevState.data = result;
-    prevState.status = 'success';
-    prevState.message = 'Type de plat mis à jour avec succès';
-    return prevState;
-}
-
-export async function getTypePlat(id: string): Promise<TypePlat | null> {
-    const response = await apiClient.get(typePlatsEndpoints.info(id));
-    if (!response.ok) {
-        return null;
-    }
-    const result = await response.json();
-    return result;
 }

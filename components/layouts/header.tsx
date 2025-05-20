@@ -12,14 +12,13 @@ import NotificationList from './notificationList';
 import MessageList from './messageList';
 import LocaleSwitch from './localeSwitch';
 import ThemeSwitch from './themeSwitch';
-import SearchComponent from './searchComponent';
-import { Icone } from '../icons';
-import ToolsList from './ToolsList';
 import menuData, { IMenuData } from '@/config/menu-data';
 import UserProfileDropdown from '../layouts/user-profile-dropdown';
-import { Button } from '@nextui-org/react';
+import { Button, useDisclosure } from "@heroui/react";
 import { User } from '@/types/models';
 import { DashboardUserDropdown } from '../dashboard/dashboard-user-dropdown';
+import { Bell, BellRing } from 'lucide-react';
+import Notifications from '../dashboard/notifications/notifications';
 
 const Header = ({ profile }: { profile: User }) => {
     const pathname = usePathname();
@@ -55,6 +54,7 @@ const Header = ({ profile }: { profile: User }) => {
     }, [pathname]);
 
     const themeConfig = useSelector((state: IRootState) => state.themeConfig);
+    const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
     return (
         <>
@@ -78,9 +78,11 @@ const Header = ({ profile }: { profile: User }) => {
                                 {/* <SearchComponent /> */}
                             </div>
                             <ThemeSwitch />
-                            {/* <LocaleSwitch />
-                            <MessageList />
-                            <NotificationList /> */}
+
+                            {/* <LocaleSwitch /> */}
+                            {/* <MessageList /> */}
+                            {/* <NotificationList /> */}
+                            <Notifications />
                             <DashboardUserDropdown profile={profile} />
                         </div>
                     </div>
@@ -91,6 +93,7 @@ const Header = ({ profile }: { profile: User }) => {
                     </ul>
                 </div>
             </header>
+            {/* <Notification isOpen={isOpen} onO /> */}
         </>
     );
 };

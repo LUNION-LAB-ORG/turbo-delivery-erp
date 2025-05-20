@@ -10,7 +10,7 @@
 @import './progressbar.css';
 
 /* Data tables css */
-@import './datatables.css';
+/* @import './datatables.css'; */
 
 /* scrumboard */
 @import './scrumboard.css';
@@ -798,3 +798,15 @@ img.dark-img {
 .dark img.dark-img {
     @apply !block;
 }
+
+
+
+
+/* cache la scrollbar tout en gardant le scroll actif */
+.hide-scrollbar {
+    -ms-overflow-style: none;  /* IE, Edge */
+    scrollbar-width: none;     /* Firefox */
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;             /* Chrome, Safari, Opera */
+  }

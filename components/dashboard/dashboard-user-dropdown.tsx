@@ -4,7 +4,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Button } from '@/components/ui/button';
 import { signOut } from '@/src/actions/users.actions';
 import { title } from '../primitives';
-import { Avatar } from '@nextui-org/react';
+import { Avatar } from "@heroui/react";
 import { User } from '@/types/models';
 import { useRouter } from 'next/navigation';
 

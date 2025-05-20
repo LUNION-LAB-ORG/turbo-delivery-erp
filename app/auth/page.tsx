@@ -5,8 +5,6 @@ import Loading from '@/components/layouts/loading';
 
 export default function AuthPage() {
     return (
-        <Suspense fallback={<Loading />}>
-            <Content />
-        </Suspense>
+        <Content />
     );
 }

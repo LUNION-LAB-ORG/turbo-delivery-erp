@@ -5,14 +5,28 @@ const nextConfig = {
     eslint: {
         ignoreDuringBuilds: true,
     },
-    images:{
+    images: {
         remotePatterns: [
-          {
-            protocol: 'https',
-            hostname: 'images.unsplash.com',
-            // port: '',
-            // pathname: '/demos/images/**',
-          },
+            {
+                protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
+                hostname: 'erp.turbodeliveryapp.com',
+            },
+            {
+                protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
+                hostname: 'resto.turbodeliveryapp.com',
+            },
+            {
+                protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
+                hostname: 'customer.turbodeliveryapp.com',
+            },
+            {
+                protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
+                hostname: 'delivery.turbodeliveryapp.com',
+            },
+            {
+                protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
+                hostname: 'backend.turbodeliveryapp.com',
+            },
         ],
     },
 };

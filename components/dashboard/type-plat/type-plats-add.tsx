@@ -6,7 +6,7 @@ import { createTypePlat } from '@/src/actions/type-plats.actions';
 import { _createTypePlatSchema, createTypePlatSchema } from '@/src/schemas/type-plats.schema';
 import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input } from '@nextui-org/react';
+import { Button, Input } from "@heroui/react";
 import { useRouter } from 'next/navigation';
 import React, { Fragment, useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
@@ -20,7 +20,7 @@ const TypePlatAdd = () => {
 
     const [state, formAction] = useFormState(
         async (prevState: any, formData: FormData) => {
-            const result = await createTypePlat(prevState, formData);
+            const result = await createTypePlat(formData);
 
             if (result.status === 'success') {
                 toast.success(result.message || 'Bravo ! vous avez réussi');

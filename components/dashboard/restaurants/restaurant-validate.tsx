@@ -3,12 +3,12 @@
 import IconX from '@/components/icon/icon-x';
 import { Restaurant } from '@/types/models';
 import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
-import { Button } from '@nextui-org/react';
+import { Button } from "@heroui/react";
 import React, { Fragment } from 'react';
 import { useFormStatus } from 'react-dom';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { validateRestaurant } from '@/src/actions/restaurants.actions';
+import { validateRestaurant } from '@/src/restaurants/restaurants.actions';
 
 const RestaurantValidate = ({
     restaurant,

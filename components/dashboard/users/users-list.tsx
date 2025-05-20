@@ -5,11 +5,11 @@ import IconListCheck from '@/components/icon/icon-list-check';
 import IconSearch from '@/components/icon/icon-search';
 import React, { useState } from 'react';
 import { User } from '@/types/models';
-import { PaginatedResponse } from '@/types/index';
+import { PaginatedResponse } from '@/types';
 
 import UsersAdd from './users-add';
 import UsersTools from './users-tools';
-import { Chip } from '@nextui-org/react';
+import { Chip } from "@heroui/react";
 
 const UsersList = ({ users }: { users: PaginatedResponse<User> | null }) => {
     const [value, setValue] = useState<'list' | 'grid'>('list');

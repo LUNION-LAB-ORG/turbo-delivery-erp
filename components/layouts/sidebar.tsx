@@ -30,7 +30,7 @@ const Sidebar = ({ profile }: { profile: User }) => {
     };
 
     useEffect(() => {
-        const selector = document.querySelector('.sidebar ul a[href="' + window.location.pathname + '"]');
+        const selector = document.querySelector('.sidebar ul a[href="' + window.location.pathname + '"]');        
         if (selector) {
             selector.classList.add('active');
             const ul: any = selector.closest('ul.sub-menu');

@@ -2,7 +2,7 @@
 
 import { User } from '@/types/models';
 import UsersEdit from './users-edit';
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Button } from '@nextui-org/react';
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Button } from "@heroui/react";
 import { useState } from 'react';
 import { IconDotsVertical } from '@tabler/icons-react';
 import UsersDeleteRestaure from './users-delete-restaure';

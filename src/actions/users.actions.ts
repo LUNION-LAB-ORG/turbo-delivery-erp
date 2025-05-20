@@ -4,109 +4,125 @@ import { redirect } from 'next/navigation';
 import { signOut as signOutAuth } from '@/auth';
 
 import { processFormData } from '@/utils/formdata-zod.utilities';
-import { apiClient } from '@/lib/api-client';
-import { ActionResult, PaginatedResponse } from '@/types/index.d';
-import usersEndpoints from '@/src/endpoints/users.endpoint';
+import { ActionResult, PaginatedResponse } from '@/types';
 import { _createUserSchema, changePasswordSchema, createUserSchema, loginSchema } from '../schemas/users.schema';
 import { signIn } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { User } from '@/types/models';
+import { apiClientHttp } from '@/lib/api-client-http';
 
-export async function loginUser(prevState: any, formData: FormData): Promise<ActionResult<any>> {
-    const { success, data: formdata } = processFormData(
-        loginSchema,
-        formData,
-        {
-            useDynamicValidation: true,
-        },
-        prevState,
-    );
+const BASE_URL = '/api/V1/turbo/erp/user';
 
-    if (!success) {
-        prevState.message = 'Email mal formaté';
-        return prevState;
-    }
-    const response = await apiClient.post(usersEndpoints.login, {
-        username: formdata.username,
-        password: formdata.password,
+const usersEndpoints = {
+    base: { endpoint: `${BASE_URL}`, method: 'GET' },
+    login: { endpoint: `${BASE_URL}/login`, method: 'POST' },
+    changePassword: { endpoint: `${BASE_URL}/change/password`, method: 'POST' },
+    profile: { endpoint: `${BASE_URL}/profile`, method: 'GET' },
+    getAll: { endpoint: `${BASE_URL}/get/0`, method: 'GET' },
+    getOne: { endpoint: `${BASE_URL}/info`, method: 'GET' },
+    update: { endpoint: `${BASE_URL}/update`, method: 'POST' },
+    disableEnable: { endpoint: (id: string) => `${BASE_URL}/disable/enable/${id}`, method: 'GET' },
+    deleteRestaure: { endpoint: (id: string) => `${BASE_URL}/delete/restaured/${id}`, method: 'GET' },
+    create: { endpoint: `${BASE_URL}/create`, method: 'POST' },
+};
+
+export async function loginUser(formData: FormData): Promise<ActionResult<any>> {
+    const {
+        success,
+        data: formdata,
+        errorsInArray,
+    } = processFormData(loginSchema, formData, {
+        useDynamicValidation: true,
     });
-    if (response.ok) {
+
+    if (!success && errorsInArray) {
+        return {
+            status: 'error',
+            message: errorsInArray[0].message ?? 'Données manquantes ou mal formatées',
+        };
+    }
+
+    try {
+        await apiClientHttp.request({
+            endpoint: usersEndpoints.login.endpoint,
+            method: usersEndpoints.login.method,
+            data: {
+                username: formdata.username,
+                password: formdata.password,
+            },
+            service: 'erp',
+        });
         await signIn('credentials-user', {
             username: formdata.username,
             password: formdata.password,
             redirect: false,
         });
-        prevState.status = 'success';
-        prevState.message = 'Connexion réussie';
-        return prevState;
-    } else {
-        prevState.status = 'error';
-        let result: any = '';
-        try {
-            result = await response.json();
-            prevState.message = result.message || 'Erreur lors de la connexion';
-        } catch (error) {
-            try {
-                result = await response.text();
-                prevState.message = result || 'Erreur lors de la connexion';
-            } catch (error) {
-                prevState.message = 'Erreur lors de la connexion';
-            }
-        }
-
-        if (response.status === 401) {
-            if (result.code == 'LOG10') {
-                prevState.data = {
-                    changePassword: false,
-                    username: formdata.username,
+        return {
+            status: 'success',
+            message: 'Connexion réussie',
+        };
+    } catch (error: any) {
+        if (error?.response?.status === 401) {
+            if (error?.response?.data?.code == 'LOG10') {
+                return {
+                    status: 'success',
+                    message: error?.response?.data?.message || error?.response?.data || 'Veuillez modifier votre mot de passe',
+                    data: {
+                        changePassword: false,
+                        username: formdata.username,
+                    },
                 };
-                prevState.message = result.message || 'Veuillez modifier votre mot de passe';
             }
         }
 
-        return prevState;
+        return {
+            status: 'error',
+            message: error?.response?.data?.message || error?.response?.data || 'Erreur lors de la connexion',
+        };
     }
 }
 
-export async function changePassword(prevState: any, formData: FormData): Promise<ActionResult<any>> {
-    const { success, data: formdata } = processFormData(
-        changePasswordSchema,
-        formData,
-        {
-            useDynamicValidation: true,
-        },
-        prevState,
-    );
+export async function changePassword(formData: FormData): Promise<ActionResult<any>> {
+    const {
+        success,
+        data: formdata,
+        errorsInArray,
+    } = processFormData(changePasswordSchema, formData, {
+        useDynamicValidation: true,
+    });
 
-    if (!success) {
-        prevState.status = 'error';
-        prevState.message = 'Mot de passe mal formaté';
-        return prevState;
+    if (!success && errorsInArray) {
+        return {
+            status: 'error',
+            message: errorsInArray[0].message ?? 'Données manquantes ou mal formatées',
+        };
     }
 
     if (formdata.newPassword !== formdata.confirm_password) {
-        prevState.status = 'error';
-        prevState.message = 'Mot de passe et la confirmation ne sont pas identique';
-        return prevState;
+        return {
+            status: 'error',
+            message: 'Mot de passe et la confirmation ne sont pas identique',
+        };
     }
+    try {
+        await apiClientHttp.request({
+            endpoint: usersEndpoints.changePassword.endpoint,
+            method: usersEndpoints.changePassword.method,
+            data: {
+                newPassword: formdata.newPassword,
+                oldPassword: formdata.oldPassword,
+                username: formdata.username,
+            },
+            service: 'erp',
+        });
 
-    const response = await apiClient.post(usersEndpoints.changePassword, {
-        newPassword: formdata.newPassword,
-        oldPassword: formdata.oldPassword,
-        username: formdata.username,
-    });
-    const result = await response.json();
-    if (!response.ok) {
-        prevState.status = 'error';
-        prevState.message = result.message || 'Erreur lors du changement de mot de passe';
-        return prevState;
+        redirect('/');
+    } catch (error: any) {
+        return {
+            status: 'error',
+            message: error?.response?.data?.message || error?.response?.data || 'Erreur lors du changement de mot de passe',
+        };
     }
-    console.log(result);
-    prevState.data = result;
-    prevState.status = 'success';
-    prevState.message = 'Changement de mot de passe réussi';
-
-    redirect('/');
 }
 
 export async function signOut(): Promise<void> {
@@ -116,91 +132,106 @@ export async function signOut(): Promise<void> {
 }
 
 export async function getProfile(): Promise<User | null> {
-    const response = await apiClient.get(usersEndpoints.profile);
-    if (!response.ok) {
+    try {
+        const data = await apiClientHttp.request<User>({
+            endpoint: usersEndpoints.profile.endpoint,
+            method: usersEndpoints.profile.method,
+            service: 'erp',
+        });
+
+        return data;
+    } catch (error) {
         return null;
     }
-    const result = await response.json();
-    return result;
 }
+
 export async function getUsers(): Promise<PaginatedResponse<User> | null> {
-    const response = await apiClient.get(usersEndpoints.getAll);
-    if (!response.ok) {
+    try {
+        const data = await apiClientHttp.request<PaginatedResponse<User>>({
+            endpoint: usersEndpoints.getAll.endpoint,
+            method: usersEndpoints.getAll.method,
+            service: 'erp',
+        });
+
+        return data;
+    } catch (error) {
         return null;
     }
-    const result = await response.json();
-    return result;
 }
 
-export async function createUser(prevState: any, formData: FormData): Promise<ActionResult<{ password: string; user: User }>> {
-    const { success, data: formdata } = processFormData(
-        createUserSchema,
-        formData,
-        {
-            useDynamicValidation: true,
-        },
-        prevState,
-    );
+export async function createUser(formData: FormData): Promise<ActionResult<{ password: string; user: User }>> {
+    const {
+        success,
+        data: formdata,
+        errorsInArray,
+    } = processFormData(createUserSchema, formData, {
+        useDynamicValidation: true,
+    });
 
-    if (!success) {
-        prevState.status = 'error';
-        prevState.message = 'Erreur lors de la validation des données';
-        return prevState;
+    if (!success && errorsInArray) {
+        return {
+            status: 'error',
+            message: errorsInArray[0].message ?? 'Données manquantes ou mal formatées',
+        };
     }
+    try {
+        const data = await apiClientHttp.request<{ password: string; user: User }>({
+            endpoint: usersEndpoints.create.endpoint,
+            method: usersEndpoints.create.method,
+            data: formdata,
+            service: 'erp',
+        });
 
-    const response = await apiClient.post(usersEndpoints.create, formdata);
-    if (!response.ok) {
-        prevState.status = 'error';
-        prevState.message = "Erreur lors de la création de l'utilisateur";
-        return prevState;
+        return {
+            status: 'success',
+            message: 'Utilisateur créé avec succès',
+            data,
+        };
+    } catch (error: any) {
+        return {
+            status: 'error',
+            message: error?.response?.data?.message || error?.response?.data || "Erreur lors de la création de l'utilisateur",
+        };
     }
-    const result = await response.json();
-    prevState.data = result;
-    prevState.status = 'success';
-    prevState.message = 'Utilisateur créé avec succès';
-    return prevState;
 }
 
 export async function deleteRestaureUser(id: string, deleted: boolean): Promise<ActionResult<any>> {
-    const response = await apiClient.get(usersEndpoints.deleteRestaure(id));
-    let message = '';
     try {
-        const result = await response.json();
-        message = result.message;
-    } catch (error) {
-        const result = await response.text();
-        message = result;
-    }
-    if (!response.ok) {
+        await apiClientHttp.request<PaginatedResponse<User>>({
+            endpoint: usersEndpoints.deleteRestaure.endpoint(id),
+            method: usersEndpoints.deleteRestaure.method,
+            service: 'erp',
+        });
+
+        return {
+            status: 'success',
+            message: !deleted ? 'Utilisateur supprimé avec succès' : 'Utilisateur restauré avec succès',
+        };
+    } catch (error: any) {
         return {
             status: 'error',
-            message: message ?? (!deleted ? "Erreur lors de la suppression de l'utilisateur" : "Erreur lors de la restauration de l'utilisateur"),
+            message: error?.response?.data?.message || error?.response?.data || (!deleted ? "Erreur lors de la suppression de l'utilisateur" : "Erreur lors de la restauration de l'utilisateur"),
         };
     }
-    return {
-        status: 'success',
-        message: !deleted ? 'Utilisateur supprimé avec succès' : 'Utilisateur restauré avec succès',
-    };
 }
 
 export async function disableEnableUser(id: string, status: number): Promise<ActionResult<User>> {
-    const response = await apiClient.get(usersEndpoints.disableEnable(id));
-    let message = '';
     try {
-        const result = await response.json();
-        message = result.message;
-    } catch (error) {
-        const result = await response.text();
-        message = result;
-    }
-    if (!response.ok) {
+        const data = await apiClientHttp.request<User>({
+            endpoint: usersEndpoints.deleteRestaure.endpoint(id),
+            method: usersEndpoints.deleteRestaure.method,
+            service: 'erp',
+        });
+
+        return {
+            status: 'success',
+            message: status === 1 ? 'Utilisateur désactivé avec succès' : 'Utilisateur activé avec succès',
+            data,
+        };
+    } catch (error: any) {
         return {
             status: 'error',
-            message: message ?? (status === 1 ? "Erreur lors de la désactivation de l'utilisateur" : "Erreur lors de l'activation de l'utilisateur"),
+            message: error?.response?.data?.message || error?.response?.data || (status === 1 ? "Erreur lors de la désactivation de l'utilisateur" : "Erreur lors de l'activation de l'utilisateur"),
         };
     }
-    return {
-        status: 'success',
-        message: status === 1 ? 'Utilisateur désactivé avec succès' : 'Utilisateur activé avec succès',
-    };
 }

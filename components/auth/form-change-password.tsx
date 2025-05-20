@@ -1,21 +1,22 @@
 'use client';
 
-import { Input } from '@nextui-org/react';
+import { Input } from "@heroui/react";
 import { useFormState } from 'react-dom';
 import { SubmitButton } from '@/components/ui/form-ui/submit-button';
 import { body, title } from '@/components/primitives';
 import { Lock } from 'lucide-react';
-import { Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@nextui-org/react';
+import { Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from "@heroui/react";
 import { changePassword } from '@/src/actions/users.actions';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 
+
 export function FormChangePassword({ userName }: { userName: string }) {
     const router = useRouter();
     const [state, formAction] = useFormState(
-        async (prevState: any, formData: FormData) => {
+        async (_: any, formData: FormData) => {
             formData.set('username', userName);
-            const result = await changePassword(prevState, formData);
+            const result = await changePassword(formData);
 
             if (result.status === 'success') {
                 toast.success(result.message || 'Bravo ! vous avez réussi');

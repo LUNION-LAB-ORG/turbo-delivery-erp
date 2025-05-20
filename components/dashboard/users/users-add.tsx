@@ -8,7 +8,7 @@ import { _createUserSchema, createUserSchema } from '@/src/schemas/users.schema'
 import { Role } from '@/types/models';
 import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input, Select, SelectItem, Snippet } from '@nextui-org/react';
+import { Button, Input, Select, SelectItem, Snippet } from "@heroui/react";
 import { useRouter } from 'next/navigation';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
@@ -21,8 +21,8 @@ const UsersAdd = () => {
     const router = useRouter();
 
     const [state, formAction] = useFormState(
-        async (prevState: any, formData: FormData) => {
-            const result = await createUser(prevState, formData);
+        async (_: any, formData: FormData) => {
+            const result = await createUser(formData);
 
             if (result.status === 'success') {
                 toast.success(result.message || 'Bravo ! vous avez réussi');

@@ -1,4 +1,4 @@
-import { tv } from "@nextui-org/theme";
+import { tv } from "@heroui/theme";
 
 export const title = tv({
   base: "tracking-tight inline font-semibold",
@@ -14,10 +14,10 @@ export const title = tv({
       primary: "from-[hsl(var(--primary))] to-[hsl(var(--accent))]",
     },
     size: {
-      h1: "text-5xl lg:text-6xl leading-auto",
-      h2: "text-4xl lg:text-5xl leading-auto",
-      h3: "text-3xl lg:text-4xl leading-auto",
-      h4: "text-2xl lg:text-3xl leading-auto",
+      h1: "text-4xl md:text-5xl lg:text-6xl leading-auto",
+      h2: "text-3xl md:text-4xl lg:text-5xl leading-auto",
+      h3: "text-2xl md:text-3xl lg:text-4xl leading-auto",
+      h4: "text-lg md:text-xl lg:text-3xl leading-auto",
       h5: "text-xl lg:text-2xl leading-auto",
       h6: "text-lg lg:text-xl leading-auto",
     },

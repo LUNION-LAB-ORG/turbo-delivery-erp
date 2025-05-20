@@ -1,47 +1,37 @@
 'use client';
 
 import { DeliveryMan } from '@/types/models';
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Button } from '@nextui-org/react';
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Button } from '@heroui/react';
 import { useState } from 'react';
 import { IconDotsVertical } from '@tabler/icons-react';
 import DeliveryMenValidate from './delivery-men-validate';
+import Link from 'next/link';
 
-const DeliveryMenTools = ({ deliveryMan, value, validateBy = 'no-body' }: { deliveryMan: DeliveryMan; value: 'list' | 'grid'; validateBy: 'auth' | 'ops' | 'no-body' }) => {
+const DeliveryMenTools = ({ deliveryMan, validateBy }: { deliveryMan: DeliveryMan; validateBy: 'auth' | 'ops' | 'no-body' }) => {
     const [open, setOpen] = useState<boolean>(false);
 
     return (
         <>
-            {value === 'list' && (
-                <Dropdown>
-                    <DropdownTrigger>
-                        <Button variant="light" isIconOnly>
-                            <IconDotsVertical />
-                        </Button>
-                    </DropdownTrigger>
-                    <DropdownMenu aria-label="Static Actions">
-                        <DropdownSection showDivider title="Actions">
-                            {validateBy !== 'no-body' ? (
-                                <DropdownItem key="edit" onClick={() => setOpen(true)}>
-                                    Valider
-                                </DropdownItem>
-                            ) : (
-                                <></>
-                            )}
-                        </DropdownSection>
-                    </DropdownMenu>
-                </Dropdown>
-            )}
+            <Dropdown>
+                <DropdownTrigger>
+                    <Button variant="light" isIconOnly>
+                        <IconDotsVertical />
+                    </Button>
+                </DropdownTrigger>
+                <DropdownMenu aria-label="Static Actions">
+                    <DropdownItem as={Link} href={`/delivery-men/${deliveryMan.id}`} key="details">
+                        Détails
+                    </DropdownItem>
 
-            {value === 'grid' && (
-                <div className="absolute bottom-0 mt-6 flex w-full gap-4 p-6 ltr:left-0 rtl:right-0">
-                    {validateBy !== 'no-body' && (
-                        <button type="button" onClick={() => setOpen(true)} className="btn btn-sm btn-outline-primary w-1/2">
+                    {validateBy !== 'no-body' ? (
+                        <DropdownItem key="edit" onClick={() => setOpen(true)}>
                             Valider
-                        </button>
+                        </DropdownItem>
+                    ) : (
+                        <></>
                     )}
-                </div>
-            )}
-
+                </DropdownMenu>
+            </Dropdown>
             <DeliveryMenValidate deliveryMan={deliveryMan} open={open} setOpen={setOpen} validateBy={validateBy} />
         </>
     );

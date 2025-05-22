@@ -21,25 +21,15 @@ export default function Content({ initialItems }: { initialItems: Record<string,
   return (
     <div className="flex flex-col gap-6">
       <div className="flex gap-2 items-center">
-        {/* <Select className="max-w-xs" selectedKeys={period} onSelectionChange={(keys) => setPeriod(keys as any)}>
-                    {periods.map((period: { key: string; label: string }) => (
-                        <SelectItem key={period.key}>{period.label}</SelectItem>
-                    ))}
-                </Select> */}
         <span>Rechercher la période</span>
         <DateRangePicker className="max-w-xs relative" onChange={(value) => handleDateChange(value as RangeValue<CalendarDate>)} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        <Link href={"/tikets-terminers"}>
+        <Link href={'/tikets-terminers'}>
           <CardUI className="p-6 flex flex-col justify-between bg-[#1e98e9] text-white shadow-lg">
             <div className="flex flex-col gap-2 mb-4">
               <div className="text-base font-medium">Total Commande Terminée</div>
-              {/* <Select className="max-w-xs" selectedKeys={period} onSelectionChange={(keys) => setPeriod(keys as any)}>
-                            {periods.map((period: { key: string; label: string }) => (
-                                <SelectItem key={period.key}>{period.label}</SelectItem>
-                            ))}
-                        </Select> */}
             </div>
             <div className="text-3xl font-bold mb-4">
               {formatNumber(items?.chiffreAffaire?.commandeTotalTermine ?? 0)} <br /> FCFA
@@ -72,7 +62,7 @@ export default function Content({ initialItems }: { initialItems: Record<string,
             </Button>
           </div>
         </CardUI>
-        <Link href={"/external_delivery/commande-terminers"}>
+        <Link href={'/external_delivery/commande-terminers'}>
           <CardUI className="p-6  flex flex-col justify-between  bg-[#1F2937] text-white shadow-lg">
             <div className="flex flex-col gap-2 mb-4">
               <div className="text-base font-medium">Total Frais Livraison Terminée</div>

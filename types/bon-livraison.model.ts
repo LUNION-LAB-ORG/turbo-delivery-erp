@@ -5,6 +5,7 @@ export interface BonLivraison {
     restaurant: string;
     coutLivraison: number;
     coutCommande: number;
+    commission?: number;
     date: string;
     heure: {
         hour: number;
@@ -14,3 +15,4 @@ export interface BonLivraison {
     };
     statut: string;
 }
+

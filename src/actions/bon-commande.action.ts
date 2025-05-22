@@ -5,6 +5,7 @@ import { ActionResult } from '@/types';
 import { BonLivraison } from '@/types/bon-livraison.model';
 import { PaginatedResponse } from '@/types';
 import { formatDate } from '@/utils/date-formate';
+import { RangeValue } from '@heroui/react';
 
 // Configuration
 const BASE_URL = '/api/erp/bon-livraison';
@@ -14,7 +15,9 @@ const bonLivraisonEndpoints = {
         endpoint: `${BASE_URL}/tous`,
         method: 'GET',
     },
+    bonLivraisonTerminers: { endpoint: `${BASE_URL}/tous-termines`, method: 'GET' }
 };
+
 
 export async function getBonLivraisonAll(page: number, size: number, date?: string | null): Promise<PaginatedResponse<BonLivraison> | null> {
     try {
@@ -37,5 +40,26 @@ export async function getBonLivraisonAll(page: number, size: number, date?: stri
     } catch (error: any) {
         console.log("error", error)
         return null;
+    }
+}
+
+
+export async function getAllBonLivraisonTerminers(page: number = 0, size: number = 10,
+    { dates: { start, end } }: { dates: RangeValue<string | null> }, typeCommsion: string): Promise<BonLivraison[]> {
+    try {
+        const data = await apiClientHttp.request<BonLivraison[]>({
+            endpoint: bonLivraisonEndpoints.bonLivraisonTerminers.endpoint,
+            method: bonLivraisonEndpoints.bonLivraisonTerminers.method,
+            params: {
+                page: page.toString(),
+                size: size.toString(),
+                debut: start ? formatDate(start, 'YYYY-MM-DD') : '',
+                fin: end ? formatDate(end, 'YYYY-MM-DD') : '',
+                type: typeCommsion
+            }
+        });
+        return data;
+    } catch (error) {
+        return [] as any;
     }
 }

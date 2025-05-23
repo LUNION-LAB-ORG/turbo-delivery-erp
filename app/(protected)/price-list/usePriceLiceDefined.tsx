@@ -52,12 +52,8 @@ export default function usePriceLiceDefined({ initialData }: Props) {
 
   const handleChangeSelectedKey = (key: string) => {
     setSelectedKey(key);
-    // const params = new URLSearchParams(searchParams.toString());
     params.set('restoId', key);
     router.push(`${pathname}?${params.toString()}`);
-
-    console.log({selectedKey:selectedKey});
-    
   };
 
   useEffect(() => {

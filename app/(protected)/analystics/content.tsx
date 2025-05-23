@@ -63,6 +63,7 @@ export default function Content({ initialItems }: { initialItems: Record<string,
           </div>
         </CardUI>
         <Link href={'/ticktes-terminers/frais-livraison'}>
+
           <CardUI className="p-6  flex flex-col justify-between  bg-[#1F2937] text-white shadow-lg">
             <div className="flex flex-col gap-2 mb-4">
               <div className="text-base font-medium">Total Frais Livraison Terminée</div>

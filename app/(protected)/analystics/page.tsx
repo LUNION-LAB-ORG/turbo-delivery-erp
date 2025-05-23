@@ -8,21 +8,24 @@ import { ChiffreAffaireRestaurant } from '@/types/statistiques.model';
 import { getRestaurants } from '@/src/restaurants/restaurants.actions';
 
 export default async function Page() {
-    const deliveryMen = await getDeliveryMen();
-    const restaurants = await getRestaurants(0, 10);
-    const typePlats = await getTypePlats();
-    const users = await getUsers();
-    const chiffreAffaire = await getAllChiffreAffaire();
-    const chiffresAffairesRestaurants: ChiffreAffaireRestaurant[] = await getAllRestaurantChiffreAffaire({ dates: { start: null, end: null } });
+  
+  const [deliveryMen, restaurants, typePlats, users, chiffreAffaire, chiffresAffairesRestaurants] = await Promise.all([
+    getDeliveryMen(),
+    getRestaurants(0, 10),
+    getTypePlats(),
+    getUsers(),
+    getAllChiffreAffaire(),
+    getAllRestaurantChiffreAffaire({ dates: { start: null, end: null } }),
+  ]);
 
-    const initialItems = {
-        deliveryMen,
-        restaurants,
-        typePlats,
-        users,
-        chiffreAffaire,
-        chiffresAffairesRestaurants,
-    };
+  const initialItems = {
+    deliveryMen,
+    restaurants,
+    typePlats,
+    users,
+    chiffreAffaire,
+    chiffresAffairesRestaurants,
+  };
 
-    return <Content initialItems={initialItems} />;
+  return <Content initialItems={initialItems} />;
 }

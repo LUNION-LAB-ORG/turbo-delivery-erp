@@ -52,6 +52,7 @@ export async function getRestaurantDefined(): Promise<RestaurantDefini[]> {
         });
         return data;
     } catch (error: any) {
+        console.log("error+++++++++++++++++++++++++++", error)
         return [];
     }
 }

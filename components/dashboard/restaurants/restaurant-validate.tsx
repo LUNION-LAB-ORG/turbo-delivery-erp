@@ -8,26 +8,47 @@ import React, { Fragment } from 'react';
 import { useFormStatus } from 'react-dom';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { validateRestaurant } from '@/src/restaurants/restaurants.actions';
+import { getRestaurantsNoValidated, getRestaurantsValidated, validateRestaurant } from '@/src/restaurants/restaurants.actions';
+import { PaginatedResponse } from '@/types';
 
 const RestaurantValidate = ({
     restaurant,
     open,
     setOpen,
     validateBy = 'no-body',
+    setData,
+    type
 }: {
     restaurant: Restaurant;
     open: boolean;
     setOpen: (open: boolean) => void;
+    setData?: (data: PaginatedResponse<Restaurant> | null) => void;
     validateBy: 'auth' | 'ops' | 'no-body';
+    type?: string
 }) => {
     const { pending } = useFormStatus();
     const router = useRouter();
+
+    const fetchData = async () => {
+        try {
+            if (type) {
+                const newData = await getRestaurantsNoValidated();
+                setData && setData(newData);
+            } else {
+                const newData = await getRestaurantsValidated();
+                setData && setData(newData);
+            }
+        } catch (error) {
+        }
+    };
+
     const handleSubmit = async () => {
         const result = await validateRestaurant(restaurant.id, validateBy);
         if (result.status === 'success') {
             toast.success(result.message || 'Bravo ! vous avez réussi');
+            setOpen(false)
             router.refresh();
+            await fetchData()
         } else {
             toast.error(result.message || "Erreur lors de l'envoi de l'email");
         }

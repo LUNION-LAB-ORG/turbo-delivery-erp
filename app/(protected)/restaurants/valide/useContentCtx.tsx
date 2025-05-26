@@ -68,7 +68,7 @@ export default function useContentCtx({ initialData }: Props) {
                     </Chip>
                 );
             case 'actions':
-                return <RestaurantTools restaurant={restaurant} validateBy="ops" />;
+                return <RestaurantTools restaurant={restaurant} validateBy="ops" setData={setData} />;
             default:
                 return cellValue;
         }

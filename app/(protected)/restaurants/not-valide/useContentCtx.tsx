@@ -64,7 +64,7 @@ export default function useContentCtx({ initialData }: Props) {
             case 'status':
                 return <Chip size="sm">{cellValue == 1 ? 'Nouveau' : 'Inconnu'}</Chip>;
             case 'actions':
-                return <RestaurantTools restaurant={restaurant} validateBy="auth" />;
+                return <RestaurantTools restaurant={restaurant} validateBy="auth" setData={setData} type={"not-valid"} />;
             default:
                 return cellValue;
         }

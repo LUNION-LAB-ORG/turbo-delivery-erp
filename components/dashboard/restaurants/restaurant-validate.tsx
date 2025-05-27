@@ -18,6 +18,7 @@ const RestaurantValidate = ({
     validateBy = 'no-body',
     setData,
     type
+
 }: {
     restaurant: Restaurant;
     open: boolean;

@@ -20,3 +20,11 @@ interface ILocalDataTime {
     second?: number;
     nano?: number;
 }
+
+export interface FileAttenteStatistiqueVM {
+    coursier?: number;
+    restaurant?: number;
+    commandeEnAttente?: number;
+    commandeTermine?: number;
+}
+

@@ -1,12 +1,13 @@
 'use server';
 
 import { apiClientHttp } from '@/lib/api-client-http';
-import { FilleAttenteHistoriqueVM } from '@/types/file-attente.model';
+import { FileAttenteStatistiqueVM, FilleAttenteHistoriqueVM } from '@/types/file-attente.model';
 
 const BASE_URL = '/api/erp/file-attente';
 
 const fileAttenteEndpoints = {
     fetchFilleAttente: { endpoint: `${BASE_URL}/historique`, method: 'GET' },
+    statistiqueFileAttente: { endpoint: `${BASE_URL}/statistique`, method: "GET" }
 };
 
 
@@ -21,5 +22,19 @@ export async function fetchFilleAttente(): Promise<FilleAttenteHistoriqueVM[]> {
         return data;
     } catch (error) {
         return [];
+    }
+}
+
+export async function fetchStatistiqueFilleAttente(): Promise<FileAttenteStatistiqueVM | null> {
+    try {
+        const data = await apiClientHttp.request<FileAttenteStatistiqueVM>({
+            endpoint: fileAttenteEndpoints.statistiqueFileAttente.endpoint,
+            method: fileAttenteEndpoints.statistiqueFileAttente.method,
+            service: 'backend',
+        });
+
+        return data;
+    } catch (error) {
+        return null;
     }
 }

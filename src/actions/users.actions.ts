@@ -10,6 +10,7 @@ import { signIn } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { User } from '@/types/models';
 import { apiClientHttp } from '@/lib/api-client-http';
+// import api from '@/app/(protected)/config';
 
 const BASE_URL = '/api/V1/turbo/erp/user';
 
@@ -43,7 +44,7 @@ export async function loginUser(formData: FormData): Promise<ActionResult<any>> 
     }
 
     try {
-        await apiClientHttp.request({
+        const result = await apiClientHttp.request({
             endpoint: usersEndpoints.login.endpoint,
             method: usersEndpoints.login.method,
             data: {
@@ -60,6 +61,7 @@ export async function loginUser(formData: FormData): Promise<ActionResult<any>> 
         return {
             status: 'success',
             message: 'Connexion réussie',
+            data: result
         };
     } catch (error: any) {
         if (error?.response?.status === 401) {
@@ -81,6 +83,43 @@ export async function loginUser(formData: FormData): Promise<ActionResult<any>> 
         };
     }
 }
+
+// export async function loginUserV2(formData: FormData): Promise<ActionResult<any>> {
+//     try {
+//         const result = await api.post(usersEndpoints.login.endpoint, formData);
+
+//         if (result.status === 200) {
+//             return {
+//                 status: "success",
+//                 message: "Connexion réussite",
+//                 data: result
+//             }
+//         } else {
+//             return {
+//                 status: "success",
+//                 message: "Une erreur ss'est produite"
+//             }
+//         }
+
+
+//     } catch (error: any) {
+//         if (error?.response?.status === 401) {
+//             console.log("result", error?.response?.data)
+//             if (error?.response?.data?.code == 'LOG10') {
+//                 return {
+//                     status: 'success',
+//                     message: error?.response?.data?.message || error?.response?.data || 'Veuillez modifier votre mot de passe',
+//                     data: error?.response?.data
+//                 };
+//             }
+//         }
+//         return {
+//             status: 'error',
+//             message: error?.response?.data?.detail || error?.response?.data || 'Erreur lors de la connexion',
+//         };
+//     }
+// };
+
 
 export async function changePassword(formData: FormData): Promise<ActionResult<any>> {
     const {
@@ -115,9 +154,13 @@ export async function changePassword(formData: FormData): Promise<ActionResult<a
             },
             service: 'erp',
         });
-
-        redirect('/');
+        return {
+            status: "success",
+            message: "Mot de passe modifié avec succès"
+        }
+        // redirect('/');
     } catch (error: any) {
+        console.log("error++++++++++----------------", error)
         return {
             status: 'error',
             message: error?.response?.data?.message || error?.response?.data || 'Erreur lors du changement de mot de passe',
@@ -141,6 +184,7 @@ export async function getProfile(): Promise<User | null> {
 
         return data;
     } catch (error) {
+        console.log("profile++++++++++++", error)
         return null;
     }
 }

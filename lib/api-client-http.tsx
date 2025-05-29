@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 
 export type ServiceType = 'erp' | 'restaurant' | 'livreur' | 'client' | 'backend';
 
-class ApiClientHttp {
+export class ApiClientHttp {
     private axiosInstance: AxiosInstance;
 
     constructor(baseUrl: string) {

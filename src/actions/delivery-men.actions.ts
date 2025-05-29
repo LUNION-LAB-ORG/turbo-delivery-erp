@@ -10,7 +10,7 @@ const BASE_URL = '/api/erp';
 
 const deliveryMenEndpoints = {
     getLivreursDisponible: { endpoint: `${BASE_URL}/livreur/disponible`, method: 'GET' },
-    getAll: { endpoint: `${BASE_URL}/valid/livreur/opsmanager`, method: 'GET' },
+    getAll: { endpoint: `${BASE_URL}/livreur/valid/opsmanager`, method: 'GET' },
     getAllValidated: { endpoint: `${BASE_URL}/livreur/valid/authserv`, method: 'GET' },
     getAllNoValidated: { endpoint: `${BASE_URL}/livreur/invalid`, method: 'GET' },
     validateAuth: { endpoint: (id: string) => `${BASE_URL}/livreur/enable/authserv/${id}`, method: 'GET' },

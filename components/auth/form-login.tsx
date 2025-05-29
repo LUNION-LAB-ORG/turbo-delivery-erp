@@ -16,14 +16,12 @@ export function FormLogin() {
     const [state, formAction] = useFormState(
         async (_: any, formData: FormData) => {
             const result = await loginUser(formData);
-            router.push('/');
-            // if (result.status === 'error') {
-            //     toast.error(result.message);
-            // } else {
-            //     toast.success(result.message);
-            //     router.push('/');
-            // }
-
+            if (result.status === 'error') {
+                toast.error(result.message);
+            } else {
+                toast.success(result.message);
+                router.push('/');
+            }
             return result;
         },
         {
@@ -36,10 +34,9 @@ export function FormLogin() {
             code: undefined,
         },
     );
-
     return (
         <>
-            {!state.data?.changePassword && <FormChangePassword userName={state.data?.username} />}
+            {(state.data && !state.data?.changePassword) && <FormChangePassword userName={state.data?.username} />}
             <form className="space-y-5 dark:text-white" action={formAction}>
                 <div>
                     <label htmlFor="username">Nom d&apos;utilisateur</label>

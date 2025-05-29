@@ -11,7 +11,9 @@ import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 
 
-export function FormChangePassword({ userName }: { userName: string }) {
+export function FormChangePassword({ userName }: {
+    userName: string
+}) {
     const router = useRouter();
     const [state, formAction] = useFormState(
         async (_: any, formData: FormData) => {
@@ -20,6 +22,7 @@ export function FormChangePassword({ userName }: { userName: string }) {
 
             if (result.status === 'success') {
                 toast.success(result.message || 'Bravo ! vous avez réussi');
+                router.push('/');
                 router.refresh();
             } else {
                 toast.error(result.message || "Erreur lors de l'envoi de l'email");

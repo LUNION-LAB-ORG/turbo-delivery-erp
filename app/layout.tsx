@@ -15,6 +15,7 @@ export const metadata: Metadata = {
     icons: {
         icon: '/favicon.ico',
         apple: '/apple-icon.png',
+
     },
     referrer: 'origin-when-cross-origin',
     keywords: [

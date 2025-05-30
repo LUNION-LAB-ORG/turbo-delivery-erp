@@ -46,7 +46,7 @@ const menuData: IMenuData[] = [
         children: [
             { icon: TbTruckDelivery, title: 'external_delivery_new', path: '/external_delivery' },
             { icon: TbTruckDelivery, title: 'external_delivery_all', path: '/external_delivery/all' },
-            { icon: TbMoneybag, title: 'gestion_de_paie', path: '/external_delivery/gestion_de_paie' },
+            // { icon: TbMoneybag, title: 'gestion_de_paie', path: '/external_delivery/gestion_de_paie' },
         ],
     },
     { icon: AiOutlineDollarCircle, title: 'price-list', path: '/price-list' },
@@ -55,13 +55,13 @@ const menuData: IMenuData[] = [
         icon: IconMotorbike,
         title: 'slot',
         children: [
-          { icon: IconBuildingSkyscraper, title: 'slot', path: '/delivery-men/slot' },
-                    { icon: IconBuildingSkyscraper, title: 'slot-progression', path: '/delivery-men/creneau-progression' },
-                    { icon: IconBuildingSkyscraper, title: 'performance', path: '/delivery-men/performance' },  
+            { icon: IconBuildingSkyscraper, title: 'slot', path: '/delivery-men/slot' },
+            { icon: IconBuildingSkyscraper, title: 'slot-progression', path: '/delivery-men/creneau-progression' },
+            { icon: IconBuildingSkyscraper, title: 'performance', path: '/delivery-men/performance' },
 
         ],
     },
-    
+
     { icon: Bell, title: 'notification', path: '/notification' },
 
     // {

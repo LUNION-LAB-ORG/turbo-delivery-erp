@@ -24,7 +24,7 @@ export function InitierPaiementModal({ details, isOpen, onClose }: InitierPaieme
                                 <div className="flex justify-between mb-5">
                                     <div className="flex flex-col gap-1">
                                         <span className="text-gray-500 font-bold text-xl">{details && details?.nomComplet}</span>
-                                        <span className="text-sm text-gray-500">Le paiement sera envoyé sur l'interface d'application du livreur</span>
+                                        <span className="text-sm text-gray-500">Le paiement sera envoyé sur l&apos;interface d&apos;application du livreur</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-2 mb-4 card p-4 border-1 rounded-lg">

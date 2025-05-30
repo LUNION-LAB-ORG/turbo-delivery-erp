@@ -44,6 +44,7 @@ export async function loginUser(formData: FormData): Promise<ActionResult<any>> 
     }
 
     try {
+        // Request to login
         const result = await apiClientHttp.request({
             endpoint: usersEndpoints.login.endpoint,
             method: usersEndpoints.login.method,
@@ -53,11 +54,14 @@ export async function loginUser(formData: FormData): Promise<ActionResult<any>> 
             },
             service: 'erp',
         });
+
+        // Sauvegarde avec NextAuth
         await signIn('credentials-user', {
             username: formdata.username,
             password: formdata.password,
             redirect: false,
         });
+
         return {
             status: 'success',
             message: 'Connexion réussie',
@@ -67,7 +71,7 @@ export async function loginUser(formData: FormData): Promise<ActionResult<any>> 
         if (error?.response?.status === 401) {
             if (error?.response?.data?.code == 'LOG10') {
                 return {
-                    status: 'success',
+                    status: 'error',
                     message: error?.response?.data?.message || error?.response?.data || 'Veuillez modifier votre mot de passe',
                     data: {
                         changePassword: false,

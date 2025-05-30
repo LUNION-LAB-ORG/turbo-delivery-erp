@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import IconSearch from '@/components/icon/icon-search';
 import IconXCircle from '@/components/icon/icon-x-circle';
-const searchComponent = () => {
+
+const SearchComponent = () => {
     const [search, setSearch] = useState(false);
 
     return (
@@ -32,4 +33,4 @@ const searchComponent = () => {
     );
 };
 
-export default searchComponent;
+export default SearchComponent;

@@ -28,7 +28,6 @@ export class ApiClientHttp {
 
         // Interceptor pour ajouter les en-têtes
         this.axiosInstance.interceptors.request.use(async (config) => {
-            // console.log(config)
             return config;
             // const headers = await this.setHeaders();
             // config.headers = headers;
@@ -108,8 +107,7 @@ export class ApiClientHttp {
         try {
             const queryString = new URLSearchParams(params).toString();
             const url = `${endpoint.trim()}${queryString ? `?${queryString}` : ''}`;
-
-
+         
             switch (method.trim().toLowerCase()) {
                 case 'post':
                     return (await this.axiosInstance.post(url, data, config)).data;
@@ -135,8 +133,9 @@ export class ApiClientHttp {
                     data: error.response?.data,
                 });
             } else {
-                console.error('Unknown API error:', error);
+                console.error('API error inconnue:', error);
             }
+           
             throw error;
         }
     }

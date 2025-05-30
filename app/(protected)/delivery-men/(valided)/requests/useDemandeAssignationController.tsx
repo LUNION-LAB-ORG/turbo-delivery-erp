@@ -25,7 +25,7 @@ export function useDemandeAssignationController(demandeAssignations: DemandeAssi
     } else {
       setData(demandeAssignations);
     }
-  }, [selectValue]);
+  }, [selectValue, demandeAssignations]);
 
   const recupererStatut = (sttatutDemandeAssignation?: string) => {
     switch (sttatutDemandeAssignation) {
@@ -108,7 +108,7 @@ export function useDemandeAssignationController(demandeAssignations: DemandeAssi
         toast.error(error.message || "Une erreur s'est produite !");
       }
     };
-    confirm.openConfirmDialog(confirmAndRemove)
+    confirm.openConfirmDialog(confirmAndRemove);
     router.refresh();
   };
 

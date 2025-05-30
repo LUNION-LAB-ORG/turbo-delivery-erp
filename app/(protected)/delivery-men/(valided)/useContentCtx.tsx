@@ -58,7 +58,7 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
     } else {
       setData(initialData);
     }
-  }, []);
+  }, [searchKey, initialData]);
 
   // Fonction de récupération des données
   const fetchData = async (page: number) => {

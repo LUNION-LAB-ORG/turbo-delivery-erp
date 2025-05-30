@@ -43,49 +43,36 @@ export async function loginUser(formData: FormData): Promise<ActionResult<any>> 
         };
     }
 
-    try {
-        // Request to login
-        const result = await apiClientHttp.request({
-            endpoint: usersEndpoints.login.endpoint,
-            method: usersEndpoints.login.method,
-            data: {
-                username: formdata.username,
-                password: formdata.password,
-            },
-            service: 'erp',
-        });
-
-        // Sauvegarde avec NextAuth
-        await signIn('credentials-user', {
-            username: formdata.username,
-            password: formdata.password,
-            redirect: false,
-        });
-
-        return {
-            status: 'success',
-            message: 'Connexion réussie',
-            data: result
-        };
-    } catch (error: any) {
-        if (error?.response?.status === 401) {
-            if (error?.response?.data?.code == 'LOG10') {
-                return {
-                    status: 'error',
-                    message: error?.response?.data?.message || error?.response?.data || 'Veuillez modifier votre mot de passe',
-                    data: {
-                        changePassword: false,
-                        username: formdata.username,
-                    },
-                };
-            }
-        }
-
+    // Request to login
+    const result = await fetch(`${process.env.NEXT_PUBLIC_API_ERP_URL}${usersEndpoints.login.endpoint}`, {
+        method: usersEndpoints.login.method,
+        body: JSON.stringify({ username: formdata.username, password: formdata.password }),
+        headers: { 'Content-Type': 'application/json' },
+    });
+    const json = await result.json();
+    if (!result.ok) {
         return {
             status: 'error',
-            message: error?.response?.data?.message || error?.response?.data || 'Erreur lors de la connexion',
+            message: json.message || 'Veuillez modifier votre mot de passe',
+            data: {
+                changePassword: false,
+                username: json.user.username,
+            },
         };
     }
+
+    // // Sauvegarde avec NextAuth, gestion de la session
+    await signIn('credentials-user', {
+        username: formdata.username,
+        password: formdata.password,
+        redirect: false,
+    });
+
+    return {
+        status: 'success',
+        message: 'Connexion réussie',
+        data: json
+    };
 }
 
 // export async function loginUserV2(formData: FormData): Promise<ActionResult<any>> {
@@ -164,7 +151,6 @@ export async function changePassword(formData: FormData): Promise<ActionResult<a
         }
         // redirect('/');
     } catch (error: any) {
-        console.log("error++++++++++----------------", error)
         return {
             status: 'error',
             message: error?.response?.data?.message || error?.response?.data || 'Erreur lors du changement de mot de passe',

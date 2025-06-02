@@ -19,7 +19,7 @@ interface Props {
 }
 export default function Content({ initialData, restaurants }: Props) {
     const livreurAssigneCtrl = useTurboAssigneController(initialData, restaurants);
-    console.log("initialData", initialData)
+
     return (
         <div className="container mx-auto p-6 pt-0 flex-wrap">
             <SearchField searchKey={livreurAssigneCtrl.searchKey} onChange={livreurAssigneCtrl.setSearchKey} />

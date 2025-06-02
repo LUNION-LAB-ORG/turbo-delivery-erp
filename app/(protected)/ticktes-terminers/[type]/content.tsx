@@ -9,6 +9,7 @@ import { BonLivraison } from '@/types/bon-livraison.model';
 import { PaginatedResponse } from '@/types';
 import { SelectField } from '@/components/commons/form/select-field';
 import { Restaurant } from '@/types/models';
+import { TicketTermineReportingDialog } from '@/components/ticket-terminers/reporting-dialog';
 
 interface ContentProps {
   initialData: BonLivraison[] | null;
@@ -16,7 +17,9 @@ interface ContentProps {
 }
 
 export default function Content({ initialData, restaurants }: ContentProps) {
-  const { columns, renderCell, data, handlePageChange, currentPage, isLoading, handleDateChange, type, handleCangeRestaurant } = useContentCtx({ initialData, restaurants });
+  const { columns, renderCell, data, handlePageChange,
+    currentPage, isLoading, handleDateChange,
+    type, handleCangeRestaurant, onClose, onOpen, restaurant, isOpen } = useContentCtx({ initialData, restaurants });
   return (
     <div className="w-full h-full pb-10 flex flex-1 flex-col gap-4 min-w[200px] overflow-auto ">
       <span className="ml-2">Rechercher par période</span>
@@ -106,11 +109,12 @@ export default function Content({ initialData, restaurants }: ContentProps) {
               </div>
             </div>
           )}
-          <Button className="bg-primary h-10 text-white mt-2 lg:mt-0  xl:mt-0">
+          <Button className="bg-primary h-10 text-white mt-2 lg:mt-0  xl:mt-0" onPress={onOpen}>
             <Printer size={20} /> Imprimer
           </Button>
         </div>
       </div>
+      <TicketTermineReportingDialog restaurant={restaurant} isOpen={isOpen} onClose={onClose} />
     </div>
   );
 }

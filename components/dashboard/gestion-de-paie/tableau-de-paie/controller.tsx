@@ -11,7 +11,7 @@ export function useTableauDePaiController(initialData: PaieErpVM | null, searchK
     const [nonEligible, setNonEligible] = useState<boolean>(false);
 
     useEffect(() => {
-        if (searchKey) {
+        if (searchKey && initialData) {
             const newData = initialData?.paies?.filter((item) =>
                 item?.nomComplet?.toLowerCase().includes(searchKey.toLocaleLowerCase()));
             if (newData) {
@@ -39,7 +39,7 @@ export function useTableauDePaiController(initialData: PaieErpVM | null, searchK
     };
     const conditionValidation = (items: PaieParLivreur) => {
         const isNotValid = !items?.joursTravaille?.map(((item: InfoParJour) => item.statut)).includes("VALIDE");
-        const isNotValidWeekend = !items.weekEnd?.map((item: InfoParJour) => item.statut).includes("VALIDE");
+        const isNotValidWeekend = !items?.weekEnd?.map((item: InfoParJour) => item.statut).includes("VALIDE");
         switch (isNotValidWeekend) {
             case false:
                 return <div className="flex"><CircleCheckBig size={20} />
@@ -51,7 +51,7 @@ export function useTableauDePaiController(initialData: PaieErpVM | null, searchK
         }
     }
     const openDetailModal = (item: PaieParLivreur) => {
-        const isNotValid = !item.joursTravaille?.map(((item: any) => item.isWorking)).includes("VALIDE");
+        const isNotValid = !item?.joursTravaille?.map(((item: any) => item.isWorking)).includes("VALIDE");
         setNonEligible(isNotValid)
         setDetails(item);
         onOpen();
@@ -59,7 +59,7 @@ export function useTableauDePaiController(initialData: PaieErpVM | null, searchK
 
     const recupererStatutJours = (jours?: InfoParJour) => {
         if (jours && jours.statut === "VALIDE") {
-            return <Chip className={`bg-yellow-400 mr-1 text-white`} size="sm" >{jours.jour?.charAt(0).toUpperCase()}</Chip>
+            return <Chip className={`bg-yellow-400 mr-1 text-white`} size="sm" >{jours?.jour?.charAt(0).toUpperCase()}</Chip>
         } else {
             return <Chip className={`bg-primary/70 mr-1 text-white`} size="sm" >{jours?.jour?.charAt(0).toUpperCase()}</Chip>
         }
@@ -67,7 +67,7 @@ export function useTableauDePaiController(initialData: PaieErpVM | null, searchK
 
     const recupererStatutJoursWeekend = (weekend?: InfoParJour) => {
         if (weekend && weekend.statut === "VALIDE") {
-            return <Chip className={`bg-green-500 mr-1 text-white`} size="sm" >{weekend.jour?.charAt(0).toLowerCase()}</Chip>
+            return <Chip className={`bg-green-500 mr-1 text-white`} size="sm" >{weekend?.jour?.charAt(0).toLowerCase()}</Chip>
         } else {
             return <Chip className={`bg-gray-300 mr-1 text-white`} size="sm" >{weekend?.jour?.charAt(0).toLowerCase()}</Chip>
         }

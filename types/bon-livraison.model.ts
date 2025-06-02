@@ -16,3 +16,13 @@ export interface BonLivraison {
     statut: string;
 }
 
+export type FormatsSupportes = "PDF" | "EXCEL" | "HTML";
+export type TypeCommission = 'POURCENTAGE' | 'FIXE';
+
+export interface ParametreBonLivraisonFacture {
+    restaurantId: string;
+    debut?: string;
+    fin?: string;
+    type?: TypeCommission
+    format: FormatsSupportes
+}

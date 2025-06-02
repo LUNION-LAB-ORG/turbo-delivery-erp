@@ -4,7 +4,7 @@ import { getAllBonLivraisonTerminers } from '@/src/actions/bon-commande.action';
 import { BonLivraison } from '@/types/bon-livraison.model';
 import { Restaurant } from '@/types/models';
 
-import { CalendarDate, RangeValue, Switch } from '@heroui/react';
+import { CalendarDate, RangeValue, Switch, useDisclosure } from '@heroui/react';
 import { useParams } from 'next/navigation';
 import { Key, useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
@@ -25,11 +25,13 @@ interface Props {
 }
 
 export default function useContentCtx({ initialData, restaurants }: Props) {
+    const { isOpen, onOpen, onClose } = useDisclosure();
     const { type } = useParams();
     const [isLoading, setIsLoading] = useState(!initialData);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize] = useState(10);
     const [data, setData] = useState<BonLivraison[] | null>(initialData);
+    const [restaurant, setRestaurant] = useState<Restaurant | undefined>(undefined)
 
     const [dates, setDates] = useState<RangeValue<CalendarDate> | null>(null);
 
@@ -68,7 +70,7 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
     const handleCangeRestaurant = (restaurantId: any) => {
         const restaurant = restaurants?.find((item) => item.id === restaurantId);
         if (!initialData) return;
-
+        setRestaurant(restaurant)
         const dataFilter = initialData?.filter((item) =>
             item.restaurant.toLocaleLowerCase().includes(restaurant?.nomEtablissement?.toLocaleLowerCase() ?? "")
         ) || [];
@@ -101,9 +103,9 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
                     return "";
             }
         }
-
-
     }, []);
+
+
 
     return {
         renderCell,
@@ -114,6 +116,9 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
         isLoading,
         handleDateChange,
         type,
-        handleCangeRestaurant
+        handleCangeRestaurant,
+        onOpen,
+        onClose,
+        restaurant, isOpen
     };
 }

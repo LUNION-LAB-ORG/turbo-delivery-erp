@@ -69,7 +69,7 @@ export function useGestionPaieController(initialData: PaieErpVM | null) {
     //Méthode pour groupé les jours de travail par jour unique
     const regrouperJoursTravailParJour = () => {
         const joursRegroupes: JourTravailGroupe = {};
-        if (datas?.paies) {
+        if (datas && datas?.paies) {
             for (const data of datas?.paies) {
                 if (data?.joursTravaille) {
                     for (const jourTravail of data?.joursTravaille) {
@@ -160,23 +160,23 @@ export function useGestionPaieController(initialData: PaieErpVM | null) {
 
     //Méthode recuperer tout les jours qui ont été validé
     const joursDeTravailsValides = (jour: number): boolean => {
-        if (intervalSelectionnee.includes(jour)) {
-            const indexDay = intervalSelectionnee.findIndex((item) => item === jour)
+        if (intervalSelectionnee && intervalSelectionnee.includes(jour)) {
+            const indexDay = intervalSelectionnee?.findIndex((item) => item === jour)
             switch (indexDay) {
                 case 0:
-                    return joursTravailgroupes["LUNDI"].map((item) => item.statut).includes("VALIDE")
+                    return joursTravailgroupes["LUNDI"]?.map((item) => item.statut).includes("VALIDE")
                 case 1:
-                    return joursTravailgroupes["MARDI"].map((item) => item.statut).includes("VALIDE")
+                    return joursTravailgroupes["MARDI"]?.map((item) => item.statut).includes("VALIDE")
                 case 2:
-                    return joursTravailgroupes["MERCREDI"].map((item) => item.statut).includes("VALIDE")
+                    return joursTravailgroupes["MERCREDI"]?.map((item) => item.statut).includes("VALIDE")
                 case 3:
-                    return joursTravailgroupes["JEUDI"].map((item) => item.statut).includes("VALIDE")
+                    return joursTravailgroupes["JEUDI"]?.map((item) => item.statut).includes("VALIDE")
                 case 4:
-                    return joursTravailgroupes["VENDREDI"].map((item) => item.statut).includes("VALIDE")
+                    return joursTravailgroupes["VENDREDI"]?.map((item) => item.statut).includes("VALIDE")
                 case 5:
-                    return joursTravailgroupes["SAMEDI"].map((item) => item.statut).includes("VALIDE")
+                    return joursTravailgroupes["SAMEDI"]?.map((item) => item.statut).includes("VALIDE")
                 case 6:
-                    return joursTravailgroupes["SAMEDI"].map((item) => item.statut).includes("VALIDE")
+                    return joursTravailgroupes["SAMEDI"]?.map((item) => item.statut).includes("VALIDE")
                 default: {
                     return false;
                 }

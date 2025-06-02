@@ -2,20 +2,22 @@
 
 import { apiClientHttp } from '@/lib/api-client-http';
 import { ActionResult } from '@/types';
-import { BonLivraison } from '@/types/bon-livraison.model';
+import { BonLivraison, ParametreBonLivraisonFacture } from '@/types/bon-livraison.model';
 import { PaginatedResponse } from '@/types';
 import { formatDate } from '@/utils/date-formate';
 import { RangeValue } from '@heroui/react';
-
+import axios from 'axios';
 // Configuration
 const BASE_URL = '/api/erp/bon-livraison';
+const BASE_URL_2 = '/api/export/reporting';
 
 const bonLivraisonEndpoints = {
     getBonLivraisonAll: {
         endpoint: `${BASE_URL}/tous`,
         method: 'GET',
     },
-    bonLivraisonTerminers: { endpoint: `${BASE_URL}/tous-termines`, method: 'GET' }
+    bonLivraisonTerminers: { endpoint: `${BASE_URL}/tous-termines`, method: 'GET' },
+    reportingBonLivraison: { endpoint: `${BASE_URL_2}/facture-bon-livraison`, method: "POST" }
 };
 
 
@@ -38,7 +40,6 @@ export async function getBonLivraisonAll(page: number, size: number, date?: stri
         });
         return data;
     } catch (error: any) {
-        console.log("error", error)
         return null;
     }
 }
@@ -60,6 +61,22 @@ export async function getAllBonLivraisonTerminers(page: number = 0, size: number
         });
         return data;
     } catch (error) {
-        return [] as any;
+        return error as any;
+    }
+};
+
+export async function reportingBonLivraisonTerminers(parametre: ParametreBonLivraisonFacture): Promise<Blob | null> {
+    try {
+        // const data = await apiClientHttp.request<Blob>({
+        //     endpoint: bonLivraisonEndpoints.reportingBonLivraison.endpoint,
+        //     method: bonLivraisonEndpoints.reportingBonLivraison.method,
+        //     data: parametre,
+        //     service: 'backend',
+        // });
+        const data = (await axios.post(`${process.env.NEXT_PUBLIC_API_BACKEND_URL}${bonLivraisonEndpoints.reportingBonLivraison.endpoint}`, parametre))?.data
+        return data;
+    } catch (error) {
+        console.log("error++++++++++++++", error)
+        return null;
     }
 }

@@ -30,7 +30,7 @@ export const PeriodeDePaie = ({
                             className="min-w-[200px] flex justify-between items-center px-4 py-2 rounded-full border-gray-300"
                         >
                             <ChevronLeft className="text-gray-500 cursor-pointer" onClick={handlePrevious} />
-                            {periodes[selectedPeriodIndex]}
+                            {periodes && periodes[selectedPeriodIndex]}
                             <ChevronRight className="text-gray-500 cursor-pointer" onClick={handleNext} />
                         </Button>
                     </DropdownTrigger>

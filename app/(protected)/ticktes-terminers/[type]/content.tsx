@@ -98,7 +98,7 @@ export default function Content({ initialData, restaurants }: ContentProps) {
               </div>
             </div>
           </div>
-          {type !== 'chiffre-affaire' && (
+          {(type === 'POURCENTAGE' || type === 'FIXE') && (
             <div className="border border-primary/50 rounded-lg mt-2 pl-2 pr-2 lg:mt-0  xl:mt-0">
               <div className="flex gap-2 items-center">
                 <CircleDollarSign size={25} className="text-primary font-[1000]" />

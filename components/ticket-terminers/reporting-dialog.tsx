@@ -65,7 +65,7 @@ export function TicketTermineReportingDialog({ isOpen, onClose, restaurant }: Pr
                     </div>
                     <div className="flex justify-end">
                         <div className="flex gap-2">
-                            <Button onPress={ctrl.onPreview} className="h-10  text-md">Previsuliser</Button>
+                            <Button onPress={ctrl.onPreview} className="h-10  text-md" disabled={!!(ctrl.form.watch("format") === "EXCEL")}>Previsuliser</Button>
                             <Button onPress={ctrl.onexportFile} className="h-10 bg-primary text-white font-bold text-md">Exporter</Button>
                         </div>
                     </div>

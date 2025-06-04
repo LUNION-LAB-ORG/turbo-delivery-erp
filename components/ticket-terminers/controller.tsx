@@ -25,16 +25,16 @@ export function useReportingController(restaurant?: Restaurant) {
         await form.trigger();
         const data: TypeReportingSchema = form.getValues();
         try {
-            const response = await reportingBonLivraisonTerminers({
+            const result = await reportingBonLivraisonTerminers({
                 restaurantId: restaurant ? restaurant?.id : "",
                 debut: data.debut ?? "",
                 fin: data.fin ?? "",
                 type: undefined,
                 format: data.format as FormatsSupportes
             });
-
-            if (response) {
-                const file = new Blob([response], { type: "application/pdf" });
+            if (result) {
+                const uint8Array = new Uint8Array(result);
+                const file = new Blob([uint8Array], { type: "application/pdf" });
                 const fileURL = URL.createObjectURL(file);
                 window.open(fileURL, "_blank");
             }
@@ -58,20 +58,23 @@ export function useReportingController(restaurant?: Restaurant) {
                 restaurantId: data.restaurantId,
                 debut: data.debut ?? "",
                 fin: data.fin ?? "",
-                type: data.type as TypeCommission,
+                type: undefined,
                 format: data.format as FormatsSupportes
             });
-            console.log("result", result)
+
             if (data?.format === "PDF" && result != null) {
+                const uint8Array = new Uint8Array(result);
                 try {
-                    saveAsPDFFile(result, "bon-de-livraison-termine");
+
+                    saveAsPDFFile(uint8Array, "bon-de-livraison-termine");
                 } catch (e) {
                     console.log("Erreur lors de l'exportation du fichier pdf");
                 }
             }
             if (data?.format === "EXCEL" && result != null) {
+                const uint8Array = new Uint8Array(result);
                 try {
-                    saveAsExcelFile(result, "bon-de-livraison-termine");
+                    saveAsExcelFile(uint8Array, "bon-de-livraison-termine");
                 } catch (e) {
                     console.log("Erreur lors de l'exportation du fichier pdf");
                 }

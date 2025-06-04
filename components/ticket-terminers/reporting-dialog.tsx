@@ -16,7 +16,7 @@ export function TicketTermineReportingDialog({ isOpen, onClose, restaurant }: Pr
         <Modal isOpen={isOpen} size={"md"} onClose={onClose} >
             <ModalContent>
                 <ModalBody className="p-5">
-                    <div className="text-center text-primary">Imprimer les bon bons de livraison du restaurant: <span className="font-bold">{restaurant ? restaurant?.nomEtablissement : "Aucun restaurant"}</span></div>
+                    <div className="text-center text-primary">Imprimez les bons de livraison du restaurant: <span className="font-bold">{restaurant ? restaurant?.nomEtablissement : "Aucun restaurant"}</span></div>
                     <div className="grid grid-cols-1 gap-4">
                         <Controller name="debut" control={ctrl.form.control}
                             render={({ field }) =>

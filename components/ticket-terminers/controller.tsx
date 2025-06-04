@@ -29,7 +29,7 @@ export function useReportingController(restaurant?: Restaurant) {
                 restaurantId: restaurant ? restaurant?.id : "",
                 debut: data.debut ?? "",
                 fin: data.fin ?? "",
-                type: undefined,
+                type: data.type as TypeCommission,
                 format: data.format as FormatsSupportes
             });
             if (result) {
@@ -58,7 +58,7 @@ export function useReportingController(restaurant?: Restaurant) {
                 restaurantId: data.restaurantId,
                 debut: data.debut ?? "",
                 fin: data.fin ?? "",
-                type: undefined,
+                type: data.type as TypeCommission,
                 format: data.format as FormatsSupportes
             });
 

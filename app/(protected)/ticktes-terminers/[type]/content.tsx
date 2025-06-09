@@ -9,7 +9,6 @@ import { BonLivraison } from '@/types/bon-livraison.model';
 import { PaginatedResponse } from '@/types';
 import { SelectField } from '@/components/commons/form/select-field';
 import { Restaurant } from '@/types/models';
-import { TicketTermineReportingDialog } from '@/components/ticket-terminers/reporting-dialog';
 
 interface ContentProps {
   initialData: BonLivraison[] | null;
@@ -17,9 +16,7 @@ interface ContentProps {
 }
 
 export default function Content({ initialData, restaurants }: ContentProps) {
-  const { columns, renderCell, data, handlePageChange,
-    currentPage, isLoading, handleDateChange,
-    type, handleCangeRestaurant, onClose, onOpen, restaurant, isOpen } = useContentCtx({ initialData, restaurants });
+  const { columns, renderCell, data, handlePageChange, currentPage, isLoading, handleDateChange, type, handleCangeRestaurant } = useContentCtx({ initialData, restaurants });
   return (
     <div className="w-full h-full pb-10 flex flex-1 flex-col gap-4 min-w[200px] overflow-auto ">
       <span className="ml-2">Rechercher par période</span>
@@ -98,7 +95,7 @@ export default function Content({ initialData, restaurants }: ContentProps) {
               </div>
             </div>
           </div>
-          {(type === 'POURCENTAGE' || type === 'FIXE') && (
+          {type !== 'chiffre-affaire' && (
             <div className="border border-primary/50 rounded-lg mt-2 pl-2 pr-2 lg:mt-0  xl:mt-0">
               <div className="flex gap-2 items-center">
                 <CircleDollarSign size={25} className="text-primary font-[1000]" />
@@ -109,12 +106,11 @@ export default function Content({ initialData, restaurants }: ContentProps) {
               </div>
             </div>
           )}
-          <Button className="bg-primary h-10 text-white mt-2 lg:mt-0  xl:mt-0" onPress={onOpen}>
+          <Button className="bg-primary h-10 text-white mt-2 lg:mt-0  xl:mt-0">
             <Printer size={20} /> Imprimer
           </Button>
         </div>
       </div>
-      <TicketTermineReportingDialog restaurant={restaurant} isOpen={isOpen} onClose={onClose} />
     </div>
   );
 }

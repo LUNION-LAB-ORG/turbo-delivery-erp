@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
-import { getToutLivreurStatusNonAssigners } from '@/src/actions/delivery-men.actions';
+import { getDeliveryMen, getToutLivreurStatusNonAssigners } from '@/src/actions/delivery-men.actions';
 import { PaginatedResponse } from '@/types';
-import { LivreurStatutVM } from '@/types/models';
+import { DeliveryMan, LivreurStatutVM } from '@/types/models';
 import Content from './content';
 import { allRestaurants } from '@/src/restaurants/restaurants.actions';
 

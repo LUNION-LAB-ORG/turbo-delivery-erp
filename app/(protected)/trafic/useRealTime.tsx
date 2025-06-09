@@ -4,7 +4,6 @@ import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 
 export default function useRealTime({ data, setData }: { data: LivreurDisponible[]; setData: Dispatch<SetStateAction<LivreurDisponible[]>> }) {
     const [isConnected, setIsConnected] = useState<boolean>(socket.connected);
-    
     useEffect(() => {
         function onConnect() {
             setIsConnected(true);

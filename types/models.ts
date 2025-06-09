@@ -46,7 +46,6 @@ export interface Restaurant {
     localisation: string;
     siteWeb: string | null;
     logo: string;
-
     logo_Url: string;
     dateService: string;
     documentUrl: string;

@@ -29,14 +29,10 @@ export default function usePriceLiceDefined({ initialData }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const params = new URLSearchParams(searchParams.toString());
-
   const tabs = initialData.map((resto) => ({ id: resto.id, nomComplet: resto.nomEtablissement }));
   const initialSelectedKey = searchParams.get('restoId') || (initialData.length > 0 ? initialData[0].id : null);
   const [selectedKey, setSelectedKey] = useState<string | null>(initialSelectedKey);
   const [currentRestaurant, setCurrentRestaurant] = useState<Restaurant | null>(null);
-
-
 
   useEffect(() => {
     if (!selectedKey && initialData.length > 0) {
@@ -44,14 +40,9 @@ export default function usePriceLiceDefined({ initialData }: Props) {
     }
   }, [initialData, selectedKey]);
 
-  useEffect(()=>{
-   let pa= params.get('restoId');
-    console.log({pa:pa});
-    
-  },[])
-
   const handleChangeSelectedKey = (key: string) => {
     setSelectedKey(key);
+    const params = new URLSearchParams(searchParams.toString());
     params.set('restoId', key);
     router.push(`${pathname}?${params.toString()}`);
   };

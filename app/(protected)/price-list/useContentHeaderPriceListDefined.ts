@@ -30,16 +30,16 @@ export default function useContentHeaderPriceListDefined(initialData:Restaurant[
    
     const [state, createOrUpdateFee, isCreatePending] = useFormState(
         async (_: any, data: _deliveryFeeUpdateSchema) => {
-            setError(null);            
+            setError(null);
             let result;
-            
+
+        
             result = await createDeliveryFee(data);
-            setIsLoading(false);
             if(result.status === 'success'){
                 
             router.refresh()
             toast.success(result.message || 'Bravo ! vous avez réussi');
-            console.log({data:data});
+            console.log(result);
 
             } else{
                 setError(result.message ?? 'Une erreur est survenue');

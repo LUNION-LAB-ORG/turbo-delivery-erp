@@ -15,7 +15,6 @@ export default function Content({ data }: { data: LivreurDisponible[] }) {
     const [selectedCourierId, setSelectedCourierId] = useState<string | null>(null);
     const [updatedData, setUpdatedData] = useState<LivreurDisponible[]>(data);
     const [openDashboard, setOpenDashboard] = useState<boolean>(false);
-    
     const { isConnected } = useRealTime({ data: updatedData, setData: setUpdatedData });
 
     const handleCourierSelect = (courierId: string) => {

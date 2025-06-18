@@ -47,7 +47,7 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
 
   useEffect(() => {
     if (searchKey && initialData && initialData.content) {
-      const data = (initialData.content || []).filter((item: any) => item?.nomPrenom ? item.nomPrenom.toLowerCase().includes(searchKey?.toLowerCase()) : false);
+      const data = (initialData.content || []).filter((item: any) => item.nomPrenom && item.nomPrenom.toLowerCase().includes(searchKey?.toLowerCase()));
       setData({ ...initialData, content: data });
     } else {
       setData(initialData);

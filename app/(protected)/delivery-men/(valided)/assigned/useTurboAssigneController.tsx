@@ -21,11 +21,10 @@ export function useTurboAssigneController(initialData: PaginatedResponse<Livreur
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [updateLivreurId, setUpdateLivreurId] = useState('');
-  const [refresh, setRefresh] = useState(false);
 
   useEffect(() => {
     if (searchKey && initialData && initialData.content) {
-      const data = (initialData.content || []).filter((item: any) => item?.nomPrenom ? item.nomPrenom.toLowerCase().includes(searchKey?.toLowerCase()) : false);
+      const data = (initialData.content || []).filter((item: any) =>item.nomPrenom && item.nomPrenom.toLowerCase().includes(searchKey?.toLowerCase()));
       setData({ ...initialData, content: data });
     } else {
       setData(initialData);

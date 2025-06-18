@@ -14,7 +14,7 @@ import { ConfirmDialog } from '@/components/commons/confirm-dialog';
 import { Pagination } from '@heroui/react';
 
 interface Props {
-    initialData: PaginatedResponse<LivreurStatutVM[]> | null;
+    initialData: PaginatedResponse<LivreurStatutVM> | null;
     restaurants: Restaurant[] | null
 }
 export default function Content({ initialData, restaurants }: Props) {
@@ -37,17 +37,17 @@ export default function Content({ initialData, restaurants }: Props) {
                                     {(livreurAssigneCtrl.data?.content || [])?.map((item: any) => {
                                         return (
                                             <>
-                                                <tr key={item.id} className="border-b hover:bg-gray-100 flex justify-between">
+                                                <tr key={item?.livreurId ?? ""} className="border-b hover:bg-gray-100 flex justify-between">
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-2">
                                                             <span className="w-7 h-7 rounded-full bg-gray-300"> </span>
-                                                            <span> {item.nomPrenom}</span>
+                                                            <span> {item?.nomPrenom ? item.nomPrenom : 'Néant'}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4 ">{item.dateInscription}</td>
+                                                    <td className="px-6 py-4 ">{item?.dateInscription}</td>
                                                     <td className="w-[300px] py-4 " onClick={() => livreurAssigneCtrl.setLivreur(item)}>
                                                         <SelectField options={restaurants || []}
-                                                            selectValue={item.restaurantLibelle}
+                                                            selectValue={item?.restaurantLibelle}
                                                             livreur={item}
                                                             setLivreur={livreurAssigneCtrl.setLivreur}
                                                             setSelectValue={livreurAssigneCtrl.setRestaurantSelected} label={'nomEtablissement'} />
@@ -55,8 +55,8 @@ export default function Content({ initialData, restaurants }: Props) {
                                                     <td className="px-6 py-4 flex gap-4 items-center">
                                                         {
                                                             (livreurAssigneCtrl.livreur?.livreurId &&
-                                                                livreurAssigneCtrl.restaurantSelected !== item.restaurantLibelle &&
-                                                                livreurAssigneCtrl.livreur.livreurId === item.livreurId) ? (
+                                                                livreurAssigneCtrl.restaurantSelected !== item?.restaurantLibelle &&
+                                                                livreurAssigneCtrl.livreur?.livreurId === item?.livreurId) ? (
                                                                 <Button variant={'destructive'} className="h-8" onClick={() => livreurAssigneCtrl.changerRestaurantLivreurs(item)}>
                                                                     <span className="flex items-center gap-2">
                                                                         <Save size={18} />
@@ -75,7 +75,7 @@ export default function Content({ initialData, restaurants }: Props) {
 
 
                                                         <span className="text-white  p-1 bg-gray-400  rounded-full hover:bg-red-500 cursor-pointer"
-                                                            onClick={() => livreurAssigneCtrl.setUpdateLivreurId(item.livreurId)}>
+                                                            onClick={() => livreurAssigneCtrl.setUpdateLivreurId(item?.livreurId)}>
                                                             <PencilIcon className="h-5 w-5 " />
                                                         </span>
                                                         <span className="text-white p-1 bg-gray-400   rounded-full hover:bg-red-500 cursor-pointer"
@@ -88,7 +88,7 @@ export default function Content({ initialData, restaurants }: Props) {
                                                 </tr>
                                                 <div className='flex justify-end'>
                                                     {
-                                                        livreurAssigneCtrl.updateLivreurId === item.livreurId &&
+                                                        livreurAssigneCtrl.updateLivreurId === item?.livreurId &&
                                                         <Button variant={'outline'} className='text-sm h-8' onClick={() => livreurAssigneCtrl.onConfirmStatut(item, "FREE")} >Modifier le turbo en bird</Button>
                                                     }
                                                 </div>

@@ -14,7 +14,7 @@ import EmptyDataTable from '@/components/commons/EmptyDataTable';
 
 
 interface Props {
-    initialData: PaginatedResponse<LivreurStatutVM[]> | null;
+    initialData: PaginatedResponse<LivreurStatutVM> | null;
     restaurants?: Restaurant[] | null;
 }
 export default function Content({ initialData, restaurants }: Props) {
@@ -39,10 +39,10 @@ export default function Content({ initialData, restaurants }: Props) {
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
                                                         <span className="w-7 h-7 rounded-full bg-gray-300"> </span>
-                                                        <span> {item.nomPrenom}</span>
+                                                        <span> {item?.nomPrenom ? item.nomPrenom : 'Néant'}</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">{item.dateInscription}</td>
+                                                <td className="px-6 py-4">{item?.dateInscription}</td>
                                                 <td className="px-6 py-4 flex gap-4 items-center">
 
                                                     <Button variant={'confirm-success'} className="h-8">
@@ -52,7 +52,7 @@ export default function Content({ initialData, restaurants }: Props) {
                                                         </span>
                                                     </Button>
                                                     <span className="text-white  p-1 bg-gray-400  rounded-full hover:bg-red-500 cursor-pointer"
-                                                        onClick={() => livreurNonAssingeCtrl.setUpdateLivreurId(item.livreurId)}>
+                                                        onClick={() => livreurNonAssingeCtrl.setUpdateLivreurId(item?.livreurId)}>
                                                         <PencilIcon className="h-4 w-4 " />
                                                     </span>
                                                     <span className="text-white p-1 bg-gray-400   rounded-full hover:bg-red-500 cursor-pointer"
@@ -63,7 +63,7 @@ export default function Content({ initialData, restaurants }: Props) {
                                             </tr>
                                             <div className='flex justify-end'>
                                                 {
-                                                    livreurNonAssingeCtrl.updateLivreurId === item.livreurId &&
+                                                    livreurNonAssingeCtrl.updateLivreurId === item?.livreurId &&
                                                     <Button variant={'outline'} className='text-sm h-8' onClick={() => livreurNonAssingeCtrl.modifier(item)} >Modifier le turbo en turboy</Button>
                                                 }
                                             </div>
@@ -71,7 +71,6 @@ export default function Content({ initialData, restaurants }: Props) {
                                     ))}
                                 </div>
                         }
-
                     </tbody>
                 </table>
                 <UpdateDeliveryDialog

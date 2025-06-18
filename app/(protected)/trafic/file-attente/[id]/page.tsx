@@ -87,11 +87,11 @@ export default async function Page() {
                         //      ${actRow === item.id && "bg-orange-300"}`
                         //     }
                     >
-                        <span className={`px-3 py-1 rounded-md border-3`}>{item.rang}</span>
+                        <span className={`px-3 py-1 rounded-md border-3`}>{item?.rang}</span>
                         <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                            <span className="font-semibold">{item.nomPrenom}</span>
-                            <span className="text-red-500 font-bold ml-5">{item.numero}</span>
+                            <span className="font-semibold">{item?.nomPrenom ? item.nomPrenom : 'Néant'}</span>
+                            <span className="text-red-500 font-bold ml-5">{item?.numero}</span>
                         </div>
                         <a className="text-blue-500 ml-auto cursor-pointer">Ajourner</a>
                     </div>

@@ -9,11 +9,11 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 
-export function useTurboysBirdController(initialData: PaginatedResponse<LivreurStatutVM[]> | null) {
+export function useTurboysBirdController(initialData: PaginatedResponse<LivreurStatutVM> | null) {
   const router = useRouter();
   const confirm = useConfirm();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [data, setData] = useState<PaginatedResponse<LivreurStatutVM[]> | null>(initialData);
+  const [data, setData] = useState<PaginatedResponse<LivreurStatutVM> | null>(initialData);
   const [searchKey, setSearchKey] = useState<string>('');
   const [livreur, setLivreur] = useState<LivreurStatutVM | undefined>({});
   const [pageSize] = useState(10);
@@ -23,7 +23,7 @@ export function useTurboysBirdController(initialData: PaginatedResponse<LivreurS
 
   useEffect(() => {
     if (searchKey && initialData && initialData.content) {
-      const data = (initialData.content || []).filter((item: any) => item.nomPrenom?.toLowerCase().includes(searchKey?.toLowerCase()));
+      const data = (initialData.content || []).filter((item: any) => item?.nomPrenom ? item.nomPrenom.toLowerCase().includes(searchKey?.toLowerCase()) : false);
       setData({ ...initialData, content: data });
     } else {
       setData(initialData);

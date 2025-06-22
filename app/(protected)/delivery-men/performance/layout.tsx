@@ -1,19 +1,12 @@
 "use client"
-import React, { useState } from 'react';
-import { Tabs, Tab, Card, CardBody } from '@heroui/react';
-import HeaderList from '../../../../components/dashboard/price-liste/header';
+import React from 'react';
+import { Tabs, Tab} from '@heroui/react';
 import {usePathname } from 'next/navigation';
 import Link from 'next/link';
-import SectionHeader from '@/components/dashboard/slot/sectionHeader';
-import { IconList, IconMist } from '@tabler/icons-react';
 import SectionHeaderRetour from '@/components/commons/section-header-retour';
-
-{/* <IconList stroke={2} /> */}
 
 
 export default function SlotLayout({ children }: { children: React.ReactNode }) {
-
-    const [model,setModel]=useState(true)
 
     const pathname = usePathname()
 
@@ -26,10 +19,6 @@ export default function SlotLayout({ children }: { children: React.ReactNode }) 
         { id: '/delivery-men/performance/turboys-assignes', href: '/delivery-men/performance/turboys-assignes', label: 'Flotte de Turboys Assignés' },
     ];
 
-
-    const toggelModel = ()=>{
-        setModel((prev)=>!prev)
-    }
     
     return (
         <div>

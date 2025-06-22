@@ -1,7 +1,7 @@
 'use server';
 
 import { ActionResult, PaginatedResponse } from '@/types';
-import { LivreurStatutVM, Restaurant } from '@/types/models';
+import {Restaurant } from '@/types/models';
 import { apiClientHttp } from '@/lib/api-client-http';
 import { restaurantUpdateCommission } from '@/types/restaurants.model';
 

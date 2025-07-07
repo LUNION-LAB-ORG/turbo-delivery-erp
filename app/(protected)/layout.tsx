@@ -19,10 +19,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const profile = await getProfile();
     const session = await auth();
     if (!profile) redirect('/auth');
-    console.log(session);
+    console.log("session", session);
+
     return (
         <>
-            {!profile.changePassword && <FormChangePassword userName={profile.username} />}
+            {(profile && !profile.changePassword) && <FormChangePassword userName={profile.username} />}
             {/* BEGIN MAIN CONTAINER */}
             <div className="relative">
                 <Overlay />

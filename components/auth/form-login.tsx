@@ -37,7 +37,7 @@ export function FormLogin() {
 
   return (
     <>
-      {state.data && !state.data?.changePassword && <FormChangePassword userName={state.data?.username} />}
+      {(state.data && !state.data?.changePassword) && <FormChangePassword userName={state.data?.username} />}
       <form className="space-y-5 dark:text-white" action={formAction}>
         <div>
           <label htmlFor="username">Nom d&apos;utilisateur</label>

@@ -20,16 +20,19 @@ export default function Content({ initialData, restaurants }: ContentProps) {
   const { columns, renderCell, data, handlePageChange,
     currentPage, isLoading, handleDateChange,
     type, handleCangeRestaurant, onClose, onOpen, restaurant, isOpen } = useContentCtx({ initialData, restaurants });
+  console.log("data", data)
   return (
     <div className="w-full h-full pb-10 flex flex-1 flex-col gap-4 min-w[200px] overflow-auto ">
       <span className="ml-2">Rechercher par période</span>
-      <div className="flex justify-between items-center">
-        <DateRangePicker className="max-w-xs relative" onChange={(value) => handleDateChange(value as RangeValue<CalendarDate>)} />
-        <div className="flex flex-col gap-2">
-          <span>Selectionnez un restaurant :</span>
-          <SelectField options={restaurants || []} optionLabel={'nomEtablissement'} optionValue={'nomEtablissement'} label="nomEtablissement" setValue={handleCangeRestaurant} />
+      <div className="flex justify-between  items-center">
+        <div className='flex gap-4 w-[80%]'>
+          <DateRangePicker className="max-w-xs relative" onChange={(value) => handleDateChange(value as RangeValue<CalendarDate>)} />
+          <div className="flex flex-col gap-2 flex-1 ">
+            <SelectField options={restaurants || []} optionLabel={'nomEtablissement'} placeholder='Selectionnez un restaurant'
+              optionValue={'nomEtablissement'} label="nomEtablissement" setValue={handleCangeRestaurant} />
+          </div>
         </div>
-        <Link href={'/analystics'} className="text-blue-400 font-bold flex gap-2 mr-3 cursor-pointer">
+        <Link href={'/analystics'} className="text-blue-400 font-bold flex gap-2 mr-10 cursor-pointer">
           <ArrowLeft size={18} /> Retour
         </Link>
       </div>
@@ -114,7 +117,7 @@ export default function Content({ initialData, restaurants }: ContentProps) {
           </Button>
         </div>
       </div>
-      <TicketTermineReportingDialog restaurant={restaurant} isOpen={isOpen} onClose={onClose} />
+      <TicketTermineReportingDialog restaurant={restaurant} isOpen={isOpen} onClose={onClose} type={type as string} />
     </div>
   );
 }

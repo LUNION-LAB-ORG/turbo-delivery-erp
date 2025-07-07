@@ -6,9 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Restaurant } from '@/types/models';
 import { toast } from "react-toastify";
+import { useEffect } from "react";
 
 
-export function useReportingController(restaurant?: Restaurant) {
+export function useReportingController(restaurant?: Restaurant, type?: string) {
     const initialiValues: TypeReportingSchema = {
         restaurantId: "",
         debut: "",
@@ -20,6 +21,10 @@ export function useReportingController(restaurant?: Restaurant) {
         resolver: zodResolver(reportingSchema),
         defaultValues: Object.assign({}, initialiValues),
     });
+
+    useEffect(() => {
+        type && form.setValue("type", type)
+    }, [type])
 
     const onPreview = async () => {
         await form.trigger();
@@ -66,7 +71,6 @@ export function useReportingController(restaurant?: Restaurant) {
             if (data?.format === "PDF" && result != null) {
                 const uint8Array = new Uint8Array(result);
                 try {
-
                     saveAsPDFFile(uint8Array, "bon-de-livraison-termine");
                 } catch (e) {
                     console.log("Erreur lors de l'exportation du fichier pdf");

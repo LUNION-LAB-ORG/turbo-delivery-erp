@@ -56,7 +56,7 @@ export function useReportingController(restaurant?: Restaurant) {
         const data: TypeReportingSchema = form.getValues();
         try {
             const result = await reportingBonLivraisonTerminers({
-                restaurantId: data.restaurantId,
+                restaurantId: data.restaurantId ?? "",
                 debut: data.debut ?? "",
                 fin: data.fin ?? "",
                 type: data.type as TypeCommission,

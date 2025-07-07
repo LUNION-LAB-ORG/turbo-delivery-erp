@@ -32,7 +32,6 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
             return
         }
         const isValid = await form.trigger();
-        console.log(form.formState.errors)
         if (!isValid) {
             toast.error("Vérifiez que les champs sont bien renseigner !")
             return

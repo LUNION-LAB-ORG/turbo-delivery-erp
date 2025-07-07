@@ -1,10 +1,8 @@
 "use client"
 import React from 'react';
-import { Tabs, Tab, Card, CardBody } from '@heroui/react';
-import HeaderList from '../../../../components/dashboard/price-liste/header';
+import { Tabs, Tab} from '@heroui/react';
 import {usePathname } from 'next/navigation';
 import Link from 'next/link';
-import SectionHeader from '@/components/dashboard/slot/sectionHeader';
 import HeaderCreneau from '@/components/dashboard/delivery-men/ceneau/header-creneau';
 
 export default function SlotLayout({ children }: { children: React.ReactNode }) {
@@ -22,7 +20,6 @@ export default function SlotLayout({ children }: { children: React.ReactNode }) 
     return (
         <div>
             <HeaderCreneau/>
-            {/* <HeaderList initialData={initialData}/> */}
             <Tabs color="primary" variant="underlined" items={tabs} selectedKey={pathname == '/delivery-men/creneau-progression'?'/delivery-men/creneau-progression':pathname == '/delivery-men/creneau-progression/turboys-assignes'?'/delivery-men/creneau-progression/turboys-assignes':''} className="w-full">
             {(item) => {
                 return (

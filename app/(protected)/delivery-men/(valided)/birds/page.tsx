@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 
 export default async function DeliveryMen() {
-    const toutStatutLivreurNonAssignes: PaginatedResponse<LivreurStatutVM[]> | null = await getToutLivreurStatusNonAssigners(0, 10);
+    const toutStatutLivreurNonAssignes: PaginatedResponse<LivreurStatutVM> | null = await getToutLivreurStatusNonAssigners(0, 10);
     const allRestaurant = await allRestaurants();
     return (
         <Content initialData={toutStatutLivreurNonAssignes} restaurants={allRestaurant} />

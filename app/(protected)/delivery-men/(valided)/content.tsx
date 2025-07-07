@@ -10,7 +10,7 @@ import { UpdateDeliveryDialog } from '../update-delivery/update-delivery';
 import DeliveryMenStatusValidate from '@/components/dashboard/delivery-men/delivery-men-status-validate';
 
 interface ContentProps {
-  initialData: PaginatedResponse<LivreurStatutVM[]> | null;
+  initialData: PaginatedResponse<LivreurStatutVM> | null;
   restaurants: Restaurant[] | null;
 }
 
@@ -33,7 +33,8 @@ export default function Content({ initialData, restaurants }: ContentProps) {
     livreur,
     validateBy,
   } = useContentCtx({ initialData, restaurants });
-  
+
+
   return (
     <div className="w-full h-full pb-10 flex flex-1 flex-col gap-4">
       <SearchField searchKey={searchKey} onChange={setSearchKey} />
@@ -46,8 +47,8 @@ export default function Content({ initialData, restaurants }: ContentProps) {
           ))}
         </TableHeader>
         <TableBody>
-          {(data?.content || []).map((row: any) => (
-            <TableRow key={row.id}>{(columnKey) => <TableCell>{renderCell(row, columnKey) as React.ReactNode}</TableCell>}</TableRow>
+          {(data?.content || []).map((row: LivreurStatutVM) => (
+            <TableRow key={row?.livreurId ?? ""}>{(columnKey) => <TableCell>{renderCell(row, columnKey) as React.ReactNode}</TableCell>}</TableRow>
           ))}
         </TableBody>
       </Table>

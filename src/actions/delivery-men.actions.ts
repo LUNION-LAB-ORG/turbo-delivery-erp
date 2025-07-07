@@ -17,7 +17,7 @@ const deliveryMenEndpoints = {
     validateOps: { endpoint: (id: string) => `${BASE_URL}/livreur/enable/opsmanager/${id}`, method: 'GET' },
     info: { endpoint: (id: string) => `${BASE_URL}/livreur/get/info/${id}`, method: 'GET' },
 
-    //endpoint pour lister tout les liveures
+    //endpoint pour lister tout les livreurs
     getAllDeliveryMan: { endpoint: `${BASE_URL}/livreur/infos`, method: 'GET' },
     getDeliveryDetail: { endpoint: (id: string) => `${BASE_URL}/livreur/info/${id}`, method: 'GET' },
     mettreLivreurEnAttente: { endpoint: (id: string) => `${BASE_URL}/statut/${id}/mettre-attente`, method: 'GET' },
@@ -202,9 +202,9 @@ export async function rejeterDemandeAssignations(id: string): Promise<any> {
 
 
 //Statut livreurs
-export async function getToutLivreurStatus(page: number = 0, size: number = 10): Promise<PaginatedResponse<LivreurDisponible[]> | null> {
+export async function getToutLivreurStatus(page: number = 0, size: number = 10): Promise<PaginatedResponse<LivreurDisponible> | null> {
     try {
-        const data = await apiClientHttp.request<PaginatedResponse<LivreurDisponible[]> | null>({
+        const data = await apiClientHttp.request<PaginatedResponse<LivreurDisponible> | null>({
             endpoint: deliveryMenEndpoints.getToutLivreurStatus.endpoint,
             method: deliveryMenEndpoints.getToutLivreurStatus.method,
             service: 'backend',
@@ -219,9 +219,9 @@ export async function getToutLivreurStatus(page: number = 0, size: number = 10):
     }
 }
 
-export async function getToutLivreurStatusAssigners(page: number = 0, size: number = 10): Promise<PaginatedResponse<LivreurDisponible[]> | null> {
+export async function getToutLivreurStatusAssigners(page: number = 0, size: number = 10): Promise<PaginatedResponse<LivreurDisponible> | null> {
     try {
-        const data = await apiClientHttp.request<PaginatedResponse<LivreurDisponible[]> | null>({
+        const data = await apiClientHttp.request<PaginatedResponse<LivreurDisponible> | null>({
             endpoint: deliveryMenEndpoints.getToutLivreurStatusAssigners.endpoint,
             method: deliveryMenEndpoints.getToutLivreurStatusAssigners.method,
             service: 'backend',
@@ -294,9 +294,9 @@ export async function changerRestaurantLivreur(commande: ChangerRestaurantLivreu
     }
 }
 
-export async function getToutLivreurStatusNonAssigners(page: number, size: number): Promise<PaginatedResponse<LivreurDisponible[]> | null> {
+export async function getToutLivreurStatusNonAssigners(page: number, size: number): Promise<PaginatedResponse<LivreurDisponible> | null> {
     try {
-        const data = await apiClientHttp.request<PaginatedResponse<LivreurDisponible[]> | null>({
+        const data = await apiClientHttp.request<PaginatedResponse<LivreurDisponible> | null>({
             endpoint: deliveryMenEndpoints.getToutLivreurStatusNonAssigners.endpoint,
             method: deliveryMenEndpoints.getToutLivreurStatusNonAssigners.method,
             service: 'backend',

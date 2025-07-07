@@ -56,7 +56,7 @@ export async function loginUser(formData: FormData): Promise<ActionResult<any>> 
             message: json.message || 'Veuillez modifier votre mot de passe',
             data: {
                 changePassword: false,
-                username: json.user.username,
+                username: json?.user?.username ?? '',
             },
         };
     }

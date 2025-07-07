@@ -63,6 +63,8 @@ export function useReportingController(restaurant?: Restaurant) {
                 format: data.format as FormatsSupportes
             });
 
+            console.log(result);
+
             if (data?.format === "PDF" && result != null) {
                 const uint8Array = new Uint8Array(result);
                 try {

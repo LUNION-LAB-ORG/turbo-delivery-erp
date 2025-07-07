@@ -28,7 +28,7 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
 
     const onPreview = async () => {
         if (!restaurant) {
-            toast.error("Vous devez selectionnez un restautrant !")
+            toast.error("Vous devez selectionnée un restautrant !")
             return
         }
         const isValid = await form.trigger();
@@ -66,7 +66,7 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
 
     const onexportFile = async () => {
         if (!restaurant) {
-            toast.error("Vous devez selectionnez un restautrant !")
+            toast.error("Vous devez selectionnée un restautrant !")
             return
         }
         const isValid = await form.trigger();

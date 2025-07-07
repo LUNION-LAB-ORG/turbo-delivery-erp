@@ -6,9 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Restaurant } from '@/types/models';
 import { toast } from "react-toastify";
+import { useEffect } from "react";
 
 
-export function useReportingController(restaurant?: Restaurant) {
+export function useReportingController(restaurant?: Restaurant, type?: string) {
     const initialiValues: TypeReportingSchema = {
         restaurantId: "",
         debut: "",
@@ -21,8 +22,20 @@ export function useReportingController(restaurant?: Restaurant) {
         defaultValues: Object.assign({}, initialiValues),
     });
 
+    useEffect(() => {
+        type && form.setValue("type", type)
+    }, [type])
+
     const onPreview = async () => {
-        await form.trigger();
+        if (!restaurant) {
+            toast.error("Vous devez selectionnée un restautrant !")
+            return
+        }
+        const isValid = await form.trigger();
+        if (!isValid) {
+            toast.error("Vérifiez que les champs sont bien renseigner !")
+            return
+        }
         const data: TypeReportingSchema = form.getValues();
         try {
             const result = await reportingBonLivraisonTerminers({
@@ -52,23 +65,28 @@ export function useReportingController(restaurant?: Restaurant) {
 
 
     const onexportFile = async () => {
-        await form.trigger();
+        if (!restaurant) {
+            toast.error("Vous devez selectionnée un restautrant !")
+            return
+        }
+        const isValid = await form.trigger();
+        if (!isValid) {
+            toast.error("Vérifiez que les champs sont bien renseigner !")
+            return
+        }
         const data: TypeReportingSchema = form.getValues();
         try {
             const result = await reportingBonLivraisonTerminers({
-                restaurantId: data.restaurantId,
+                restaurantId: data.restaurantId ?? "",
                 debut: data.debut ?? "",
                 fin: data.fin ?? "",
                 type: data.type as TypeCommission,
                 format: data.format as FormatsSupportes
             });
 
-            console.log(result);
-
             if (data?.format === "PDF" && result != null) {
                 const uint8Array = new Uint8Array(result);
                 try {
-
                     saveAsPDFFile(uint8Array, "bon-de-livraison-termine");
                 } catch (e) {
                     console.log("Erreur lors de l'exportation du fichier pdf");

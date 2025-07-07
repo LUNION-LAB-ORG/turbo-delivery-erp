@@ -27,7 +27,16 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
     }, [type])
 
     const onPreview = async () => {
-        await form.trigger();
+        if (!restaurant) {
+            toast.error("Vous devez selectionnez un restautrant !")
+            return
+        }
+        const isValid = await form.trigger();
+        console.log(form.formState.errors)
+        if (!isValid) {
+            toast.error("Vérifiez que les champs sont bien renseigner !")
+            return
+        }
         const data: TypeReportingSchema = form.getValues();
         try {
             const result = await reportingBonLivraisonTerminers({
@@ -57,11 +66,19 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
 
 
     const onexportFile = async () => {
-        await form.trigger();
+        if (!restaurant) {
+            toast.error("Vous devez selectionnez un restautrant !")
+            return
+        }
+        const isValid = await form.trigger();
+        if (!isValid) {
+            toast.error("Vérifiez que les champs sont bien renseigner !")
+            return
+        }
         const data: TypeReportingSchema = form.getValues();
         try {
             const result = await reportingBonLivraisonTerminers({
-                restaurantId: data.restaurantId,
+                restaurantId: data.restaurantId ?? "",
                 debut: data.debut ?? "",
                 fin: data.fin ?? "",
                 type: data.type as TypeCommission,

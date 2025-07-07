@@ -31,7 +31,8 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize] = useState(10);
     const [data, setData] = useState<BonLivraison[] | null>(initialData);
-    const [restaurant, setRestaurant] = useState<Restaurant | undefined>(undefined)
+    const [restaurant, setRestaurant] = useState<Restaurant | undefined>(undefined);
+    const [typeResto, setTypeResto] = useState<string>(type as any)
 
     const [dates, setDates] = useState<RangeValue<CalendarDate> | null>(null);
 
@@ -70,7 +71,8 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
     const handleCangeRestaurant = (restaurantId: any) => {
         const restaurant = restaurants?.find((item) => item.id === restaurantId);
         if (!initialData) return;
-        setRestaurant(restaurant)
+        setRestaurant(restaurant);
+        setTypeResto(restaurant?.typeCommission ?? "")
         const dataFilter = initialData?.filter((item) =>
             item.restaurant.toLocaleLowerCase().includes(restaurant?.nomEtablissement?.toLocaleLowerCase() ?? "")
         ) || [];
@@ -115,7 +117,7 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
         currentPage,
         isLoading,
         handleDateChange,
-        type,
+        typeResto,
         handleCangeRestaurant,
         onOpen,
         onClose,

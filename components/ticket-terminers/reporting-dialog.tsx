@@ -11,8 +11,7 @@ interface Props {
     type?: string;
 }
 export function TicketTermineReportingDialog({ isOpen, onClose, restaurant, type }: Props) {
-    const ctrl = useReportingController(restaurant, type);
-
+    const ctrl = useReportingController(restaurant);
     return (
         <Modal isOpen={isOpen} size={"md"} onClose={onClose} >
             <ModalContent>

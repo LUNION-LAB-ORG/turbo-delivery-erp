@@ -9,9 +9,10 @@ interface Props {
     onClose: () => void;
     restaurant?: Restaurant;
     type?: string;
+    initialiType?: string;
 }
-export function TicketTermineReportingDialog({ isOpen, onClose, restaurant, type }: Props) {
-    const ctrl = useReportingController(restaurant, type);
+export function TicketTermineReportingDialog({ isOpen, onClose, restaurant, type, initialiType }: Props) {
+    const ctrl = useReportingController(restaurant, type, initialiType);
 
     return (
         <Modal isOpen={isOpen} size={"md"} onClose={onClose} >

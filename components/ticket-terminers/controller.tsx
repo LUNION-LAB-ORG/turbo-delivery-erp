@@ -9,7 +9,7 @@ import { toast } from "react-toastify";
 import { useEffect, useState } from "react";
 
 
-export function useReportingController(restaurant?: Restaurant, type?: string) {
+export function useReportingController(restaurant?: Restaurant, type?: string, initialiType?: string) {
     const [isLoading, setIsLoading] = useState(false)
     const initialiValues: TypeReportingSchema = {
         restaurantId: "",
@@ -26,7 +26,7 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
     useEffect(() => {
         type && form.setValue("type", type)
     }, [type])
-
+    console.log("initialiType", initialiType)
     const onPreview = async () => {
         if (!restaurant) {
             toast.error("Vous devez selectionnée un restautrant !")
@@ -44,7 +44,7 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
                 restaurantId: restaurant ? restaurant?.id : "",
                 debut: data.debut ?? "",
                 fin: data.fin ?? "",
-                type: data.type as TypeCommission,
+                type: initialiType === "commande-terminer" ? null : data.type as TypeCommission,
                 format: data.format as FormatsSupportes
             });
             if (result) {
@@ -85,7 +85,7 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
                 restaurantId: data.restaurantId ?? "",
                 debut: data.debut ?? "",
                 fin: data.fin ?? "",
-                type: data.type as TypeCommission,
+                type: initialiType === "commande-terminer" ? null : data.type as TypeCommission,
                 format: data.format as FormatsSupportes
             });
 

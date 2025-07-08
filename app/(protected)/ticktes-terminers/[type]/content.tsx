@@ -19,7 +19,7 @@ interface ContentProps {
 export default function Content({ initialData, restaurants }: ContentProps) {
   const { columns, renderCell, data, handlePageChange,
     currentPage, isLoading, handleDateChange,
-    typeResto, handleCangeRestaurant, onClose, onOpen, restaurant, isOpen } = useContentCtx({ initialData, restaurants });
+    typeResto, handleCangeRestaurant, onClose, onOpen, restaurant, isOpen, type } = useContentCtx({ initialData, restaurants });
 
   return (
     <div className="w-full h-full pb-10 flex flex-1 flex-col gap-4 min-w[200px] overflow-auto ">
@@ -61,9 +61,9 @@ export default function Content({ initialData, restaurants }: ContentProps) {
                 ) : (
                   <></>
                 )}
-                {column.name === 'Commission' && typeResto === 'FIXE' ? (
+                {column.name === 'Commission' && type === 'FIXE' ? (
                   'Commission (Montant fixe)'
-                ) : column.name === 'Commission' && typeResto === 'POURCENTAGE' ? (
+                ) : column.name === 'Commission' && type === 'POURCENTAGE' ? (
                   'Commission'
                 ) : column.name === 'Commission' ? (
                   <></>
@@ -117,7 +117,7 @@ export default function Content({ initialData, restaurants }: ContentProps) {
           </Button>
         </div>
       </div>
-      <TicketTermineReportingDialog restaurant={restaurant} isOpen={isOpen} onClose={onClose} type={typeResto as string} />
+      <TicketTermineReportingDialog restaurant={restaurant} isOpen={isOpen} onClose={onClose} type={typeResto as string} initialiType={type as any} />
     </div>
   );
 }

@@ -23,6 +23,6 @@ export interface ParametreBonLivraisonFacture {
     restaurantId: string;
     debut?: string;
     fin?: string;
-    type?: TypeCommission
+    type?: TypeCommission | null
     format: FormatsSupportes
 }

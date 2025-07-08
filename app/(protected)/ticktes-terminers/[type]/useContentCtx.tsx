@@ -121,6 +121,6 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
         handleCangeRestaurant,
         onOpen,
         onClose,
-        restaurant, isOpen
+        restaurant, isOpen, type
     };
 }

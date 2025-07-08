@@ -6,10 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Restaurant } from '@/types/models';
 import { toast } from "react-toastify";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 
 export function useReportingController(restaurant?: Restaurant, type?: string) {
+    const [isLoading, setIsLoading] = useState(false)
     const initialiValues: TypeReportingSchema = {
         restaurantId: "",
         debut: "",
@@ -36,6 +37,7 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
             toast.error("Vérifiez que les champs sont bien renseigner !")
             return
         }
+        setIsLoading(true)
         const data: TypeReportingSchema = form.getValues();
         try {
             const result = await reportingBonLivraisonTerminers({
@@ -59,6 +61,8 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
             } else {
                 toast.error("Une erreur s'est produite")
             }
+        } finally {
+            setIsLoading(false)
         }
     };
 
@@ -74,6 +78,7 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
             toast.error("Vérifiez que les champs sont bien renseigner !")
             return
         }
+        setIsLoading(true)
         const data: TypeReportingSchema = form.getValues();
         try {
             const result = await reportingBonLivraisonTerminers({
@@ -108,6 +113,8 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
             } else {
                 toast.error("Une erreur s'est produite")
             }
+        } finally {
+            setIsLoading(false)
         }
     };
 
@@ -116,6 +123,7 @@ export function useReportingController(restaurant?: Restaurant, type?: string) {
     return {
         onexportFile,
         onPreview,
-        form
+        form,
+        isLoading
     }
 }

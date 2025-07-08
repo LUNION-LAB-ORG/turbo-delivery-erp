@@ -1,4 +1,4 @@
-import { Button, DatePicker, Modal, ModalBody, ModalContent, Select, SelectItem } from "@heroui/react";
+import { Button, DatePicker, Modal, ModalBody, ModalContent, Select, SelectItem, Spinner } from "@heroui/react";
 import { Controller } from "react-hook-form";
 import { useReportingController } from "./controller";
 import { SelectField } from '@/components/commons/form/select-field';
@@ -17,6 +17,8 @@ export function TicketTermineReportingDialog({ isOpen, onClose, restaurant, type
         <Modal isOpen={isOpen} size={"md"} onClose={onClose} >
             <ModalContent>
                 <ModalBody className="p-5">
+                    {ctrl.isLoading && <div className="absolute top-[40%] z-40 left-[45%]">
+                        <Spinner color="danger" size="lg" /></div>}
                     <div className="text-center text-primary">Imprimez les bons de livraison du restaurant: <span className="font-bold">{restaurant ? restaurant?.nomEtablissement : "Aucun restaurant"}</span></div>
                     <div className="grid grid-cols-1 gap-4 mt-4">
                         <Controller name="debut" control={ctrl.form.control}

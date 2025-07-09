@@ -62,7 +62,7 @@ export async function getAllBonLivraisonTerminers(page: number = 0, size: number
         });
         return data;
     } catch (error) {
-        return error as any;
+        return [] as any;
     }
 };
 
@@ -82,7 +82,7 @@ export async function getAllBonLivraisonEnAttentes(page: number = 0, size: numbe
         });
         return data;
     } catch (error) {
-        return error as any;
+        return [] as any;
     }
 };
 

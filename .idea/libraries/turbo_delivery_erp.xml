@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="turbo-delivery-erp">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/turbo-delivery-erp.zip!/" />
+      <root url="jar://$PROJECT_DIR$/.env.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

@@ -26,7 +26,7 @@ export function useReportingController(restaurant?: Restaurant, type?: string, i
     useEffect(() => {
         type && form.setValue("type", type)
     }, [type])
-    console.log("initialiType", initialiType)
+
     const onPreview = async () => {
         if (!restaurant) {
             toast.error("Vous devez selectionnée un restautrant !")

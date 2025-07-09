@@ -26,14 +26,8 @@ export const options = [
   { key: 'restaurant-agha', label: 'Restaurant AGAHA' },
 ];
 
-// interface IRestaurant {
-//     id?: string;
-//     key?: string;
-//     libelle?: string;
-// };
-
 interface Props {
-  initialData: PaginatedResponse<LivreurStatutVM[]> | null;
+  initialData: PaginatedResponse<LivreurStatutVM> | null;
   restaurants: Restaurant[] | null;
 }
 
@@ -47,13 +41,13 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
   const [searchKey, setSearchKey] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
-  const [data, setData] = useState<PaginatedResponse<LivreurStatutVM[]> | null>(initialData);
+  const [data, setData] = useState<PaginatedResponse<LivreurStatutVM> | null>(initialData);
   const [livreur, setLivreur] = useState<LivreurStatutVM | null>(null);
   const [validateBy, setValidateBy] = useState<'auth' | 'ops'>('auth');
 
   useEffect(() => {
     if (searchKey && initialData && initialData.content) {
-      const data = (initialData.content || []).filter((item: any) => item.nomPrenom?.toLowerCase().includes(searchKey?.toLowerCase()));
+      const data = (initialData.content || []).filter((item: any) => item.nomPrenom && item.nomPrenom.toLowerCase().includes(searchKey?.toLowerCase()));
       setData({ ...initialData, content: data });
     } else {
       setData(initialData);

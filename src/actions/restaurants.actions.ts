@@ -93,7 +93,6 @@ export async function getAllRestaurants(): Promise<Restaurant[]> {
             endpoint: restaurantEndpoints.getAlls.endpoint,
             method: restaurantEndpoints.getAlls.method,
             service: 'backend',
-
         });
         return data;
     } catch (error) {

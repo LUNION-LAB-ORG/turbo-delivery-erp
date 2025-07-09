@@ -9,9 +9,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 
-export function useTurboAssigneController(initialData: PaginatedResponse<LivreurStatutVM[]> | null, restaurants: Restaurant[] | null) {
+export function useTurboAssigneController(initialData: PaginatedResponse<LivreurStatutVM> | null, restaurants: Restaurant[] | null) {
   const router = useRouter();
-  const [data, setData] = useState<PaginatedResponse<LivreurStatutVM[]> | null>(initialData);
+  const [data, setData] = useState<PaginatedResponse<LivreurStatutVM> | null>(initialData);
   const confirm = useConfirm();
   const [restaurantSelected, setRestaurantSelected] = useState('');
   const [searchKey, setSearchKey] = useState('');
@@ -21,11 +21,10 @@ export function useTurboAssigneController(initialData: PaginatedResponse<Livreur
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [updateLivreurId, setUpdateLivreurId] = useState('');
-  const [refresh, setRefresh] = useState(false);
 
   useEffect(() => {
     if (searchKey && initialData && initialData.content) {
-      const data = (initialData.content || []).filter((item: any) => item.nomPrenom?.toLowerCase().includes(searchKey?.toLowerCase()));
+      const data = (initialData.content || []).filter((item: any) =>item.nomPrenom && item.nomPrenom.toLowerCase().includes(searchKey?.toLowerCase()));
       setData({ ...initialData, content: data });
     } else {
       setData(initialData);

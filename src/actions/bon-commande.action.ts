@@ -17,6 +17,7 @@ const bonLivraisonEndpoints = {
         method: 'GET',
     },
     bonLivraisonTerminers: { endpoint: `${BASE_URL}/tous-termines`, method: 'GET' },
+    bonLivraisonEnAttentes: { endpoint: `${BASE_URL}/tous-attentes`, method: 'GET' },
     reportingBonLivraison: { endpoint: `${BASE_URL_2}/facture-bon-livraison`, method: "POST" }
 };
 
@@ -51,6 +52,26 @@ export async function getAllBonLivraisonTerminers(page: number = 0, size: number
         const data = await apiClientHttp.request<BonLivraison[]>({
             endpoint: bonLivraisonEndpoints.bonLivraisonTerminers.endpoint,
             method: bonLivraisonEndpoints.bonLivraisonTerminers.method,
+            params: {
+                page: page.toString(),
+                size: size.toString(),
+                debut: start ? formatDate(start, 'YYYY-MM-DD') : '',
+                fin: end ? formatDate(end, 'YYYY-MM-DD') : '',
+                type: typeCommsion
+            }
+        });
+        return data;
+    } catch (error) {
+        return error as any;
+    }
+};
+
+export async function getAllBonLivraisonEnAttentes(page: number = 0, size: number = 10,
+    { dates: { start, end } }: { dates: RangeValue<string | null> }, typeCommsion: string): Promise<BonLivraison[]> {
+    try {
+        const data = await apiClientHttp.request<BonLivraison[]>({
+            endpoint: bonLivraisonEndpoints.bonLivraisonEnAttentes.endpoint,
+            method: bonLivraisonEndpoints.bonLivraisonEnAttentes.method,
             params: {
                 page: page.toString(),
                 size: size.toString(),

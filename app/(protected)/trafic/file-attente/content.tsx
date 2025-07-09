@@ -19,7 +19,7 @@ interface Props {
 }
 export default function RestaurantContent({ statistiqueFileAttentes }: Props) {
     const { fileAttentes, refreshData, onSelectFileAttente, selectedData, setFileAttentSeled, fileAttenteSelected } = useFileAttenteController();
-
+    
     return (
         <PageWrapper>
             <div className="space-y-4">
@@ -62,9 +62,11 @@ export default function RestaurantContent({ statistiqueFileAttentes }: Props) {
                 </Card>
                 <Card className="bg-slate-200 box-shadow text-center p-4 w-full md:w-1/2 lg:w-1/3">
                     <div className="text-md mt-2">{statistiqueFileAttentes ? statistiqueFileAttentes?.commandeEnAttente : 0 + " "} commande(s) en attente</div>
-                    <Button variant="destructive" className="mt-8 w-full text-md hover:bg-red-300">
-                        Voir la liste
-                    </Button>
+                    <Link href="/tickets-en-attentes/commandes-en-attentes" className="mt-8 block">
+                        <Button variant="destructive" className="w-full text-md hover:bg-red-300">
+                            Voir la liste
+                        </Button>
+                    </Link>
                 </Card>
                 <Card className="bg-slate-200 box-shadow text-center p-4 w-full md:w-1/2 lg:w-1/3">
                     <div className="text-md mt-2">{statistiqueFileAttentes ? statistiqueFileAttentes?.commandeTermine : 0 + " "} commande(s) terminée(s)</div>

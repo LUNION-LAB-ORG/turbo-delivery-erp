@@ -273,6 +273,7 @@ export async function changerRestaurantLivreur(commande: ChangerRestaurantLivreu
             service: 'backend',
             data: commande
         });
+        console.log("data++++++++++++++++++++++", data)
         return {
             status: 'success',
             message: 'Le restaurant du livreur a été changeé  avec succès',

@@ -33,42 +33,46 @@ export default function Content({ initialData, restaurants }: Props) {
                                 </div>
                                 :
                                 <div>
-                                    {(livreurNonAssingeCtrl.data?.content || []).map((item: any) => (
-                                        <>
-                                            <tr key={item.id} className="border-b hover:bg-gray-100 flex justify-between">
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-7 h-7 rounded-full bg-gray-300"> </span>
-                                                        <span> {item?.nomPrenom ? item.nomPrenom : 'Néant'}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">{item?.dateInscription}</td>
-                                                <td className="px-6 py-4 flex gap-4 items-center">
+                                    {(livreurNonAssingeCtrl.data?.content && livreurNonAssingeCtrl.data?.content.length > 0) &&
+                                        livreurNonAssingeCtrl.data?.content.map((item: any) => {
+                                            if (!item) {
+                                                return <></>
+                                            }
+                                            return <>
+                                                <tr key={item.id} className="border-b hover:bg-gray-100 flex justify-between">
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-7 h-7 rounded-full bg-gray-300"> </span>
+                                                            <span> {item?.nomPrenom ? item.nomPrenom : 'Néant'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">{item?.dateInscription}</td>
+                                                    <td className="px-6 py-4 flex gap-4 items-center">
 
-                                                    <Button variant={'confirm-success'} className="h-8">
-                                                        <span className="flex items-center gap-2">
-                                                            <Check size={18} />
-                                                            Confirmé
+                                                        <Button variant={'confirm-success'} className="h-8">
+                                                            <span className="flex items-center gap-2">
+                                                                <Check size={18} />
+                                                                Confirmé
+                                                            </span>
+                                                        </Button>
+                                                        <span className="text-white  p-1 bg-gray-400  rounded-full hover:bg-red-500 cursor-pointer"
+                                                            onClick={() => livreurNonAssingeCtrl.setUpdateLivreurId(item?.livreurId)}>
+                                                            <PencilIcon className="h-4 w-4 " />
                                                         </span>
-                                                    </Button>
-                                                    <span className="text-white  p-1 bg-gray-400  rounded-full hover:bg-red-500 cursor-pointer"
-                                                        onClick={() => livreurNonAssingeCtrl.setUpdateLivreurId(item?.livreurId)}>
-                                                        <PencilIcon className="h-4 w-4 " />
-                                                    </span>
-                                                    <span className="text-white p-1 bg-gray-400   rounded-full hover:bg-red-500 cursor-pointer"
-                                                        onClick={() => livreurNonAssingeCtrl.supprimerLivreur(item, "WAITING")}>
-                                                        <XIcon className=" h-4 w-4" />
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                            <div className='flex justify-end'>
-                                                {
-                                                    livreurNonAssingeCtrl.updateLivreurId === item?.livreurId &&
-                                                    <Button variant={'outline'} className='text-sm h-8' onClick={() => livreurNonAssingeCtrl.modifier(item)} >Modifier le turbo en turboy</Button>
-                                                }
-                                            </div>
-                                        </>
-                                    ))}
+                                                        <span className="text-white p-1 bg-gray-400   rounded-full hover:bg-red-500 cursor-pointer"
+                                                            onClick={() => livreurNonAssingeCtrl.supprimerLivreur(item, "WAITING")}>
+                                                            <XIcon className=" h-4 w-4" />
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <div className='flex justify-end'>
+                                                    {
+                                                        livreurNonAssingeCtrl.updateLivreurId === item?.livreurId &&
+                                                        <Button variant={'outline'} className='text-sm h-8' onClick={() => livreurNonAssingeCtrl.modifier(item)} >Modifier le turbo en turboy</Button>
+                                                    }
+                                                </div>
+                                            </>
+                                        })}
                                 </div>
                         }
                     </tbody>

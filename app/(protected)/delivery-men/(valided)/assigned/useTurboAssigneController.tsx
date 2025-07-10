@@ -24,7 +24,7 @@ export function useTurboAssigneController(initialData: PaginatedResponse<Livreur
 
   useEffect(() => {
     if (searchKey && initialData && initialData.content) {
-      const data = (initialData.content || []).filter((item: any) =>item.nomPrenom && item.nomPrenom.toLowerCase().includes(searchKey?.toLowerCase()));
+      const data = (initialData.content || []).filter((item: any) => item.nomPrenom && item.nomPrenom.toLowerCase().includes(searchKey?.toLowerCase()));
       setData({ ...initialData, content: data });
     } else {
       setData(initialData);

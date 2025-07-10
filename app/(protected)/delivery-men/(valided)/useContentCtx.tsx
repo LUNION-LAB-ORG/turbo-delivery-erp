@@ -65,7 +65,7 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
       toast.error(error.message || 'Erreur lors de la récupération des données');
     } finally {
       setIsLoading(false);
-      router.refresh();
+      // router.refresh();
     }
   };
 
@@ -79,6 +79,9 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
     return colors[index];
   };
   const renderCell = useCallback((livreur: LivreurStatutVM | null, columnKey?: Key) => {
+    if (!livreur) {
+      return
+    }
     const cellValue = livreur && livreur[columnKey as keyof LivreurStatutVM];
     const initial = livreur && getInitials(livreur.nomPrenom);
     const bgColor = getColorFromInitial(initial ?? '');

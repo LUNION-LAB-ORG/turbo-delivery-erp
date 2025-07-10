@@ -87,7 +87,6 @@ export async function getAllBonLivraisonEnAttentes(page: number = 0, size: numbe
 };
 
 export async function reportingBonLivraisonTerminers(parametre: ParametreBonLivraisonFacture): Promise<ArrayBuffer | null> {
-    console.log("parametre", parametre)
     try {
         const response = await axios.post(
             `${process.env.NEXT_PUBLIC_API_BACKEND_URL}${bonLivraisonEndpoints.reportingBonLivraison.endpoint}`,

@@ -59,7 +59,7 @@ export default function Content({ restaurant }: { restaurant: Restaurant }) {
       if (res.status === 'success') {
         toast.success('Bravo, votre action a été prise en compte');
       } else {
-        toast.error('Désolé, votre action n’a pas été prise en compte');
+        toast.error('Désolé, votre action n\'a pas été prise en compte');
       }
     } catch (error) {
       console.error(error);
@@ -92,6 +92,7 @@ export default function Content({ restaurant }: { restaurant: Restaurant }) {
               alt="Restaurant cover"
               className="object-cover"
               fill
+              unoptimized
             />
             <div className="absolute left-8 bottom-8 bg-white p-2 rounded-lg">
               <Image
@@ -100,6 +101,7 @@ export default function Content({ restaurant }: { restaurant: Restaurant }) {
                 width={80}
                 height={80}
                 className="rounded"
+                unoptimized
               />
             </div>
           </div>

@@ -28,14 +28,10 @@ export function useReportingController(restaurant?: Restaurant, type?: string, i
     }, [type])
 
     const onPreview = async () => {
-        if (!restaurant) {
-            toast.error("Vous devez selectionnée un restautrant !")
-            return
-        }
         const isValid = await form.trigger();
         if (!isValid) {
-            toast.error("Vérifiez que les champs sont bien renseigner !")
-            return
+            toast.error("Vous devez selectionnée un format !")
+            return false
         }
         setIsLoading(true)
         const data: TypeReportingSchema = form.getValues();
@@ -69,14 +65,10 @@ export function useReportingController(restaurant?: Restaurant, type?: string, i
 
 
     const onexportFile = async () => {
-        if (!restaurant) {
-            toast.error("Vous devez selectionnée un restautrant !")
-            return
-        }
         const isValid = await form.trigger();
         if (!isValid) {
-            toast.error("Vérifiez que les champs sont bien renseigner !")
-            return
+            toast.error("Vous devez selectionnée un format !")
+            return false
         }
         setIsLoading(true)
         const data: TypeReportingSchema = form.getValues();
@@ -89,7 +81,10 @@ export function useReportingController(restaurant?: Restaurant, type?: string, i
                 format: data.format as FormatsSupportes
             });
 
-            console.log(result);
+            if (result?.status === "error") {
+                toast.error(result?.message);
+                return false
+            }
 
             if (data?.format === "PDF" && result != null) {
                 const uint8Array = new Uint8Array(result);

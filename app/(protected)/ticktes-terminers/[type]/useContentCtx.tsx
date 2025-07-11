@@ -107,6 +107,14 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
         }
     }, []);
 
+    const openReportingDialog = () => {
+        if (!restaurant) {
+            toast.error("Vous devez selectionnée un restaurant !");
+            return false;
+        }
+        onOpen()
+    }
+
 
 
     return {
@@ -121,6 +129,6 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
         handleCangeRestaurant,
         onOpen,
         onClose,
-        restaurant, isOpen, type
+        restaurant, isOpen, type, openReportingDialog
     };
 }

@@ -86,7 +86,7 @@ export async function getAllBonLivraisonEnAttentes(page: number = 0, size: numbe
     }
 };
 
-export async function reportingBonLivraisonTerminers(parametre: ParametreBonLivraisonFacture): Promise<ArrayBuffer | null> {
+export async function reportingBonLivraisonTerminers(parametre: ParametreBonLivraisonFacture): Promise<any | null> {
     try {
         const response = await axios.post(
             `${process.env.NEXT_PUBLIC_API_BACKEND_URL}${bonLivraisonEndpoints.reportingBonLivraison.endpoint}`,
@@ -96,8 +96,23 @@ export async function reportingBonLivraisonTerminers(parametre: ParametreBonLivr
             }
         );
         return response.data;
-    } catch (error) {
-        return null;
+    } catch (error: any) {
+        if (error?.response?.data && error.response?.data?.message) {
+            return {
+                status: 'error',
+                message: error?.response?.data?.message ?? "Erreur lors du traitement",
+            };
+        } else if (error?.response?.data?.message) {
+            return {
+                status: 'error',
+                message: error?.response?.data?.message ?? "Erreur lors du traitement",
+            };
+        } else {
+            return {
+                status: 'error',
+                message: "Erreur lors du traitement",
+            };
+        }
     }
 }
 

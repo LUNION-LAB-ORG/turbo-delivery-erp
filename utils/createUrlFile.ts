@@ -1,6 +1,6 @@
 import getFolderAndFileName from './getFolderAndFileName';
 
-const serveFile = (folder: string, file: string) => `/api/serve/file${folder}/${file}`;
+const serveFile = (folder: string, file: string) => `/api/serve/file/${folder}/${file}`;
 
 function createUrlFile(path: string, service: 'restaurant' | 'erp' | 'delivery' | 'client' | 'backend') {
     let base_url = '';

@@ -30,7 +30,7 @@ interface Props {
 
 export default function useContentCtx({ initialData }: Props) {
     const [isLoading, setIsLoading] = useState(!initialData);
-
+    console.log(initialData);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize] = useState(10);
 
@@ -38,11 +38,11 @@ export default function useContentCtx({ initialData }: Props) {
 
     // Fonction de récupération des données
     const fetchData = async (page: number) => {
-        setCurrentPage(page);
         setIsLoading(true);
         try {
-            const newData = await getRestaurants(currentPage - 1, pageSize);
+            const newData = await getRestaurants(page - 1, pageSize);
             setData(newData);
+            setCurrentPage(page);
         } catch (error) {
             toast.error('Erreur lors de la récupération des données');
         } finally {

@@ -71,7 +71,7 @@ export async function getDetailRestaurant(idRestaurant: string): Promise<Restaur
   } catch (error) {
     return null;
   }
-}
+}   
 
 export async function getRestaurants(page: number, size: number): Promise<PaginatedResponse<Restaurant> | null> {
   try {
@@ -84,7 +84,7 @@ export async function getRestaurants(page: number, size: number): Promise<Pagina
         size: String(size),
       },
     });
-
+    console.log(data);
     return data;
   } catch (error) {
     return null;

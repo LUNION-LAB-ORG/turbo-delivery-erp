@@ -1,6 +1,21 @@
 'use client';
 
-import { Table, TableHeader, TableBody, TableColumn, TableRow, TableCell, Pagination, Modal, ModalContent, ModalHeader, ModalBody, Button, ModalFooter } from '@heroui/react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableColumn,
+  TableRow,
+  TableCell,
+  Pagination,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+} from '@heroui/react';
+
 import useContentCtx from './useContentCtx';
 import { PaginatedResponse } from '@/types';
 import { LivreurStatutVM, Restaurant } from '@/types/models';
@@ -34,40 +49,59 @@ export default function Content({ initialData, restaurants }: ContentProps) {
     validateBy,
   } = useContentCtx({ initialData, restaurants });
 
+  const rows = (data?.content || []).filter(Boolean);
 
   return (
     <div className="w-full h-full pb-10 flex flex-1 flex-col gap-4">
       <SearchField searchKey={searchKey} onChange={setSearchKey} />
-      <Table aria-label="Example table with dynamic content">
+
+      <Table aria-label="Tableau des livreurs">
         <TableHeader>
           {columns.map((column) => (
-            <TableColumn key={column.uid} align={'start'}>
+            <TableColumn key={column.uid} align="start">
               {renderCols(column)}
             </TableColumn>
           ))}
         </TableHeader>
-        <TableBody>
-          {(data?.content || []).map((row: LivreurStatutVM) => (
-            <TableRow key={row?.livreurId ?? ""}>{(columnKey) => <TableCell>{renderCell(row, columnKey) as React.ReactNode}</TableCell>}</TableRow>
+
+        <TableBody emptyContent="Aucun livreur à afficher.">
+          {rows.map((row: LivreurStatutVM) => (
+            <TableRow key={row.livreurId}>
+              {columns.map((column) => (
+                <TableCell key={column.uid}>
+                  {renderCell(row, column.uid) as React.ReactNode}
+                </TableCell>
+              ))}
+            </TableRow>
           ))}
         </TableBody>
       </Table>
+
       <div className="flex h-fit z-10 justify-center mt-8 fixed bottom-4">
         <div className="bg-gray-200 absolute inset-0 w-full h-full blur-sm opacity-50"></div>
-        <Pagination total={data?.totalPages ?? 1} page={currentPage} onChange={fetchData} showControls color="primary" variant="bordered" isDisabled={isLoading} />
+        <Pagination
+          total={data?.totalPages ?? 1}
+          page={currentPage}
+          onChange={fetchData}
+          showControls
+          color="primary"
+          variant="bordered"
+          isDisabled={isLoading}
+        />
       </div>
 
-      <Modal isOpen={birdDisclosure.isOpen} size={'sm'} onClose={birdDisclosure.onClose}>
+      {/* MODAL pour changer le statut */}
+      <Modal isOpen={birdDisclosure.isOpen} size="sm" onClose={birdDisclosure.onClose}>
         <ModalContent>
           <>
             <ModalHeader className="text-sm">Changer le statut du livreur</ModalHeader>
             <ModalBody>
               <div className="flex justify-around">
                 <Button color="primary" size="sm" variant="light" onPress={changerStatus}>
-                  Dévenir un bird
+                  Devenir un bird
                 </Button>
                 <Button color="danger" size="sm" variant="light" onPress={freeDisclosure.onOpen}>
-                  Devenir un liveur assigné
+                  Devenir un livreur assigné
                 </Button>
               </div>
             </ModalBody>
@@ -79,8 +113,27 @@ export default function Content({ initialData, restaurants }: ContentProps) {
           </>
         </ModalContent>
       </Modal>
-      {livreur && <DeliveryMenStatusValidate deliveryMan={livreur} open={deliverStatusDisclosure.isOpen} setOpen={deliverStatusDisclosure.onOpenChange} validateBy={validateBy} />}
-      <UpdateDeliveryDialog onClose={freeDisclosure.onClose} isOpen={freeDisclosure.isOpen} livreur={livreur} typeLiveur="TURBO" restaurants={restaurants} />
+
+      {/* MODAL pour valider un livreur */}
+      {livreur && (
+        <DeliveryMenStatusValidate
+          deliveryMan={livreur}
+          open={deliverStatusDisclosure.isOpen}
+          setOpen={deliverStatusDisclosure.onOpenChange}
+          validateBy={validateBy}
+        />
+      )}
+
+      {/* MODAL pour affectation d’un livreur libre */}
+      <UpdateDeliveryDialog
+        onClose={freeDisclosure.onClose}
+        isOpen={freeDisclosure.isOpen}
+        livreur={livreur}
+        typeLiveur="TURBO"
+        restaurants={restaurants}
+      />
+
+      {/* MODAL de confirmation */}
       <ConfirmDialog {...confirm} />
     </div>
   );

@@ -12,6 +12,5 @@ export default async function Restaurants() {
 
     return (
         <Content initialData={restaurants} />
-
     );
 }

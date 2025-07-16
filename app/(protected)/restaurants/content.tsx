@@ -31,9 +31,21 @@ export default function Content({ initialData }: ContentProps) {
                     {(item) => <TableRow key={item.id}>{(columnKey) => <TableCell>{renderCell(item, columnKey) as React.ReactNode}</TableCell>}</TableRow>}
                 </TableBody>
             </Table>
-            <div className="flex h-fit z-10 justify-center mt-8 fixed bottom-4">
+            {/* <div className="flex h-fit z-10 justify-center mt-8 fixed bottom-4">
                 <div className="bg-gray-200 absolute inset-0 w-full h-full blur-sm opacity-50"></div>
                 <Pagination total={data?.totalPages ?? 1} page={currentPage} onChange={fetchData} showControls color="primary" variant="bordered" isDisabled={isLoading} />
+            </div> */}
+            <div className="relative flex justify-center mt-8">
+                <div className="absolute bottom-0 w-full h-12 bg-gray-200 blur-sm opacity-50 rounded-xl" />
+                <Pagination
+                    total={data?.totalPages ?? 1}
+                    page={currentPage}
+                    onChange={fetchData}
+                    showControls
+                    color="primary"
+                    variant="bordered"
+                    isDisabled={isLoading}
+                />
             </div>
         </div>
     );

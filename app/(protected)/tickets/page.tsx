@@ -1,7 +1,7 @@
 
 import { getBonLivraisonAll } from '@/src/actions/bon-commande.action';
 import Content from './content';
-import { getAllRestaurants } from '@/src/actions/restaurants.actions';
+import { getAllRestaurants } from '@/src/restaurants/restaurants.actions';
 
 export default async function Page() {
     const data = await getBonLivraisonAll(0, 10);

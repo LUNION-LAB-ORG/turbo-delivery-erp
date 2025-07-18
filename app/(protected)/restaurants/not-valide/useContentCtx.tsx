@@ -41,7 +41,7 @@ export default function useContentCtx({ initialData }: Props) {
         setCurrentPage(page);
         setIsLoading(true);
         try {
-            const newData = await getRestaurantsNoValidated();
+            const newData = await getRestaurantsNoValidated(page);
             setData(newData);
         } catch (error) {
             toast.error('Erreur lors de la récupération des données');

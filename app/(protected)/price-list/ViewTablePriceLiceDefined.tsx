@@ -4,13 +4,10 @@ import {  getPriceListByRestaurant } from '@/src/price-list/price-list.action';
 import { DeliveryFee, RestaurantDefini } from '@/types/price-list';
 import {  Tooltip } from '@heroui/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { _deliveryFeeCreateSchema, deliveryFeeCreateSchema } from '@/src/price-list/price-list.schema';
-import { PlaceAutocompleteResult } from '@googlemaps/google-maps-services-js';
+import { _deliveryFeeCreateSchema } from '@/src/price-list/price-list.schema';
 import FormUpDate from '../../../components/dashboard/price-liste/FormUpDate';
 import PriceListeTools from '@/components/dashboard/price-liste/price-list-tools';
-import { useRouter } from 'next/navigation';
-import { Restaurant } from '@/types/models';
-// import { getDetailRestaurant } from '@/src/actions/restaurants.actions';
+
 import { getDetailRestaurant } from '@/src/restaurants/restaurants.actions';
 interface Props {
     initialData: RestaurantDefini[];

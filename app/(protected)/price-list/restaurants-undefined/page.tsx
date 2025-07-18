@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function PageContent() {
-  const initialData: RestaurantDefini[] = await getRestaurantUndefined();
+  const initialData: RestaurantDefini[] = await getRestaurantUndefined(0);
 
   return (
     <>

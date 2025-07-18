@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import Content from "./content";
 import { getAllBonLivraisonEnAttentes } from "@/src/actions/bon-commande.action";
-import { getAllRestaurants } from "@/src/actions/restaurants.actions";
+import { getAllRestaurants } from "@/src/restaurants/restaurants.actions";
 
 
 export default async function Page() {

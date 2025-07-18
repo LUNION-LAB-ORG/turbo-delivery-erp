@@ -33,10 +33,10 @@ const RestaurantValidate = ({
     const fetchData = async () => {
         try {
             if (type) {
-                const newData = await getRestaurantsNoValidated();
+                const newData = await getRestaurantsNoValidated(0);
                 setData && setData(newData);
             } else {
-                const newData = await getRestaurantsValidated();
+                const newData = await getRestaurantsValidated(0);
                 setData && setData(newData);
             }
         } catch (error) {

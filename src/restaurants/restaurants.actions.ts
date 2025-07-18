@@ -23,7 +23,7 @@ const restaurantEndpoints = {
     method: 'GET',
   },
   getAll: {
-    endpoint: `${BASE_URL_2}/validated/opsmanager/0`,
+    endpoint: (page:number)=> `${BASE_URL_2}/validated/opsmanager/${page}`,
     method: 'GET',
   },
   getAlls: {
@@ -31,11 +31,11 @@ const restaurantEndpoints = {
     method: 'GET',
   },
   getAllValidated: {
-    endpoint: `${BASE_URL_2}/validated/authservice/0`,
+    endpoint: (page:number)=> `${BASE_URL_2}/validated/authservice/${page}`,
     method: 'GET',
   },
   getAllNoValidated: {
-    endpoint: `${BASE_URL_2}/not/validated/0`,
+    endpoint: (page:number)=> `${BASE_URL_2}/not/validated/${page}`,
     method: 'GET',
   },
   validateAuth: {
@@ -73,18 +73,13 @@ export async function getDetailRestaurant(idRestaurant: string): Promise<Restaur
   }
 }   
 
-export async function getRestaurants(page: number, size: number): Promise<PaginatedResponse<Restaurant> | null> {
+export async function getRestaurants(page: number): Promise<PaginatedResponse<Restaurant> | null> {
   try {
     const data = await apiClientHttp.request<PaginatedResponse<Restaurant>>({
-      endpoint: restaurantEndpoints.getAll.endpoint,
+      endpoint: restaurantEndpoints.getAll.endpoint(page),
       method: restaurantEndpoints.getAll.method,
       service: 'erp',
-      params: {
-        page: String(page),
-        size: String(size),
-      },
     });
-    console.log(data);
     return data;
   } catch (error) {
     return null;
@@ -104,10 +99,10 @@ export async function getAllRestaurants(): Promise<Restaurant[]> {
   }
 }
 
-export async function getRestaurantsValidated(): Promise<PaginatedResponse<Restaurant> | null> {
+export async function getRestaurantsValidated(page: number): Promise<PaginatedResponse<Restaurant> | null> {
   try {
     const data = await apiClientHttp.request<PaginatedResponse<Restaurant>>({
-      endpoint: restaurantEndpoints.getAllValidated.endpoint,
+      endpoint: restaurantEndpoints.getAllValidated.endpoint(page),
       method: restaurantEndpoints.getAllValidated.method,
       service: 'erp',
     });
@@ -118,10 +113,10 @@ export async function getRestaurantsValidated(): Promise<PaginatedResponse<Resta
   }
 }
 
-export async function getRestaurantsNoValidated(): Promise<PaginatedResponse<Restaurant> | null> {
+export async function getRestaurantsNoValidated(page: number): Promise<PaginatedResponse<Restaurant> | null> {
   try {
     const data = await apiClientHttp.request<PaginatedResponse<Restaurant>>({
-      endpoint: restaurantEndpoints.getAllNoValidated.endpoint,
+      endpoint: restaurantEndpoints.getAllNoValidated.endpoint(page),
       method: restaurantEndpoints.getAllNoValidated.method,
       service: 'erp',
     });

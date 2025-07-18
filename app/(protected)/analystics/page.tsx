@@ -9,7 +9,7 @@ import { getRestaurants } from '@/src/restaurants/restaurants.actions';
 
 export default async function Page() {
     const deliveryMen = await getDeliveryMen();
-    const restaurants = await getRestaurants(0, 10);
+    const restaurants = await getRestaurants(0);
     const typePlats = await getTypePlats();
     const users = await getUsers();
     const chiffreAffaire = await getAllChiffreAffaire();

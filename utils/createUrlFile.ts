@@ -7,7 +7,7 @@ function createUrlFile(path: string, service: 'restaurant' | 'erp' | 'delivery' 
     let url: string = '';
     const { folderName, fileName } = getFolderAndFileName(path);
     if (service === 'restaurant') {
-        base_url = 'https://resto.turbodeliveryapp.com';
+        base_url = "https://resto.turbodeliveryapp.com";
         url = base_url + serveFile(folderName, fileName);
     }
     if (service === 'erp') {

@@ -32,7 +32,7 @@ const priceListEndpoints = {
         method: 'DELETE',
     },
     getRestaurantUndefined: {
-        endpoint: `${BASE_URL}/restaurant/non-defini`,
+        endpoint: (page:number) => `${BASE_URL}/restaurant/non-defini`,
         method: 'GET',
     },
     getRestaurantDefined: {
@@ -56,18 +56,34 @@ export async function getRestaurantDefined(): Promise<RestaurantDefini[]> {
         return [];
     }
 }
-export async function getRestaurantUndefined(): Promise<RestaurantDefini[]> {
+
+export async function getRestaurantUndefined(page:number): Promise<RestaurantDefini[]> {
     try {
         const data = await apiClientHttp.request<RestaurantDefini[]>({
-            endpoint: priceListEndpoints.getRestaurantUndefined.endpoint,
+            endpoint: priceListEndpoints.getRestaurantUndefined.endpoint(page),
             method: priceListEndpoints.getRestaurantUndefined.method,
-            service: 'backend',
+            service: "backend",
         });
+        
         return data;
     } catch (error: any) {
         return [];
     }
 }
+export async function getRestaurantUndefined2(page:number): Promise<PaginatedResponse<RestaurantDefini> | null> {
+    try {
+        const data = await apiClientHttp.request<PaginatedResponse<RestaurantDefini>>({
+            endpoint: priceListEndpoints.getRestaurantUndefined.endpoint(page),
+            method: priceListEndpoints.getRestaurantUndefined.method,
+            service: "backend",
+        });
+        
+        return data;
+    } catch (error: any) {
+        return null;
+    }
+}
+
 export async function getPriceListByRestaurant(restaurantID: string, page: number, size: number): Promise<PaginatedResponse<DeliveryFee> | null> {
     try {
         const data = await apiClientHttp.request<PaginatedResponse<DeliveryFee>>({
@@ -213,10 +229,6 @@ export async function deletePriceList(fraisDeLivraisonId: string) {
             data: fraisDeLivraisonId,
             service: 'backend',
         });
-
-        // const data=formdata
-
-        console.log(data);
 
         return {
             status: 'success',

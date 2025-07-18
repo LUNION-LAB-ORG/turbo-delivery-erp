@@ -30,9 +30,7 @@ interface Props {
 
 export default function useContentCtx({ initialData }: Props) {
     const [isLoading, setIsLoading] = useState(!initialData);
-    console.log(initialData);
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize] = useState(10);
 
     const [data, setData] = useState<PaginatedResponse<Restaurant> | null>(initialData);
 
@@ -40,7 +38,7 @@ export default function useContentCtx({ initialData }: Props) {
     const fetchData = async (page: number) => {
         setIsLoading(true);
         try {
-            const newData = await getRestaurants(page - 1, pageSize);
+            const newData = await getRestaurants(page - 1);
             setData(newData);
             setCurrentPage(page);
         } catch (error) {

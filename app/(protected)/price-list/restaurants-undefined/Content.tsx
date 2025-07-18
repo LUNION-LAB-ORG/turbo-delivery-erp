@@ -12,9 +12,8 @@ interface Props {
 }
 
 export const columns = [
-  { name: 'Nom du restaurent', uid: 'nomEtablissement' },
-  { name: 'Type de commission', uid: 'typeCommission' },
-  { name: 'Actions', uid: 'actions' },
+  { name: 'Nom du restaurent', uid: 'nomEtablissement', align: 'start' },
+  { name: 'Actions', uid: 'actions', align: 'end' },
 
 ];
 
@@ -34,12 +33,16 @@ export default function Content({ initialData }: Props) {
     <Tabs color="primary" variant="underlined" items={tabsItems} selectedKey={'/price-list/restaurants-undefined'} className="w-full">
       {(item) => {
         return (
-          <Tab key={item.id} as={Link} href={item.href} title={item.label}>*
+          <Tab key={item.id} as={Link} href={item.href} title={item.label}>
             <div className="flex flex-col">
               <Table aria-label="Tableau de Frais de livraison">
                 <TableHeader columns={columns}>
                   {(column) => (
-                    <TableColumn className={`${column.uid == 'nomEtablissement' ? 'flex items-center gap-2' : ''}`} key={column.uid}>
+                    <TableColumn 
+                    className={`${column.uid == 'nomEtablissement' ? 'flex items-center gap-2' : ''}`} 
+                    key={column.uid}
+                    align={column.align as 'start' | 'end' | 'center'}
+                    >
                       {column.uid === 'nomEtablissement' && <Search />} {column.name}
                     </TableColumn>
                   )}

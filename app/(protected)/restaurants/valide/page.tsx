@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Restaurants() {
-    const restaurants = await getRestaurantsValidated();
+    const restaurants = await getRestaurantsValidated(0);
 
     return (
         <Content initialData={restaurants} />

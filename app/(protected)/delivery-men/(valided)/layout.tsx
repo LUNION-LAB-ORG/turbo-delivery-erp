@@ -31,7 +31,7 @@ export default function DeliveryMenLayout({ children }: { children: React.ReactN
                         <Tab key={item.id} as={Link} href={item.href} title={item.label}>
                             {children}
                         </Tab>
-                    );
+                    );  
                 }}
             </Tabs>
         </div>

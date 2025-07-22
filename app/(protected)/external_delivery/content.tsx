@@ -4,7 +4,7 @@ import { CourseExterne, LivreurDisponible } from '@/types/models';
 import { PaginatedResponse } from '@/types';
 import { Clock, MapPin, User, Package, CreditCard, Store, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button, Card, CardBody, CardHeader, Chip, Divider, Pagination, Skeleton } from "@heroui/react";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SORT_OPTIONS } from '@/data';
 import DeliveryTools from './component/deliveryTools';
 import { getPaginationCourseExterneEnAttente } from '@/src/actions/courses.actions';
@@ -76,6 +76,17 @@ export default function Content({ initialData, delivers }: Props) {
     const [dataFilter, setDataFilter] = useState<CourseExterne[]>(data?.content ?? []);
     const [isLoading, setIsLoading] = useState(!initialData);
 
+    // Rafraîchissement automatique toutes les 30 secondes
+    useEffect(() => {
+        const refreshInterval = setInterval(() => {
+            // Rafraîchir les données de la page courante
+            fetchDataSilently(currentPage);
+        }, 15000); // 30 secondes
+
+        // Nettoyage du timer quand le composant est démonté
+        return () => clearInterval(refreshInterval);
+    }, [currentPage]); // Re-créer le timer si la page change
+
     const handleFilter = (status: string, _data?: PaginatedResponse<CourseExterne> | null) => {
         setIsLoading(true);
         setStatusFilter(status);
@@ -90,7 +101,7 @@ export default function Content({ initialData, delivers }: Props) {
         setIsLoading(false);
     };
 
-    // Fonction de récupération des données
+    // Fonction de récupération des données (avec loading)
     const fetchData = async (page: number) => {
         setCurrentPage(page);
         setIsLoading(true);
@@ -106,8 +117,25 @@ export default function Content({ initialData, delivers }: Props) {
         }
     };
 
-    // Handlers
+    // Fonction de récupération des données silencieuse (sans loading pour le rafraîchissement automatique)
+    const fetchDataSilently = async (page: number) => {
+        try {
+            const newData = await getPaginationCourseExterneEnAttente(page - 1, pageSize);
+            setData(newData);
+            
+            // Appliquer le filtre actuel aux nouvelles données
+            if (statusFilter === 'all') {
+                setDataFilter(newData?.content ?? []);
+            } else {
+                const filteredData = newData?.content.filter((d) => d.statut?.toUpperCase() === statusFilter) ?? [];
+                setDataFilter(filteredData);
+            }
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+        }
+    };
 
+    // Handlers
     const handleReset = () => {
         setSearchTerm('');
         setSortBy(SORT_OPTIONS.DATE_DESC);

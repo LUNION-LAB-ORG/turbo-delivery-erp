@@ -74,6 +74,7 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
           position: { longitude: 0, latitude: 0 },
         }));
         setData(newData);
+        // router.replace(`?page=${page}`, { scroll: false });
       }
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de la récupération des données');
@@ -96,7 +97,6 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
     const cellValue = livreur[columnKey as keyof LivreurStatutVM];
     const initial = getInitials(livreur.nomPrenom);
     const bgColor = getColorFromInitial(initial);
-  
 
     switch (columnKey) {
       case 'nomPrenom':

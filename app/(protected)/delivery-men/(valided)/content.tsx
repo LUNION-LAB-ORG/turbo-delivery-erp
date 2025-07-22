@@ -49,7 +49,31 @@ export default function Content({ initialData, restaurants }: ContentProps) {
     validateBy,
   } = useContentCtx({ initialData, restaurants });
 
-  const rows = (data?.content || []).filter(Boolean);
+  // Données provenant du backend
+  const backendRows = (data?.content || []).filter(Boolean);
+  
+  // Configuration pour afficher exactement 10 items par page
+  const ITEMS_PER_PAGE = 10;
+  const totalElements = data?.totalElements || 0;
+  
+  // Calculer le nombre de pages en s'assurant que chaque page a 10 éléments
+  // sauf la dernière qui prend le reste
+  const totalPages = Math.ceil(totalElements / ITEMS_PER_PAGE);
+  
+  // Les données à afficher sont celles reçues du backend
+  // Le backend envoie déjà les bonnes données (10 par page sauf dernière page)
+  const rows = backendRows;
+  
+  // Fonction pour gérer le changement de page
+  const handlePageChange = (page: number) => {
+    fetchData(page);
+  };
+
+  // Calculer le nombre d'éléments affichés sur la page actuelle
+  const currentPageElements = rows.length;
+  const pageNumber = data?.number || 0; // Page actuelle du backend (0-based)
+  const startElement = (pageNumber * ITEMS_PER_PAGE) + 1;
+  const endElement = startElement + currentPageElements - (pageNumber == 0 ? 0 : 1);
 
   return (
     <div className="w-full h-full pb-10 flex flex-1 flex-col gap-4">
@@ -60,7 +84,7 @@ export default function Content({ initialData, restaurants }: ContentProps) {
           {columns.map((column) => (
             <TableColumn key={column.uid} align="start">
               {renderCols(column)}
-            </TableColumn>
+            </TableColumn>  
           ))}
         </TableHeader>
 
@@ -80,14 +104,20 @@ export default function Content({ initialData, restaurants }: ContentProps) {
       <div className="flex h-fit z-10 justify-center mt-8 fixed bottom-4">
         <div className="bg-gray-200 absolute inset-0 w-full h-full blur-sm opacity-50"></div>
         <Pagination
-          total={data?.totalPages ?? 1}
+          total={totalPages}
           page={currentPage}
-          onChange={fetchData}
+          onChange={handlePageChange}
           showControls
           color="primary"
           variant="bordered"
           isDisabled={isLoading}
         />
+      </div>
+
+      {/* Affichage des informations de pagination */}
+      <div className="text-sm text-gray-600 mt-2 text-center mb-16">
+        Page {currentPage} sur {totalPages} 
+        ({startElement}-{endElement} sur {totalElements} éléments)
       </div>
 
       {/* MODAL pour changer le statut */}
@@ -124,7 +154,7 @@ export default function Content({ initialData, restaurants }: ContentProps) {
         />
       )}
 
-      {/* MODAL pour affectation d’un livreur libre */}
+      {/* MODAL pour affectation d'un livreur libre */}
       <UpdateDeliveryDialog
         onClose={freeDisclosure.onClose}
         isOpen={freeDisclosure.isOpen}

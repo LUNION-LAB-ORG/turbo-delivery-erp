@@ -9,23 +9,23 @@ const nextConfig = {
         remotePatterns: [
             {
                 protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
-                hostname: 'erp.turbodeliveryapp.com',
+                hostname: 'erp-prod.turbodeliveryapp.com',
             },
             {
                 protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
-                hostname: 'resto.turbodeliveryapp.com',
+                hostname: 'resto-prod.turbodeliveryapp.com',
             },
             {
                 protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
-                hostname: 'customer.turbodeliveryapp.com',
+                hostname: 'customer-prod.turbodeliveryapp.com',
             },
             {
                 protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
-                hostname: 'delivery.turbodeliveryapp.com',
+                hostname: 'delivery-prod.turbodeliveryapp.com',
             },
             {
                 protocol: process.env.NEXT_PUBLIC_BACKEND_PROTOCOL,
-                hostname: 'backend.turbodeliveryapp.com',
+                hostname: 'backend-prod.turbodeliveryapp.com',
             },
         ],
     },

@@ -43,8 +43,8 @@ export default function Content({user,dataCreneau}:{user:LivreurDetail,dataCrene
             </div>
           </div>
     
-         <User user={user} dataCreneau={dataCreneau} exerianceLivreur={exerianceLivreur}/>
-         <CreneauxDetail dataCreneau={dataCreneau}/>
+          <User user={user} dataCreneau={dataCreneau} exerianceLivreur={exerianceLivreur}/>
+          <CreneauxDetail dataCreneau={dataCreneau}/>
         </Card>
       );
 }

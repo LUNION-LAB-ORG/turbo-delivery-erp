@@ -60,20 +60,48 @@ interface TurboysPageProps {
   ]
     
 
-export default async function UserPage({ params }: TurboysPageProps) {
-  const { id } = await params; // Récupère l'ID depuis l'URL
-  // const user = userData.find(item => item.id === id);
-  const user= await getInfoLivreurById(id)
+// export default async function UserPage({ params }: TurboysPageProps) {
+//   // const { id } = await params; // Récupère l'ID depuis l'URL
+//   const { id } = params;
 
-  const dataCreneau = await getCreneauById(id)
+//   // const user = userData.find(item => item.id === id);
+//   const user= await getInfoLivreurById(id)
 
-  console.log({dataCreneau:dataCreneau});
+//   const dataCreneau = await getCreneauById(id)
+
+//   console.log({dataCreneau:dataCreneau});
   
+
+//   if (!user) {
+//     return <div>Aucun utilisateur trouvé</div>;
+//   }  
+
+  
+//   return <Content user={user} dataCreneau={dataCreneau}/>;
+// }
+
+export default async function UserPage({ params }: TurboysPageProps) {
+  const { id } = params;  // <-- enlevé l'await qui est incorrect
+
+  let user = null;
+  let dataCreneau: CreneauID[] | null = null;
+
+  try {
+    user = await getInfoLivreurById(id);
+  } catch (error) {
+    console.log("Erreur getInfoLivreurById:", error);
+  }
+
+  try {
+    dataCreneau = await getCreneauById(id);
+  } catch (error) {
+    console.log("Erreur getCreneauById:", error);
+  }
 
   if (!user) {
     return <div>Aucun utilisateur trouvé</div>;
-  }  
+  }
 
-  
-  return <Content user={user} dataCreneau={dataCreneau}/>;
+  return <Content user={user} dataCreneau={dataCreneau ?? []} />;
 }
+

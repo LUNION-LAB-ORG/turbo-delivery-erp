@@ -81,6 +81,7 @@ export default function Content({ initialData, delivers }: Props) {
         const refreshInterval = setInterval(() => {
             // Rafraîchir les données de la page courante
             fetchDataSilently(currentPage);
+            console.log('Rafraichissement toutes les 30s');
         }, 15000); // 30 secondes
 
         // Nettoyage du timer quand le composant est démonté

@@ -27,6 +27,7 @@ yarn-error.log*
 
 # local env files
 .env
+.env.local
 
 # vercel
 .vercel
@@ -37,3 +38,7 @@ next-env.d.ts
 
 # ecosystem pm2
 ecosystem.config.js
+
+#Package Lock
+package-lock.json
+

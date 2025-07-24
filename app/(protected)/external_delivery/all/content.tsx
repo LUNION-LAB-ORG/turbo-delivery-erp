@@ -79,9 +79,9 @@ export default function Content({ initialData, delivers }: Props) {
     setIsLoading(true);
     try {
       const newData = await getPaginationCourseExterneAutreStatus(page - 1, pageSize);
-      setData(newData);
-      setDataFilter(newData?.content ?? []);
-      setStatusFilter('all');
+      setData(newData?? initialData);
+setDataFilter(newData?.content ?? []);
+setStatusFilter('all');
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {

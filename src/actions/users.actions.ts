@@ -29,51 +29,72 @@ const usersEndpoints = {
 
 export async function loginUser(formData: FormData): Promise<ActionResult<any>> {
     const {
-        success,
-        data: formdata,
-        errorsInArray,
+      success,
+      data: formdata,
+      errorsInArray,
     } = processFormData(loginSchema, formData, {
         useDynamicValidation: true,
     });
-
+  
     if (!success && errorsInArray) {
         return {
             status: 'error',
             message: errorsInArray[0].message ?? 'Données manquantes ou mal formatées',
         };
     }
-
-    // Request to login
-    const result = await fetch(`${process.env.NEXT_PUBLIC_API_ERP_URL}${usersEndpoints.login.endpoint}`, {
-        method: usersEndpoints.login.method,
-        body: JSON.stringify({ username: formdata.username, password: formdata.password }),
-        headers: { 'Content-Type': 'application/json' },
-    });
-    const json = await result.json();
-    if (!result.ok) {
+  
+    try {
+        // 🔐 Envoie la requête login
+        const result = await fetch(`${process.env.NEXT_PUBLIC_API_ERP_URL}${usersEndpoints.login.endpoint}`, {
+            method: usersEndpoints.login.method,
+            body: JSON.stringify({ username: formdata.username, password: formdata.password }),
+            headers: { 'Content-Type': 'application/json' },
+        });
+    
+        const contentType = result.headers.get('content-type');
+    
+        let json: any = {};
+        if (contentType && contentType.includes('application/json')) {
+            json = await result.json();
+        } else {
+            const text = await result.text(); // Pour voir le contenu brut
+            console.error('Réponse non JSON :', text);
+        }
+    
+        if (!result.ok) {
+            return {
+                status: 'error',
+                message: json?.message ?? 'Identifiants incorrects',
+                data: {
+                    user: {
+                        changePassword: true,
+                        username: '',
+                    }
+                },
+            };
+        }
+  
+        // Authentifie via NextAuth
+        await signIn('credentials-user', {
+            username: formdata.username,
+            password: formdata.password,
+            redirect: false,
+        });
+  
+        return {
+            status: 'success',
+            message: 'Connexion réussie',
+            data: json,
+        };
+    } catch (err: any) {
+        console.error('Erreur lors de la connexion:', err);
         return {
             status: 'error',
-            message: json.message || 'Veuillez modifier votre mot de passe',
-            data: {
-                changePassword: false,
-                username: json?.user?.username ?? '',
-            },
+            message: 'Erreur serveur. Veuillez réessayer.',
         };
     }
-
-    // // Sauvegarde avec NextAuth, gestion de la session
-    await signIn('credentials-user', {
-        username: formdata.username,
-        password: formdata.password,
-        redirect: false,
-    });
-
-    return {
-        status: 'success',
-        message: 'Connexion réussie',
-        data: json
-    };
 }
+  
 
 // export async function loginUserV2(formData: FormData): Promise<ActionResult<any>> {
 //     try {

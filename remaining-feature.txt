@@ -1,0 +1,29 @@
+TASK STATUS
+********************************************************************************
+ERP ADMIN
+
+    - File Attente : 3 seulement s'affichent, afficher à la place des ✅
+    - File Attente : Ranger les livreurs par ordre  ✅
+    - File Attente : PHOTO LIVREURS & LOGO RESTAURANT
+    - Dans le map, voir la position exacte du livreurs ❌
+    - Livreurs tous recherche dans les données de la première page uniquement ❌    
+    - Connexion 500 status Error ✅
+    - Creneau horaire livreur 🔄
+    - Ajouter la recherche dans mes courses ✅
+    - Ajouter la recherche dans les restaurants ✅ | la recherche ne concerne que la pagination courante pour le moment
+    - Notifications des nouvelles courses 🔄
+********************************************************************************
+PARTNER
+
+    - Bouton de deconnexion dans la page SETTINGS ✅
+    - Livreur nouvelles identifications, pas assignable ✅
+    - Adapter le contenu du champs ZONE LIVRAISON à la taille du champs ✅
+    - Totaux statistiques des courses : Mes courses - Tous Ajouter Filtre pour le mois
+    - Nouvelles demandes de courses : Renommer "frais de livraison" en "frais de livraison inclus" ❌
+    - Ajouter le Contenu "Nouvelles features arrivent bientot" dans les pages : Commandes, Messages, Gestion Restaurant ✅
+
+
+
+
+    
+Retirer le terme 10% CC dans la colonne commission

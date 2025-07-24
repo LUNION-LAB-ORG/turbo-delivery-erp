@@ -18,11 +18,20 @@ export function FormLogin() {
       const result = await loginUser(formData);
       if (result.status === 'error') {
         toast.error(result.message);
+        return {
+          data: {
+            changePassword: result?.data?.user?.changePassword ?? true,
+          },
+          message: '',
+          errors: {},
+          status: 'idle',
+          code: undefined,
+        };
       } else {
         toast.success(result.message);
         router.push('/');
+        return result;
       }
-      return result;
     },
     {
       data: {

@@ -256,6 +256,7 @@ export interface LivreurStatutVM {
     type?: string;
     restaurantLibelle?: string;
     dateInscription?: string;
+    avatarUrl?: string;
 }
 
 export interface ChangerStatutLivreurCommande {

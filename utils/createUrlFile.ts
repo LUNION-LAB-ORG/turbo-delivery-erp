@@ -24,7 +24,7 @@ function createUrlFile(path: string, service: 'restaurant' | 'erp' | 'delivery' 
     }
     if (service === 'backend') {
         base_url = process.env.NEXT_PUBLIC_API_BACKEND_URL ?? '';
-        url = base_url + `/api/upload/${fileName}`;
+        url = base_url + `/api/upload/${fileName}`;   
     }
     return url;
 }

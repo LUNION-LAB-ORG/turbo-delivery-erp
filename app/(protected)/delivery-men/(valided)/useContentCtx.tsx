@@ -9,6 +9,8 @@ import { Button, Chip, useDisclosure } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import { Key, useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import createUrlFile from '@/utils/createUrlFile';
+import Image from 'next/image';
 
 // 🧼 Fonction utilitaire pour nettoyer les données
 const sanitizeLivreurs = (content: any[] | null | undefined): LivreurStatutVM[] =>
@@ -103,7 +105,13 @@ export default function useContentCtx({ initialData, restaurants }: Props) {
         return (
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold mr-3 shadow-md" style={{ backgroundColor: bgColor }}>
-              {initial}
+              <Image
+                src={createUrlFile(livreur.avatarUrl ?? '', 'backend')}
+                alt="Restaurant cover"
+                className="object-cover"
+                fill
+                unoptimized
+              />
             </div>
             <div className="font-medium capitalize">{livreur?.nomPrenom}</div>
           </div>

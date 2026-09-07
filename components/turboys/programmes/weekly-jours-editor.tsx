@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Button, Card, Switch, TimeField, Tooltip } from '@heroui-v3/react';
+import { Button, Card, NumberField, Switch, TimeField, Tooltip } from '@heroui-v3/react';
 import { Time, parseTime } from '@internationalized/date';
-import { Copy } from 'lucide-react';
+import { Copy, Fuel } from 'lucide-react';
 
 import { ChampListeMultiple } from '@/components/commons/champs-formulaire';
 import { IJourProgramme } from '@/features/turboys/types/programme.types';
+import { carburantPrevisionnel, joursTravailles } from '@/features/turboys/utils/carburant.utils';
+import { formatMontant } from '@/utils/format.utils';
 
 export interface OptionResto {
   id: string;
@@ -29,7 +31,14 @@ export function defaultJours(): IJourProgramme[] {
   return JOURS_ORDRE.map((jour) => ({ jour, actif: false, debut: '08:00', fin: '18:00', date: null }));
 }
 
-/** Normalise une liste de jours reçue (complète les jours manquants, ordonne lun→dim). */
+/**
+ * Normalise une liste de jours reçue (complète les jours manquants, ordonne lun→dim).
+ *
+ * <p>Elle ne recopiait que cinq clés. Les POSTES d'un jour, saisis dans ce même éditeur,
+ * n'y figuraient pas : ouvrir un programme pour le modifier les faisait disparaître du
+ * formulaire, et l'enregistrer les effaçait. Chaque champ que l'éditeur sait saisir doit
+ * aussi savoir revenir.</p>
+ */
 export function normaliserJours(jours: IJourProgramme[] | undefined | null): IJourProgramme[] {
   const parJour = new Map((jours ?? []).map((j) => [j.jour?.toUpperCase(), j]));
   return JOURS_ORDRE.map((jour) => {
@@ -40,6 +49,8 @@ export function normaliserJours(jours: IJourProgramme[] | undefined | null): IJo
       debut: hhmm(existant?.debut) || '08:00',
       fin: hhmm(existant?.fin) || '18:00',
       date: existant?.date ?? null,
+      postes: existant?.postes ?? null,
+      montantCarburant: existant?.montantCarburant ?? null,
     };
   });
 }
@@ -100,7 +111,14 @@ export function WeeklyJoursEditor({
   const appliquerHorairesATous = (debut?: string | null, fin?: string | null) =>
     onChange(value.map((j) => (j.actif ? { ...j, debut: hhmm(debut), fin: hhmm(fin) } : j)));
 
+  // Même geste pour le carburant : un forfait se pose une fois, pas six.
+  const appliquerCarburantATous = (montant?: number | null) =>
+    onChange(value.map((j) => (j.actif ? { ...j, montantCarburant: montant ?? null } : j)));
+
   const nomResto = (id: string) => restaurants.find((r) => r.id === id)?.nom ?? id;
+
+  const total = carburantPrevisionnel(value);
+  const nbTravailles = joursTravailles(value);
 
   return (
     <div className="flex flex-col gap-2">
@@ -183,6 +201,47 @@ export function WeeklyJoursEditor({
               ) : (
                 <span className="text-xs text-muted">Repos</span>
               )}
+
+              {/*
+               * Le carburant du jour. Un montant, pas un forfait hebdomadaire : c'est le
+               * nombre de jours travaillés qui fait le total, et un jour de repos ne coûte
+               * rien — le champ se ferme avec l'interrupteur. Le pas est de 500 F, la plus
+               * petite unité qu'on manipule pour du carburant.
+               */}
+              <div className="ms-auto flex items-center gap-1">
+                <NumberField
+                  aria-label={`Carburant ${LABEL[j.jour] ?? j.jour}`}
+                  formatOptions={{ maximumFractionDigits: 0 }}
+                  isDisabled={disabled || !j.actif}
+                  minValue={0}
+                  onChange={(v) => set(j.jour, { montantCarburant: Number.isFinite(v) ? v : null })}
+                  step={500}
+                  value={j.actif && j.montantCarburant != null ? j.montantCarburant : NaN}
+                >
+                  <NumberField.Group className="w-40">
+                    <NumberField.DecrementButton />
+                    <NumberField.Input className="text-end tabular-nums" placeholder="Carburant" />
+                    <NumberField.IncrementButton />
+                  </NumberField.Group>
+                </NumberField>
+                {j.actif && (
+                  <Tooltip>
+                    <Button
+                      aria-label="Appliquer ce carburant à tous les jours travaillés"
+                      isDisabled={disabled || j.montantCarburant == null}
+                      isIconOnly
+                      onPress={() => appliquerCarburantATous(j.montantCarburant)}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      <Fuel aria-hidden="true" className="size-4" />
+                    </Button>
+                    <Tooltip.Content>
+                      Appliquer ce carburant à tous les jours travaillés
+                    </Tooltip.Content>
+                  </Tooltip>
+                )}
+              </div>
             </div>
 
             {/* Maquette M2 — postes/partenaires desservis ce jour (jours travaillés). */}
@@ -205,6 +264,28 @@ export function WeeklyJoursEditor({
           </Card.Content>
         </Card>
       ))}
+
+      {/*
+       * Le total, sous les jours, tel qu'il sera figé à la publication. Il se lit avec le
+       * nombre de jours qui le composent : c'est la réponse à « pourquoi 24 000 et pas
+       * 28 000 » — un jour de repos de plus.
+       */}
+      <div className="flex flex-wrap items-baseline justify-between gap-2 px-1 pt-1 text-sm">
+        <span className="text-muted">
+          Carburant de la semaine
+          {nbTravailles > 0 && (
+            <>
+              {' '}
+              <span className="tabular-nums">
+                sur {nbTravailles} jour{nbTravailles > 1 ? 's' : ''} travaillé{nbTravailles > 1 ? 's' : ''}
+              </span>
+            </>
+          )}
+        </span>
+        <span className="font-semibold tabular-nums text-foreground">
+          {total === null ? 'Aucun montant saisi' : formatMontant(total)}
+        </span>
+      </div>
     </div>
   );
 }

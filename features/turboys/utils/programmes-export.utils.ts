@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 
 import { IProgramme } from '../types/programme.types';
+import { carburantAffiche, totauxCarburant } from './carburant.utils';
 import { getTurboyTypeDisplay } from './type-livreur-display';
 
 const JOURS: Array<{ key: string; court: string }> = [
@@ -43,17 +44,27 @@ function celluleJour(p: IProgramme, jourKey: string): string {
   return `${hhmm(j.debut)}-${hhmm(j.fin)}`;
 }
 
+/** Le carburant d'une ligne pour un export : le montant figé, sinon le prévisionnel, sinon rien. */
+function carburantExport(p: IProgramme): number | '' {
+  const { montant } = carburantAffiche(p);
+  return montant === null ? '' : montant;
+}
+
 // ── Excel ─────────────────────────────────────────────────────────────────────
 export function exporterProgrammesExcel(programmes: IProgramme[], annee: number, semaine: number): void {
-  const entete = ['Livreur', 'Type', 'Statut', ...JOURS.map((j) => j.court)];
+  const entete = ['Livreur', 'Type', 'Statut', ...JOURS.map((j) => j.court), 'Carburant (FCFA)'];
   const lignes = programmes.map((p) => [
     p.livreurNom ?? '',
     libelleType(p),
     libelleStatut(p),
     ...JOURS.map((j) => celluleJour(p, j.key)),
+    carburantExport(p),
   ]);
-  const sheet = XLSX.utils.aoa_to_sheet([entete, ...lignes]);
-  sheet['!cols'] = [{ wch: 24 }, { wch: 18 }, { wch: 12 }, ...JOURS.map(() => ({ wch: 13 }))];
+  // Le total en pied, comme sur le document papier : c'est lui qu'on decaisse.
+  const totaux = totauxCarburant(programmes);
+  const pied = ['Total', '', '', ...JOURS.map(() => ''), totaux.total];
+  const sheet = XLSX.utils.aoa_to_sheet([entete, ...lignes, pied]);
+  sheet['!cols'] = [{ wch: 24 }, { wch: 18 }, { wch: 12 }, ...JOURS.map(() => ({ wch: 13 })), { wch: 16 }];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, `S${semaine}-${annee}`);
   XLSX.writeFile(workbook, `programmes_${annee}_S${semaine}.xlsx`);
@@ -71,12 +82,20 @@ interface ColPdf {
   header: string;
   w: number;
   value: (p: IProgramme) => string;
+  /** Un montant s'aligne a droite. */
+  droite?: boolean;
 }
 
+/*
+ * La colonne Carburant prend 24 mm ; les sept jours passent de 26 a 24 mm pour que la
+ * table tienne toujours dans les 283 mm utiles d'une A4 paysage. Elle est alignee a
+ * droite, comme tout montant.
+ */
 const COLS_PDF: ColPdf[] = [
   { header: 'Livreur', w: 38, value: (p) => p.livreurNom ?? '—' },
   { header: 'Type', w: 30, value: libelleType },
-  ...JOURS.map((j) => ({ header: j.court, w: 26, value: (p: IProgramme) => celluleJour(p, j.key) })),
+  ...JOURS.map((j) => ({ header: j.court, w: 24, value: (p: IProgramme) => celluleJour(p, j.key) })),
+  { header: 'Carburant', w: 24, value: (p) => { const { montant } = carburantAffiche(p); return montant === null ? '—' : montant.toLocaleString('fr-FR'); }, droite: true },
   { header: 'Statut', w: 22, value: libelleStatut },
 ];
 
@@ -129,7 +148,8 @@ export function exporterProgrammesPdf(
     doc.setTextColor(255, 255, 255);
     let x = START_X;
     for (const col of COLS_PDF) {
-      doc.text(col.header, x + 2.5, y + 6);
+      if (col.droite) doc.text(col.header, x + col.w - 2.5, y + 6, { align: 'right' });
+      else doc.text(col.header, x + 2.5, y + 6);
       x += col.w;
     }
     doc.setTextColor(...DARK);
@@ -165,10 +185,40 @@ export function exporterProgrammesPdf(
       if (raw === 'Repos') doc.setTextColor(...GRAY);
       else if (col.header === 'Statut') doc.setTextColor(...DARK);
       else doc.setTextColor(...DARK);
-      doc.text(truncate(raw, Math.floor(col.w / 1.7)), x + 2.5, y + 4.7);
+      const texte = truncate(raw, Math.floor(col.w / 1.7));
+      if (col.droite) doc.text(texte, x + col.w - 2.5, y + 4.7, { align: 'right' });
+      else doc.text(texte, x + 2.5, y + 4.7);
       x += col.w;
     }
     y += ROW_H;
+  }
+
+  // Le pied du document papier : total carburant et sous-totaux par population.
+  const totaux = totauxCarburant(programmes);
+  if (totaux.total > 0 || totaux.sansMontant < programmes.length) {
+    if (y + ROW_H * 2 > pageH - PAGE_MARGIN_BOTTOM) {
+      doc.addPage();
+      drawPageHeader();
+      y = HEADER_BAND_H + 4;
+    }
+    y += 2;
+    doc.setDrawColor(...BORDER);
+    doc.line(START_X, y, START_X + TABLE_W, y);
+    y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...DARK);
+    doc.text('Total carburant de la semaine', START_X + 2.5, y);
+    doc.text(`${totaux.total.toLocaleString('fr-FR')} FCFA`, START_X + TABLE_W - 2.5, y, { align: 'right' });
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRAY);
+    const parType = Object.entries(totaux.parType)
+      .map(([t, m]) => `${getTurboyTypeDisplay(t).labelPlural} ${m.toLocaleString('fr-FR')}`)
+      .join('   •   ');
+    const complement = totaux.previsionnel > 0 ? `   •   dont ${totaux.previsionnel.toLocaleString('fr-FR')} prévisionnels` : '';
+    doc.text(`${parType}${complement}`, START_X + 2.5, y);
   }
 
   const totalPages = doc.getNumberOfPages();

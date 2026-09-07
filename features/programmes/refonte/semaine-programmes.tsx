@@ -5,8 +5,10 @@ import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lu
 import React from 'react';
 
 import type { IAutosuffisanceJour, IJourProgramme, IProgramme, StatutProgramme } from '@/features/turboys/types/programme.types';
+import { carburantAffiche, totauxCarburant } from '@/features/turboys/utils/carburant.utils';
 import { getTurboyTypeDisplay } from '@/features/turboys/utils/type-livreur-display';
 import { cn } from '@/lib/utils';
+import { formatMontant } from '@/utils/format.utils';
 
 /**
  * La semaine des programmes, refondue.
@@ -39,6 +41,14 @@ import { cn } from '@/lib/utils';
  * <h3>Ce qui apparaît, et qui n'existait pas</h3>
  * <p>La recherche par nom. Avec quarante lignes et deux filtres par catégorie, retrouver
  * un livreur se faisait à l'œil.</p>
+ *
+ * <h3>Le carburant</h3>
+ * <p>Le document que les Opérations produisaient à la main portait, pour chaque livreur,
+ * son carburant de la semaine, des sous-totaux par population, un grand total et l'écart
+ * contre la semaine précédente. L'écran ne portait rien de cela. Il porte maintenant les
+ * quatre, calculés depuis les programmes : le montant figé par le serveur quand le
+ * programme est parti chez le livreur, le prévisionnel sinon. Le prévisionnel est en gris,
+ * parce qu'il n'engage encore rien.</p>
  */
 
 export interface SemaineProgrammesProps {
@@ -87,6 +97,9 @@ export interface SemaineProgrammesProps {
   onReessayerIndependants?: () => void;
   autosuffisanceIsLoading?: boolean;
   autosuffisanceIsError?: boolean;
+
+  /** Total carburant de la semaine précédente, pour l'écart. Null : pas de terme de comparaison. */
+  carburantSemainePrecedente?: number | null;
 }
 
 const JOURS = [
@@ -123,7 +136,13 @@ const STATUT: Record<string, { libelle: string; couleur: 'default' | 'warning' |
  * squelette de chargement comptait `JOURS.length + 4` la ou il en faut cinq de plus ; ni
  * `tsc` ni le build ne l'ont vu, seul l'ecran. Le compte se derive donc d'ici.</p>
  */
-const COLONNES_GRILLE = ['coche', 'livreur', 'postes', ...JOURS.map((j) => j.cle), 'statut', 'actions'];
+const COLONNES_GRILLE = ['coche', 'livreur', 'postes', ...JOURS.map((j) => j.cle), 'carburant', 'statut', 'actions'];
+
+/** Les populations du document papier, dans son ordre. */
+const TYPES_CARBURANT = ['JOURNALIER', 'SUPERVISEUR_LIVREUR', 'INDEPENDANT'];
+
+/** Un écart signé : le signe fait partie du nombre, pas de la couleur. */
+const formatEcart = (n: number) => (n === 0 ? formatMontant(0) : `${n > 0 ? '+' : '−'}${formatMontant(Math.abs(n))}`);
 
 /** Les colonnes de la table des independants, en lecture seule. */
 const COLONNES_INDEPENDANTS = ['livreur', ...JOURS.map((j) => j.cle)];
@@ -157,6 +176,31 @@ function CelluleJour({ jour }: { jour?: IJourProgramme }) {
     <span className="block text-center leading-tight">
       <span className="block text-xs font-medium tabular-nums text-foreground">{hhmm(jour.debut)}</span>
       <span className="block text-[11px] tabular-nums text-muted">{hhmm(jour.fin)}</span>
+    </span>
+  );
+}
+
+/**
+ * Le carburant d'une ligne.
+ *
+ * <p>Figé par le serveur : en pleine couleur. Encore prévisionnel : en gris, avec la
+ * mention, parce qu'il changera si les Ops retouchent le programme avant publication. Un
+ * programme sans aucun montant rend un tiret, pas « 0 FCFA » — rien de saisi n'est pas
+ * zéro franc.</p>
+ */
+function CelluleCarburant({ p }: { p: IProgramme }) {
+  const { fige, montant } = carburantAffiche(p);
+  if (montant === null) {
+    return (
+      <span aria-label="Aucun montant" className="block text-end text-muted" role="img">
+        —
+      </span>
+    );
+  }
+  return (
+    <span className={cn('block text-end tabular-nums', fige ? 'text-foreground' : 'text-muted')}>
+      {formatMontant(montant)}
+      {!fige && <span className="block text-[10px] leading-tight">prévisionnel</span>}
     </span>
   );
 }
@@ -219,6 +263,7 @@ export function SemaineProgrammes({
   onReessayerIndependants,
   autosuffisanceIsLoading = false,
   autosuffisanceIsError = false,
+  carburantSemainePrecedente = null,
 }: SemaineProgrammesProps) {
   const [recherche, setRecherche] = React.useState('');
   const [seulement, setSeulement] = React.useState<'TOUS' | 'A_PUBLIER' | 'REFUSE'>('TOUS');
@@ -245,6 +290,8 @@ export function SemaineProgrammes({
 
   const aPublier = React.useMemo(() => programmes.filter(estAPublier), [programmes]);
   const refuses = React.useMemo(() => programmes.filter((p) => p.statut === 'REFUSE'), [programmes]);
+  const carburant = React.useMemo(() => totauxCarburant(programmes), [programmes]);
+  const ecart = carburantSemainePrecedente === null || carburantSemainePrecedente === undefined ? null : carburant.total - carburantSemainePrecedente;
 
   /* Cocher puis publier : les identifiants réellement publiables de la sélection. */
   /* Ce qui ne peut pas etre publie ne doit pas pouvoir etre coche. */
@@ -293,6 +340,45 @@ export function SemaineProgrammes({
               </Button>
             </div>
           </div>
+
+          {/*
+           * COMBIEN ON DECAISSE. Le second nombre que l'operateur cherche, apres « ou en
+           * est la semaine » : le total carburant, ses sous-totaux par population, et
+           * l'ecart contre la semaine precedente — les quatre lignes du document papier.
+           */}
+          {!isLoading && !isError && programmes.length > 0 && (
+            <>
+              <Separator />
+              <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                <span className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold tabular-nums text-foreground">{formatMontant(carburant.total)}</span>
+                  <span className="text-sm text-muted">de carburant cette semaine</span>
+                </span>
+                {TYPES_CARBURANT.filter((t) => carburant.parType[t] !== undefined).map((t) => (
+                  <span className="flex items-baseline gap-1.5 text-sm" key={t}>
+                    <span className="text-muted">{getTurboyTypeDisplay(t).labelPlural}</span>
+                    <span className="font-medium tabular-nums text-foreground">{formatMontant(carburant.parType[t])}</span>
+                  </span>
+                ))}
+                {ecart !== null && (
+                  <span className="flex items-baseline gap-1.5 text-sm">
+                    <span className="text-muted">écart vs semaine précédente</span>
+                    <span className="font-medium tabular-nums text-foreground">{formatEcart(ecart)}</span>
+                  </span>
+                )}
+                {carburant.previsionnel > 0 && (
+                  <span className="text-xs text-muted">
+                    dont {formatMontant(carburant.previsionnel)} prévisionnels, figés à la publication
+                  </span>
+                )}
+                {carburant.sansMontant > 0 && (
+                  <span className="text-xs text-muted">
+                    {carburant.sansMontant} programme{carburant.sansMontant > 1 ? 's' : ''} sans montant
+                  </span>
+                )}
+              </div>
+            </>
+          )}
 
           {!isLoading && !isError && (aPublier.length > 0 || refuses.length > 0) && (
             <>
@@ -477,6 +563,9 @@ export function SemaineProgrammes({
                       {j.court}
                     </Table.Column>
                   ))}
+                  <Table.Column className="sticky top-0 z-20 bg-surface-secondary text-end" id="carburant">
+                    Carburant
+                  </Table.Column>
                   <Table.Column className="sticky top-0 z-20 bg-surface-secondary" id="statut">
                     Statut
                   </Table.Column>
@@ -560,6 +649,10 @@ export function SemaineProgrammes({
                             <CelluleJour jour={(p.jours ?? []).find((x) => (x.jour ?? '').toUpperCase() === j.cle)} />
                           </Table.Cell>
                         ))}
+
+                        <Table.Cell className="text-xs">
+                          <CelluleCarburant p={p} />
+                        </Table.Cell>
 
                         <Table.Cell>
                           <div className="flex flex-col items-start gap-1">

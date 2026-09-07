@@ -25,6 +25,7 @@ import {
   useSupprimerProgrammeMutation,
 } from '@/features/turboys/queries/programme.query';
 import { IProgramme } from '@/features/turboys/types/programme.types';
+import { totauxCarburant } from '@/features/turboys/utils/carburant.utils';
 import {
   exporterProgrammesExcel,
   exporterProgrammesPdf,
@@ -74,6 +75,11 @@ function semaineCouranteBackend(): { annee: number; semaine: number } {
 
 const CURRENT_WEEK = semaineCouranteBackend();
 
+/** La semaine d'avant, avec le passage d'année. Même repli que « copier la semaine précédente ». */
+function semainePrecedente(annee: number, semaine: number): { annee: number; semaine: number } {
+  return semaine - 1 < 1 ? { annee: annee - 1, semaine: 52 } : { annee, semaine: semaine - 1 };
+}
+
 export default function ProgrammesSection() {
   const [{ annee, semaine }, setWeek] = useQueryStates({
     annee: parseAsInteger.withDefault(CURRENT_WEEK.annee),
@@ -83,6 +89,15 @@ export default function ProgrammesSection() {
   const { data, isError, isLoading, refetch } = useProgrammesSemaineQuery(annee, semaine);
   const independantsQuery = useProgrammesIndependantsQuery(annee, semaine);
   const autosuffisanceQuery = useAutosuffisanceSemaineQuery(annee, semaine);
+
+  // L'écart de carburant contre la semaine précédente : le document papier le donnait,
+  // avec sa raison. La raison reste à l'opérateur ; le chiffre, lui, se calcule.
+  const precedente = semainePrecedente(annee, semaine);
+  const precedenteQuery = useProgrammesSemaineQuery(precedente.annee, precedente.semaine);
+  const carburantSemainePrecedente = React.useMemo(() => {
+    if (!Array.isArray(precedenteQuery.data) || precedenteQuery.data.length === 0) return null;
+    return totauxCarburant(precedenteQuery.data).total;
+  }, [precedenteQuery.data]);
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<IProgramme | null>(null);
@@ -188,12 +203,7 @@ export default function ProgrammesSection() {
   const qc = useQueryClient();
   const [importing, setImporting] = React.useState(false);
   const copierSemainePrecedente = async () => {
-    let srcAnnee = annee;
-    let srcSemaine = semaine - 1;
-    if (srcSemaine < 1) {
-      srcAnnee -= 1;
-      srcSemaine = 52;
-    }
+    const { annee: srcAnnee, semaine: srcSemaine } = semainePrecedente(annee, semaine);
     setImporting(true);
     try {
       const sources = await listerProgrammesSemaineAction(srcAnnee, srcSemaine);
@@ -293,6 +303,7 @@ export default function ProgrammesSection() {
           autosuffisance={Array.isArray(autosuffisanceQuery.data) ? autosuffisanceQuery.data : []}
           autosuffisanceIsError={autosuffisanceQuery.isError}
           autosuffisanceIsLoading={autosuffisanceQuery.isLoading}
+          carburantSemainePrecedente={carburantSemainePrecedente}
           idEnCours={pendingId}
           importEnCours={importing}
           independants={Array.isArray(independantsQuery.data) ? independantsQuery.data : []}

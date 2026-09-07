@@ -22,6 +22,13 @@ export interface IJourProgramme {
   fin?: string | null;
   actif: boolean;
   postes?: IPosteJour[] | null;
+  /**
+   * Frais de carburant du jour (FCFA), saisis par les Ops. Sans objet un jour de repos.
+   *
+   * <p>C'est une intention de planning. Le total qui fait foi est
+   * `IProgramme.montantCarburantHebdo`, figé par le serveur à la publication.</p>
+   */
+  montantCarburant?: number | null;
 }
 
 export interface IProgramme {
@@ -39,6 +46,11 @@ export interface IProgramme {
   refuseLe: string | null;
   motifRefus: string | null;
   nbRelances: number;
+  /**
+   * Total carburant de la semaine, FIGÉ par le serveur quand le programme part chez le
+   * livreur. Null tant que rien n'est engagé, ou qu'aucun montant n'a été saisi.
+   */
+  montantCarburantHebdo?: number | null;
 }
 
 export interface ICreerProgrammePayload {

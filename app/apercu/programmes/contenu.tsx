@@ -3,6 +3,7 @@
 import { Button } from '@heroui-v3/react';
 import React from 'react';
 
+import { WeeklyJoursEditor, defaultJours } from '@/components/turboys/programmes/weekly-jours-editor';
 import { SemaineProgrammes } from '@/features/programmes/refonte/semaine-programmes';
 import type {
     IAutosuffisanceJour,
@@ -30,8 +31,13 @@ function fabriquer(graine: number, nb: number, statuts: StatutProgramme[]): IPro
         e = (e * 1103515245 + 12345) % 2147483648;
         return e / 2147483648;
     };
+    // Les forfaits journaliers du document papier : 4 000 pour un journalier, 2 000 pour
+    // un superviseur ; l'independant ne touche rien. Un programme sur six n'a rien de saisi.
+    const JOURNALIER_PAR_TYPE: Record<string, number | null> = { INDEPENDANT: null, JOURNALIER: 4000, SUPERVISEUR_LIVREUR: 2000 };
     return Array.from({ length: nb }).map((_, i) => {
         const statut = statuts[Math.floor(suivant() * statuts.length)];
+        const type = TYPES[i % TYPES.length];
+        const montantJour = i % 6 === 5 ? null : JOURNALIER_PAR_TYPE[type];
         const jours: IJourProgramme[] = JOURS.map((j, k) => {
             const actif = suivant() > 0.22;
             return {
@@ -40,10 +46,16 @@ function fabriquer(graine: number, nb: number, statuts: StatutProgramme[]): IPro
                 debut: actif ? `0${6 + (k % 3)}:00:00` : null,
                 fin: actif ? `1${6 + (k % 3)}:30:00` : null,
                 jour: j,
+                montantCarburant: actif ? montantJour : null,
                 postes: actif ? [{ restaurantId: `r${i % RESTOS.length}`, restaurantNom: RESTOS[i % RESTOS.length] }] : [],
             };
         });
+        // Fige par le serveur des que le programme est parti chez le livreur.
+        const engage = statut === 'NOTIFIE' || statut === 'ACCEPTE' || statut === 'REFUSE';
+        const somme = jours.reduce((t, j) => (j.actif && j.montantCarburant != null ? t + j.montantCarburant : t), 0);
+        const aUnMontant = jours.some((j) => j.actif && j.montantCarburant != null);
         return {
+            montantCarburantHebdo: engage && aUnMontant ? somme : null,
             accepteLe: null,
             annee: 2026,
             id: `p${graine}-${i}`,
@@ -57,7 +69,7 @@ function fabriquer(graine: number, nb: number, statuts: StatutProgramme[]): IPro
             semaine: 35,
             source: 'ERP',
             statut,
-            typeLivreur: TYPES[i % TYPES.length],
+            typeLivreur: type,
         } satisfies IProgramme;
     });
 }
@@ -98,6 +110,23 @@ function useThemeSombre(): [boolean, (v: (p: boolean) => boolean) => void] {
         };
     }, [sombre]);
     return [sombre, setSombre];
+}
+
+/** L'éditeur d'un programme, seul, pour voir et piloter la saisie du carburant. */
+function BancEditeur() {
+    const [jours, setJours] = React.useState<IJourProgramme[]>(() =>
+        defaultJours().map((j, i) => (i < 6 ? { ...j, actif: true, montantCarburant: i < 3 ? 4000 : null } : j)),
+    );
+    return (
+        <section className="mt-6 rounded-lg border border-separator p-4">
+            <h2 className="mb-3 text-sm font-semibold">L&apos;éditeur, tel qu&apos;il s&apos;ouvre dans la modale</h2>
+            <WeeklyJoursEditor
+                onChange={setJours}
+                restaurants={RESTOS.map((r, i) => ({ id: `r${i}`, nom: r }))}
+                value={jours}
+            />
+        </section>
+    );
 }
 
 export default function ApercuProgrammes() {
@@ -143,6 +172,7 @@ export default function ApercuProgrammes() {
                         autosuffisance={AUTOSUFFISANCE}
                         autosuffisanceIsError={etat === 'echec'}
                         autosuffisanceIsLoading={etat === 'chargement'}
+                        carburantSemainePrecedente={jeu === 'vide' ? null : 573000}
                         independants={INDEPENDANTS}
                         independantsIsError={etat === 'echec'}
                         independantsIsLoading={etat === 'chargement'}
@@ -178,6 +208,7 @@ export default function ApercuProgrammes() {
                             { cle: 'INDEPENDANT', libelle: 'Indépendants' },
                         ]}
                     />
+                    <BancEditeur />
                 </main>
             </div>
         </div>

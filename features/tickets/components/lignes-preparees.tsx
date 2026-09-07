@@ -80,7 +80,12 @@ interface LignesPrepareesProps {
      * mais l'ecran laissait croire a un echec et l'operateur recliquait, creant autant
      * de doublons.</p>
      */
-    onEnregistrerLot: (ids: string[]) => Promise<{ reussis: number; echoues: number }>;
+    onEnregistrerLot: (ids: string[]) => Promise<{
+        echoues: number;
+        /** Les messages du serveur, dedoublonnes : sans eux, un echec ne dit pas pourquoi. */
+        raisons?: string[];
+        reussis: number;
+    }>;
     enregistrement?: boolean;
 }
 
@@ -139,11 +144,24 @@ export function LignesPreparees({
         if (envoiEnCours || completes.length === 0) return;
         setEnvoiEnCours(true);
         try {
-            const { reussis, echoues } = await onEnregistrerLot(completes.map((t) => t.id));
+            const { echoues, raisons, reussis } = await onEnregistrerLot(completes.map((t) => t.id));
             if (echoues > 0) {
                 toast.warning(
                     `${reussis} ticket${reussis > 1 ? 's' : ''} enregistré${reussis > 1 ? 's' : ''}, ${echoues} en échec.`,
-                    { description: 'Les lignes en échec restent affichées ci-dessus.' },
+                    {
+                        /*
+                         * La RAISON, pas seulement le compte. « 0 enregistre, 7 en echec »
+                         * ne dit pas a l'operateur s'il manque un champ, si le serveur est
+                         * tombe, ou si son role ne le permet pas — donc a qui poser la
+                         * question. Le message du serveur remonte ici, et la duree est
+                         * allongee : un echec se lit, il ne se rate pas.
+                         */
+                        description:
+                            raisons && raisons.length > 0
+                                ? `${raisons.join(' · ')} — les lignes en échec restent affichées ci-dessus.`
+                                : 'Les lignes en échec restent affichées ci-dessus.',
+                        duration: 15000,
+                    },
                 );
             } else if (reussis > 0) {
                 toast.success(`${reussis} ticket${reussis > 1 ? 's' : ''} enregistré${reussis > 1 ? 's' : ''}.`);

@@ -100,9 +100,19 @@ export function useNewTickets({
   const handleSaveNewTickets = useCallback(
     async (ids: string[]) => {
       const aEnvoyer = newTickets.filter((t) => ids.includes(t.id));
-      if (aEnvoyer.length === 0) return { reussis: 0, echoues: 0 };
+      if (aEnvoyer.length === 0) return { echoues: 0, raisons: [], reussis: 0 };
 
       const reussis: string[] = [];
+      /*
+       * On collecte la RAISON de chaque echec.
+       *
+       * <p>Le lot ne rendait qu'un compte : « 0 enregistre, 7 en echec ». L'operateur
+       * voyait sept lignes refusees sans savoir laquelle poser la question — un champ
+       * manquant ? le serveur ? son droit ? Les rappels `onError` de la mutation
+       * empilaient bien sept notifications, mais elles se recouvrent et disparaissent.
+       * La raison remonte donc avec le resultat, et s'affiche a cote du compte.</p>
+       */
+      const raisons: string[] = [];
       for (const ticket of aEnvoyer) {
         try {
           await createBonLivraisonAsync({
@@ -110,15 +120,20 @@ export function useNewTickets({
             restaurant: getRestaurantInfo(ticket.restaurantId, restaurants),
           });
           reussis.push(ticket.id);
-        } catch {
-          // Le message d'erreur est deja porte par le `onError` de la mutation.
+        } catch (erreur) {
+          const message = erreur instanceof Error ? erreur.message : String(erreur);
+          if (message && !raisons.includes(message)) raisons.push(message);
         }
       }
 
       if (reussis.length > 0) {
         setNewTickets((prev) => prev.filter((t) => !reussis.includes(t.id)));
       }
-      return { reussis: reussis.length, echoues: aEnvoyer.length - reussis.length };
+      return {
+        echoues: aEnvoyer.length - reussis.length,
+        raisons,
+        reussis: reussis.length,
+      };
     },
     [newTickets, createBonLivraisonAsync, restaurants],
   );

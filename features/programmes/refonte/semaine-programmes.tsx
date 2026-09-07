@@ -101,6 +101,8 @@ export interface SemaineProgrammesProps {
 
   /** Total carburant de la semaine précédente, pour l'écart. Null : pas de terme de comparaison. */
   carburantSemainePrecedente?: number | null;
+  /** La ligne d'engagement dans le circuit finance, rendue par l'appelant : elle porte ses propres requêtes. */
+  engagement?: React.ReactNode;
 }
 
 const JOURS = [
@@ -273,6 +275,7 @@ export function SemaineProgrammes({
   autosuffisanceIsLoading = false,
   autosuffisanceIsError = false,
   carburantSemainePrecedente = null,
+  engagement = null,
 }: SemaineProgrammesProps) {
   const [recherche, setRecherche] = React.useState('');
   const [seulement, setSeulement] = React.useState<'TOUS' | 'A_PUBLIER' | 'REFUSE'>('TOUS');
@@ -386,6 +389,8 @@ export function SemaineProgrammes({
                   </span>
                 )}
               </div>
+              {/* L'ENGAGEMENT : le seul geste de l'ecran qui engage de l'argent, sous les totaux qu'il engage. */}
+              {engagement}
             </>
           )}
 

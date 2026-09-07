@@ -75,6 +75,49 @@ export interface IModifierProgrammePayload {
   jours: IJourProgramme[];
 }
 
+// ── Carburant : engagement de la semaine dans le circuit finance ──────────────
+
+export type StatutChargeVariable =
+  | 'EN_ATTENTE_DGA'
+  | 'VALIDE_DGA'
+  | 'REJETE_DGA'
+  | 'APPROUVE_DG'
+  | 'REJETE_DG'
+  | 'DECAISSE';
+
+/** La charge variable qui porte le carburant d'une semaine (extrait du VM finance). */
+export interface IEngagementCarburant {
+  id: string;
+  designation: string;
+  montant: number;
+  statut: StatutChargeVariable | string;
+  creerPar?: string | null;
+  dateDepense?: string | null;
+  createdAt?: string | null;
+  justificatif?: string | null;
+}
+
+/** Ce que la semaine a publié, et ce qui en est engagé. */
+export interface IEtatCarburantSemaine {
+  annee: number;
+  semaine: number;
+  /** Somme des totaux figés des programmes publiés ; null si aucun n'en porte. */
+  totalPublie: number | null;
+  nbProgrammesPublies: number;
+  nbProgrammesSansMontant: number;
+  engagement: IEngagementCarburant | null;
+  /** totalPublie moins le montant engagé ; null sans engagement. */
+  ecart: number | null;
+}
+
+export interface IEngagerCarburantPayload {
+  annee: number;
+  semaine: number;
+  categorieId: string;
+  /** Le PDF des programmes publiés, joint en justificatif. */
+  justificatif: Blob;
+}
+
 // RG-32 — autosuffisance : livreurs actifs par jour, indépendants vs planifiés.
 export interface IAutosuffisanceJour {
   jour: string; // LUNDI..DIMANCHE

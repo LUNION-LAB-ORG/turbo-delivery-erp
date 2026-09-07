@@ -1,7 +1,7 @@
 'use server';
 
 import { programmeAPI } from '@/features/turboys/apis/programme.api';
-import { IProgramme, ICreerProgrammePayload, IModifierProgrammePayload, IAutosuffisanceJour } from '@/features/turboys/types/programme.types';
+import { IProgramme, ICreerProgrammePayload, IModifierProgrammePayload, IAutosuffisanceJour, IEtatCarburantSemaine } from '@/features/turboys/types/programme.types';
 import { ActionResponse } from '@/types';
 import { handleServerActionError } from '@/utils/handleServerActionError';
 import { AxiosError } from 'axios';
@@ -84,4 +84,8 @@ export async function supprimerProgrammeAction(id: string): Promise<ActionRespon
 
 export async function listerIndependantsAction(annee: number, semaine: number): Promise<IProgramme[]> {
   return programmeAPI.independants(annee, semaine);
+}
+
+export async function etatCarburantAction(annee: number, semaine: number): Promise<IEtatCarburantSemaine> {
+  return programmeAPI.etatCarburant(annee, semaine);
 }

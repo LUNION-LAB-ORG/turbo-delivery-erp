@@ -5,6 +5,7 @@ import { parseAsInteger, useQueryStates } from 'nuqs';
 import React from 'react';
 import { toast } from 'sonner';
 
+import { EngagementCarburantConnecte } from './engagement-carburant';
 import { ProgrammeApercuModal } from './programme-apercu-modal';
 import { ProgrammeFormModal } from './programme-form-modal';
 import { joursAvecDates } from './weekly-jours-editor';
@@ -304,6 +305,13 @@ export default function ProgrammesSection() {
           autosuffisanceIsError={autosuffisanceQuery.isError}
           autosuffisanceIsLoading={autosuffisanceQuery.isLoading}
           carburantSemainePrecedente={carburantSemainePrecedente}
+          engagement={
+            <EngagementCarburantConnecte
+              annee={annee}
+              programmes={Array.isArray(data) ? data : []}
+              semaine={semaine}
+            />
+          }
           idEnCours={pendingId}
           importEnCours={importing}
           independants={Array.isArray(independantsQuery.data) ? independantsQuery.data : []}

@@ -1,8 +1,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import {
+  etatCarburantAction,
   listerProgrammesSemaineAction,
   listerAutosuffisanceAction,
   listerIndependantsAction,
@@ -13,14 +15,24 @@ import {
   envoyerProgrammeAction,
   supprimerProgrammeAction,
 } from '@/features/turboys/actions/programme.actions';
-import { ICreerProgrammePayload, IModifierProgrammePayload } from '@/features/turboys/types/programme.types';
+import { engagerCarburant } from '@/features/turboys/apis/carburant-engagement.api';
+import { ICreerProgrammePayload, IEngagerCarburantPayload, IModifierProgrammePayload } from '@/features/turboys/types/programme.types';
 
 export const programmeKeys = {
   all: ['programme'] as const,
   semaine: (annee: number, semaine: number) => [...programmeKeys.all, 'semaine', annee, semaine] as const,
   autosuffisance: (annee: number, semaine: number) => [...programmeKeys.all, 'autosuffisance', annee, semaine] as const,
   independants: (annee: number, semaine: number) => [...programmeKeys.all, 'independants', annee, semaine] as const,
+  carburant: (annee: number, semaine: number) => [...programmeKeys.all, 'carburant', annee, semaine] as const,
 };
+
+export const useEtatCarburantQuery = (annee: number, semaine: number) =>
+  useQuery({
+    queryKey: programmeKeys.carburant(annee, semaine),
+    queryFn: () => etatCarburantAction(annee, semaine),
+    enabled: !!annee && !!semaine,
+    staleTime: 30 * 1000,
+  });
 
 export const useProgrammesSemaineQuery = (annee: number, semaine: number) =>
   useQuery({
@@ -130,6 +142,42 @@ export const useSupprimerProgrammeMutation = (onDone?: () => void) => {
       onDone?.();
     },
     onError: (error) => toast.error(messageErreur(error)),
+  });
+};
+
+/**
+ * Engager le carburant publié de la semaine comme charge variable.
+ *
+ * <p>L'auteur est le compte connecté, sous les deux formes que le circuit finance attend :
+ * son nom dans `creerPar`, son identifiant dans `X-User-Id`, comme la création d'une
+ * dépense. Le message d'erreur du serveur est rendu tel quel : un 409 dit précisément
+ * pourquoi la charge ne bouge plus et ce qu'il reste à faire.</p>
+ */
+export const useEngagerCarburantMutation = (onDone?: () => void) => {
+  const qc = useQueryClient();
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  const nom = session?.user?.name ?? '';
+  return useMutation({
+    mutationFn: async (p: IEngagerCarburantPayload) => {
+      const fd = new FormData();
+      fd.append('annee', String(p.annee));
+      fd.append('semaine', String(p.semaine));
+      fd.append('categorieId', p.categorieId);
+      fd.append('creerPar', nom || 'Opérations');
+      fd.append('justificatif', p.justificatif, `programmes_${p.annee}_S${p.semaine}.pdf`);
+      return engagerCarburant(fd, userId);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: programmeKeys.all });
+      toast.success('Carburant engagé : la dépense attend le visa du DGA.');
+      onDone?.();
+    },
+    onError: (error: unknown) => {
+      const reponse = (error as { response?: { data?: { message?: string } | string } })?.response?.data;
+      const message = typeof reponse === 'string' ? reponse : reponse?.message;
+      toast.error(message || messageErreur(error));
+    },
   });
 };
 

@@ -3,6 +3,7 @@
 import { Button } from '@heroui-v3/react';
 import React from 'react';
 
+import { EngagementCarburant } from '@/components/turboys/programmes/engagement-carburant';
 import { ProgrammeApercuModal } from '@/components/turboys/programmes/programme-apercu-modal';
 import { WeeklyJoursEditor, defaultJours } from '@/components/turboys/programmes/weekly-jours-editor';
 import { SemaineProgrammes } from '@/features/programmes/refonte/semaine-programmes';
@@ -198,6 +199,45 @@ export default function ApercuProgrammes() {
                         autosuffisanceIsError={etat === 'echec'}
                         autosuffisanceIsLoading={etat === 'chargement'}
                         carburantSemainePrecedente={jeu === 'vide' ? null : 573000}
+                        engagement={
+                            jeu === 'publiee' ? (
+                                <EngagementCarburant
+                                    etat={{
+                                        annee: 2026,
+                                        ecart: 24000,
+                                        engagement: {
+                                            createdAt: '2026-08-24T08:00:00Z',
+                                            creerPar: 'Ramata Coulibaly',
+                                            dateDepense: '2026-08-24',
+                                            designation: 'Carburant programmes semaine 35/2026',
+                                            id: 'charge-apercu',
+                                            montant: 150000,
+                                            statut: 'EN_ATTENTE_DGA',
+                                        },
+                                        nbProgrammesPublies: 8,
+                                        nbProgrammesSansMontant: 2,
+                                        semaine: 35,
+                                        totalPublie: 174000,
+                                    }}
+                                    onEngager={() => noter('Mise à jour de l’engagement')}
+                                    peutEngager
+                                />
+                            ) : (
+                                <EngagementCarburant
+                                    etat={{
+                                        annee: 2026,
+                                        ecart: null,
+                                        engagement: null,
+                                        nbProgrammesPublies: 6,
+                                        nbProgrammesSansMontant: 1,
+                                        semaine: 35,
+                                        totalPublie: 120000,
+                                    }}
+                                    onEngager={() => noter('Engagement demandé')}
+                                    peutEngager
+                                />
+                            )
+                        }
                         independants={INDEPENDANTS}
                         independantsIsError={etat === 'echec'}
                         independantsIsLoading={etat === 'chargement'}

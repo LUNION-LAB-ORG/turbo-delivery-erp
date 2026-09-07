@@ -1,5 +1,5 @@
 import { apiClientHttp } from '@/lib/api-client-http';
-import { IProgramme, ICreerProgrammePayload, IJourProgramme, IAutosuffisanceJour } from '@/features/turboys/types/programme.types';
+import { IProgramme, ICreerProgrammePayload, IJourProgramme, IAutosuffisanceJour, IEtatCarburantSemaine } from '@/features/turboys/types/programme.types';
 
 /**
  * Programmes hebdomadaires (M2). Endpoints backend déployés. On mirrore le pattern
@@ -78,6 +78,15 @@ export const programmeAPI = {
     await apiClientHttp.request<void>({
       endpoint: `/api/erp/programmes/${id}`,
       method: 'DELETE',
+    });
+  },
+
+  /** Carburant de la semaine : total publié, engagement existant, écart. */
+  async etatCarburant(annee: number, semaine: number): Promise<IEtatCarburantSemaine> {
+    return apiClientHttp.request<IEtatCarburantSemaine>({
+      endpoint: '/api/erp/programmes/carburant',
+      method: 'GET',
+      params: { annee, semaine },
     });
   },
 };

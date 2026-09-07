@@ -109,12 +109,13 @@ const PAGE_MARGIN_BOTTOM = 15;
 
 const truncate = (t: string, max: number) => (t.length > max ? t.slice(0, max - 1) + '…' : t);
 
-export function exporterProgrammesPdf(
+/** Le document, prêt à enregistrer ou à joindre. */
+function construirePdfProgrammes(
   programmes: IProgramme[],
   annee: number,
   semaine: number,
-  filtreLabel = 'Tous',
-): void {
+  filtreLabel: string,
+): jsPDF {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -232,7 +233,30 @@ export function exporterProgrammesPdf(
     doc.rect(0, pageH - 5, pageW, 5, 'F');
   }
 
-  doc.save(`programmes_${annee}_S${semaine}.pdf`);
+  return doc;
+}
+
+export function exporterProgrammesPdf(
+  programmes: IProgramme[],
+  annee: number,
+  semaine: number,
+  filtreLabel = 'Tous',
+): void {
+  construirePdfProgrammes(programmes, annee, semaine, filtreLabel).save(`programmes_${annee}_S${semaine}.pdf`);
+}
+
+/**
+ * Le même document en mémoire, pour le joindre en justificatif à l'engagement du
+ * carburant : le circuit finance exige une pièce, et celle-ci est celle qui dit d'où vient
+ * le total.
+ */
+export function pdfProgrammesBlob(
+  programmes: IProgramme[],
+  annee: number,
+  semaine: number,
+  filtreLabel = 'Programmes publiés',
+): Blob {
+  return construirePdfProgrammes(programmes, annee, semaine, filtreLabel).output('blob');
 }
 
 // ── PDF individuel (un livreur) ────────────────────────────────────────────────

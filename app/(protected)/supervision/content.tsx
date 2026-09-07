@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { Button, Tab, Tabs } from '@/components/heroui';
+import { Button, ToggleButton, ToggleButtonGroup } from '@heroui-v3/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Download, RefreshCw } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -82,29 +82,27 @@ export function SupervisionContent() {
       {/* Entête */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-primary">Supervision des sessions &amp; audit global</h1>
-          <p className="mt-1 max-w-3xl text-sm text-default-500">
+          {/* Le titre etait peint en ROUGE DE MARQUE. */}
+          <h1 className="text-2xl font-bold text-foreground">
+            Supervision des sessions et audit global
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm text-muted">
             Présence en temps réel, journal des connexions et traçabilité des actions dans tous les modules de
             l&apos;ERP. Écran en lecture seule : les journaux ne sont ni modifiables ni supprimables, quel que
             soit le profil.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="flat"
-            startContent={!exportEnCours && <Download className="h-4 w-4" />}
-            isLoading={exportEnCours}
-            onPress={lancerExport}
-          >
+          <Button isPending={exportEnCours} onPress={lancerExport} size="sm" variant="outline">
+            <Download aria-hidden="true" className="size-4" />
             Exporter l&apos;onglet (CSV)
           </Button>
           <Button
-            size="sm"
-            color="primary"
-            startContent={<RefreshCw className="h-4 w-4" />}
             onPress={() => queryClient.invalidateQueries({ queryKey: supervisionKeys.all })}
+            size="sm"
+            variant="outline"
           >
+            <RefreshCw aria-hidden="true" className="size-4" />
             Actualiser
           </Button>
         </div>
@@ -119,30 +117,48 @@ export function SupervisionContent() {
         <SupervisionKpis stats={stats} isLoading={statsEnCours} />
       )}
 
-      <Tabs
+      {/*
+       * `ToggleButtonGroup` et non `Tabs` : `Tabs.Indicator` de la v3 fait tomber la page,
+       * et sans lui les onglets ne distinguent l'actif que par une nuance de gris.
+       */}
+      <ToggleButtonGroup
         aria-label="Supervision et audit"
-        color="primary"
-        variant="underlined"
-        selectedKey={onglet}
-        onSelectionChange={(cle) => setOnglet(cle as OngletSupervision)}
+        className="flex-wrap"
+        onSelectionChange={(sel) =>
+          setOnglet(String(Array.from(sel)[0] ?? 'en-ligne') as OngletSupervision)
+        }
+        selectedKeys={new Set([onglet])}
+        selectionMode="single"
       >
-        <Tab key="en-ligne" title="Utilisateurs en ligne">
-          <SessionsEnLignePanel
-            userId={userId}
-            peutForcerDeconnexion={peutForcerDeconnexion}
-            enregistrerExport={enregistrerExport}
-          />
-        </Tab>
-        <Tab key="activite" title="Activité des modules">
-          <ActiviteModulesPanel userId={userId} enregistrerExport={enregistrerExport} />
-        </Tab>
-        <Tab key="connexions" title="Connexions">
-          <ConnexionsPanel userId={userId} enregistrerExport={enregistrerExport} />
-        </Tab>
-        <Tab key="adoption" title="Premières connexions">
-          <AdoptionPanel userId={userId} enregistrerExport={enregistrerExport} />
-        </Tab>
-      </Tabs>
+        <ToggleButton id="en-ligne">Utilisateurs en ligne</ToggleButton>
+        <ToggleButton id="activite">Activité des modules</ToggleButton>
+        <ToggleButton id="connexions">Connexions</ToggleButton>
+        <ToggleButton id="adoption">Premières connexions</ToggleButton>
+      </ToggleButtonGroup>
+
+      {/*
+       * Les quatre panneaux restent MONTES, caches par `hidden`.
+       *
+       * <p>L'ancien `Tabs` demontait le panneau inactif : revenir sur « Utilisateurs en
+       * ligne » relancait sa requete et repartait d'un ecran vide, sur un tableau de bord
+       * qu'on consulte precisement en passant d'un onglet a l'autre.</p>
+       */}
+      <div hidden={onglet !== 'en-ligne'}>
+        <SessionsEnLignePanel
+          enregistrerExport={enregistrerExport}
+          peutForcerDeconnexion={peutForcerDeconnexion}
+          userId={userId}
+        />
+      </div>
+      <div hidden={onglet !== 'activite'}>
+        <ActiviteModulesPanel enregistrerExport={enregistrerExport} userId={userId} />
+      </div>
+      <div hidden={onglet !== 'connexions'}>
+        <ConnexionsPanel enregistrerExport={enregistrerExport} userId={userId} />
+      </div>
+      <div hidden={onglet !== 'adoption'}>
+        <AdoptionPanel enregistrerExport={enregistrerExport} userId={userId} />
+      </div>
     </div>
   );
 }

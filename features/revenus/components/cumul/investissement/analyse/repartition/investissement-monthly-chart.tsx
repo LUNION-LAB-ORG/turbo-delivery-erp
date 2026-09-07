@@ -6,17 +6,23 @@ import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, Char
 import { useInvestissementMonthlyFilters, useInvestissementStatsMonthly } from '@/features/investissement/hooks';
 import { format, getMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Select, SelectItem } from '@/components/heroui';
+import { ChampListe } from '@/components/commons/champs-formulaire';
 import EtatErreur from '@/components/commons/EtatErreur';
 
+/*
+ * Les deux series etaient peintes en hexadecimaux ecrits en dur — `#3B82F6` et
+ * `#10B981` — donc identiques dans les deux themes et etrangeres a la palette. Elles
+ * passent par les variables du graphe, que `styles/tailwind.css` declare pour le clair
+ * et le sombre : c'est ce que fait deja le reste des graphes du projet.
+ */
 const chartConfig = {
   montantInvestissement: {
+    color: 'var(--chart-1)',
     label: 'Investissement',
-    color: '#3B82F6', // Bleu
   },
   montantRembourse: {
+    color: 'var(--chart-2)',
     label: 'Remboursement',
-    color: '#10B981', // Vert
   },
 } satisfies ChartConfig;
 
@@ -84,27 +90,16 @@ export function InvestissementMonthlyChart() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Répartition Mensuelle - Investissements & Remboursements</CardTitle>
+        <CardTitle>Répartition mensuelle des investissements et remboursements</CardTitle>
         <CardDescription>Visualisation des investissements et remboursements par mois</CardDescription>
         <div className="mt-4 max-w-xs">
-          <Select
+          <ChampListe
             label="Année"
-            placeholder="Sélectionner une année"
-            selectedKeys={new Set([year])}
-            onSelectionChange={(keys) => {
-              const selectedYear = Array.from(keys)[0] as string;
-              if (selectedYear) {
-                updateYear(selectedYear);
-              }
-            }}
-            className="w-full"
-          >
-            {years.map((yearItem) => (
-              <SelectItem key={yearItem.value} value={yearItem.value}>
-                {yearItem.label}
-              </SelectItem>
-            ))}
-          </Select>
+            onChange={(v) => v && updateYear(v)}
+            options={years.map((y) => ({ label: y.label, value: y.value }))}
+            placeholder="Choisir une année"
+            valeur={year}
+          />
         </div>
       </CardHeader>
       <CardContent>

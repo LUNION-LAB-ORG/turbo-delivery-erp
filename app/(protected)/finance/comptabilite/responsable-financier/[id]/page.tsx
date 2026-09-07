@@ -1,9 +1,9 @@
-'use client';;
+'use client';
 import { use } from "react";
 import EtatErreur from '@/components/commons/EtatErreur';
 
 import { notFound } from 'next/navigation';
-import { Skeleton } from '@/components/heroui';
+import { Skeleton } from '@heroui-v3/react';
 import FactureDetailView from '@/components/finance/responsable-financier/facture-detail-view';
 import { useFactureRFQuery } from '@/features/responsable-financier';
 

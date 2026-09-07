@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import { flexRender, getCoreRowModel, getSortedRowModel, type SortingState, useReactTable } from '@tanstack/react-table';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+
 import { AddInvestModal } from '../creer-invest/add-invest-modal';
 import { useInvestissementList } from '@/features/revenus/hooks/use-investissement-list';
-import { Input, Pagination, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@/components/heroui';
+import { Input, Label, SearchField, Table } from '@heroui-v3/react';
+
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
 import DateFilterInput from '@/components/finance/date-filter-input';
 import { investissementColumns, getDeadlineColor } from './invest-columns';
 import { formatCFA, formatDateFR } from '@/src/actions/bonLivraison.mapper';
@@ -37,7 +39,20 @@ export default function InvestissementList() {
   return (
     <Card className="my-6">
       <CardHeader className="flex flex-row items-center justify-between">
-        <Input className="max-w-sm" type="text" value={filters.nomInvestisseur ?? ''} onChange={(e) => handleFilterChange('nomInvestisseur', e.target.value)} placeholder="Rechercher par nom..." />
+        {/* Un champ de recherche sans LIBELLE : le seul indice de ce qu'on y cherche
+            etait un texte de substitution, qui disparait des la premiere lettre tapee. */}
+        <SearchField
+          className="max-w-sm"
+          onChange={(v) => handleFilterChange('nomInvestisseur', v)}
+          value={filters.nomInvestisseur ?? ''}
+        >
+          <Label>Investisseur</Label>
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input placeholder="Rechercher par nom" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
         <div className="flex gap-2">
           <DateFilterInput variant="outline" filters={filters} handleDateChange={handleDateChange} />
           <AddInvestModal />
@@ -53,35 +68,75 @@ export default function InvestissementList() {
         <div className="hidden md:block">
           <div className="space-y-4">
             {/* Tableau HeroUI */}
-            <div className="overflow-x-auto">
-              <Table
-                isStriped
-                bottomContent={
-                  pagination?.pageCount! > 1 && (
-                    <div className="flex justify-center pt-4 sm:pt-6">
-                      <Pagination total={pagination?.pageCount ?? 1} page={filters.page + 1} onChange={pagination.handlePageChange} color="primary" />
-                    </div>
-                  )
-                }
-              >
-                <TableHeader>
-                  {table.getFlatHeaders().map((header) => (
-                    <TableColumn key={header.id} className="text-primary" allowsSorting={header.column.getCanSort()} onClick={header.column.getToggleSortingHandler()}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableColumn>
-                  ))}
-                </TableHeader>
-                <TableBody emptyContent={'Aucun investissement'} isLoading={isLoading} loadingContent={<Loader2 className="animate-spin" />}>
-                  {table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <Table>
+              <Table.ScrollContainer>
+                <Table.Content aria-label="Investissements">
+                  <Table.Header>
+                    {table.getFlatHeaders().map((header, i) => (
+                      <Table.Column
+                        allowsSorting={header.column.getCanSort()}
+                        id={header.id}
+                        isRowHeader={i === 0}
+                        key={header.id}
+                      >
+                        {/* Tous les en-tetes etaient peints en ROUGE DE MARQUE. */}
+                        {({ sortDirection }) =>
+                          header.column.getCanSort() ? (
+                            <Table.SortableColumnHeader sortDirection={sortDirection}>
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(header.column.columnDef.header, header.getContext())}
+                            </Table.SortableColumnHeader>
+                          ) : (
+                            <>
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(header.column.columnDef.header, header.getContext())}
+                            </>
+                          )
+                        }
+                      </Table.Column>
+                    ))}
+                  </Table.Header>
+                  <Table.Body
+                    renderEmptyState={() =>
+                      isLoading ? null : (
+                        <p className="py-8 text-center text-sm text-muted">Aucun investissement</p>
+                      )
+                    }
+                  >
+                    {isLoading
+                      ? Array.from({ length: 6 }).map((_, i) => (
+                          <Table.Row id={`sq-${i}`} key={`sq-${i}`}>
+                            {investissementColumns.map((c, j) => (
+                              <Table.Cell key={j}>
+                                <div className="h-4 w-full animate-pulse rounded bg-surface-secondary" />
+                              </Table.Cell>
+                            ))}
+                          </Table.Row>
+                        ))
+                      : table.getRowModel().rows.map((row) => (
+                          <Table.Row id={row.id} key={row.id}>
+                            {row.getVisibleCells().map((cell) => (
+                              <Table.Cell key={cell.id}>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </Table.Cell>
+                            ))}
+                          </Table.Row>
+                        ))}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+              {(pagination?.pageCount ?? 0) > 1 && (
+                <Table.Footer>
+                  <PaginationTableau
+                    onPage={pagination.handlePageChange}
+                    page={filters.page + 1}
+                    total={pagination?.pageCount ?? 1}
+                  />
+                </Table.Footer>
+              )}
+            </Table>
           </div>
         </div>
 
@@ -130,9 +185,13 @@ export default function InvestissementList() {
               </div>
             ))
           )}
-          {pagination?.pageCount! > 1 && (
+          {(pagination?.pageCount ?? 0) > 1 && (
             <div className="flex justify-center pt-2">
-              <Pagination total={pagination?.pageCount ?? 1} page={filters.page + 1} onChange={pagination.handlePageChange} color="primary" />
+              <PaginationTableau
+                onPage={pagination.handlePageChange}
+                page={filters.page + 1}
+                total={pagination?.pageCount ?? 1}
+              />
             </div>
           )}
         </div>

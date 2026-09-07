@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Button, Card, CardBody } from '@/components/heroui';
-import { ArrowLeft } from 'lucide-react';
+import { Card } from '@heroui-v3/react';
+
+import CarteStat, { GrilleStats } from '@/components/commons/CarteStat';
 import RevenueExpenseChart from './RevenueExpenseChart';
 import DateFilterInput from '@/components/finance/date-filter-input';
 import { useGlobalStats } from '@/features/finance-dashboard/queries/global-stats.query';
@@ -99,12 +100,12 @@ export default function AnalyseRentabiliteContent() {
     <div className="p-6 bg-surface-secondary">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <div className="flex items-center gap-3">
-          <Button variant="light" size="sm" startContent={<ArrowLeft className="w-5 h-5" />} className="p-0 min-w-0" />
-          <div>
-            <h1 className="text-2xl font-bold text-primary">Analyse de Rentabilité</h1>
-            <p className="text-sm text-muted">Visualisez vos performances financières en temps réel</p>
-          </div>
+        {/* Un bouton « retour » etait pose ici SANS gestionnaire et sans libelle : une
+            fleche visible, cliquable, qui ne faisait rien et n'etait annoncee nulle part.
+            Le titre etait peint en ROUGE DE MARQUE. */}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Analyse de rentabilité</h1>
+          <p className="text-sm text-muted">Vos performances financières sur la période</p>
         </div>
 
         <DateFilterInput filters={filters} handleDateChange={handleDateChange} />
@@ -113,55 +114,64 @@ export default function AnalyseRentabiliteContent() {
       {/* Stats */}
       {/* Sur echec, CA et depenses valent 0 : la marge vaut 0, le taux 0,0 % et le
           pied de page annonce « Rentable ». Un echec ne doit pas rendre un verdict. */}
-      {isErreurRentabilite ? (
-        <Card className="mb-6">
-          <CardBody className="p-0">
-            <EtatErreur
-              quoi="les indicateurs de rentabilité"
-              onReessayer={reessayerRentabilite}
-              enCours={isFetchingGlobal || isFetchingDepenses}
-            />
-          </CardBody>
-        </Card>
-      ) : (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-surface-secondary">
-          <CardBody className="p-4">
-            <p className="text-sm text-muted">Chiffre d&#39;Affaires</p>
-            <h2 className="text-lg font-semibold">{isLoadingGlobal ? 'Chargement...' : stats.formattedChiffreAffaires}</h2>
-          </CardBody>
-        </Card>
+      {/*
+       * Les quatre cartes etaient peintes a la main : les depenses sur `bg-orange-50`, la
+       * marge sur `bg-green-50`, sans variante sombre — et la marge portait EN PLUS son
+       * verdict en `text-red-600` / `text-green-600`. Les depenses d'un mois ne sont pas
+       * un avertissement : c'est la MARGE qui dit si l'exercice va bien, et elle le dit
+       * une fois.
+       *
+       * Et le chiffre etait remplace par le mot « Chargement... » pendant l'attente : une
+       * phrase la ou l'oeil cherche un montant, qui deplacait la mise en page a chaque
+       * arrivee. `CarteStat` porte son squelette, et son etat d'echec — sans lui, un CA et
+       * des depenses a zero donnaient une marge de zero, un taux de 0,0 % et le verdict
+       * « Rentable » en pied de page.
+       */}
+      <GrilleStats className="mb-6" colonnes={4}>
+        <CarteStat
+          isError={isErreurRentabilite}
+          isLoading={isLoadingGlobal}
+          libelle="Chiffre d'affaires"
+          valeur={stats.formattedChiffreAffaires}
+        />
+        <CarteStat
+          isError={isErreurRentabilite}
+          isLoading={isLoadingDepenses}
+          libelle="Total des dépenses"
+          valeur={stats.formattedTotalDepenses}
+        />
+        <CarteStat
+          isError={isErreurRentabilite}
+          isLoading={isLoadingGlobal || isLoadingDepenses}
+          libelle="Marge actuelle"
+          ton={stats.isDeficit ? 'danger' : 'succes'}
+          valeur={stats.formattedMarge}
+        />
+        <CarteStat
+          isError={isErreurRentabilite}
+          isLoading={isLoadingGlobal || isLoadingDepenses}
+          libelle="Taux de marge"
+          valeur={`${stats.tauxMarge.toFixed(1)} %`}
+        />
+      </GrilleStats>
 
-        <Card className="bg-orange-50">
-          <CardBody className="p-4">
-            <p className="text-sm text-muted">Total Dépenses</p>
-            <h2 className="text-lg font-semibold">{isLoadingDepenses ? 'Chargement...' : stats.formattedTotalDepenses}</h2>
-          </CardBody>
-        </Card>
-
-        <Card className="bg-green-50">
-          <CardBody className="p-4">
-            <p className="text-sm text-muted">Marge Actuelle</p>
-            <h2 className={`text-lg font-semibold ${stats.isDeficit ? 'text-red-600' : 'text-green-600'}`}>{isLoadingGlobal || isLoadingDepenses ? 'Chargement...' : stats.formattedMarge}</h2>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="p-4">
-            <p className="text-sm text-muted">Taux de Marge</p>
-            <h2 className="text-lg font-semibold">{isLoadingGlobal || isLoadingDepenses ? 'Chargement...' : `${stats.tauxMarge.toFixed(1)}%`}</h2>
-          </CardBody>
-        </Card>
-      </div>
+      {isErreurRentabilite && (
+        <div className="mb-6">
+          <EtatErreur
+            enCours={isFetchingGlobal || isFetchingDepenses}
+            onReessayer={reessayerRentabilite}
+            quoi="les indicateurs de rentabilité"
+          />
+        </div>
       )}
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 gap-6">
         {/* Chart */}
         <Card>
-          <CardBody className="p-0">
+          <Card.Content className="p-0">
             <RevenueExpenseChart debut={filters.debut} fin={filters.fin} />
-          </CardBody>
+          </Card.Content>
         </Card>
 
         {/* Expenses */}
@@ -203,11 +213,18 @@ export default function AnalyseRentabiliteContent() {
       {/* Footer */}
       <div className="flex flex-col sm:flex-row sm:justify-between gap-1 mt-6 text-sm text-muted">
         <span>
-          Période Analysée : {filters.debut ? new Date(filters.debut).toLocaleDateString('fr-FR') : '...'}
-          au {filters.fin ? new Date(filters.fin).toLocaleDateString('fr-FR') : '...'}
+          Période analysée : du{' '}
+          {filters.debut ? new Date(filters.debut).toLocaleDateString('fr-FR') : '…'} au{' '}
+          {filters.fin ? new Date(filters.fin).toLocaleDateString('fr-FR') : '…'}
         </span>
         {!isErreurRentabilite && (
-          <span className={`font-medium ${stats.isDeficit ? 'text-red-600' : 'text-green-600'}`}>{stats.isDeficit ? '✗ Déficit' : '✓ Rentable'}</span>
+          <span
+            className={`font-medium ${
+              stats.isDeficit ? 'text-danger-soft-foreground' : 'text-success-soft-foreground'
+            }`}
+          >
+            {stats.isDeficit ? 'Déficit' : 'Rentable'}
+          </span>
         )}
       </div>
     </div>

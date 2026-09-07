@@ -1,18 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  Button,
-  Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  Radio,
-  RadioGroup,
-  Textarea,
-} from '@/components/heroui';
+import { Button, Label, Modal, NumberField, Radio, RadioGroup } from '@heroui-v3/react';
+
+import { ChampZoneTexte } from '@/components/commons/champs-formulaire';
 import { PhoneCall, PhoneMissed } from 'lucide-react';
 
 import { useConsignerAppelMutation } from '../queries/chat-partenaires.query';
@@ -70,84 +61,114 @@ export function ConsignerAppelModal({ restaurantId, restaurantNom, isOpen, onOpe
   };
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="md">
-      <ModalContent>
-        {() => (
-          <>
-            <ModalHeader className="flex flex-col gap-1">
-              <span className="text-primary">Consigner un appel</span>
-              <span className="text-sm font-normal text-default-500">{restaurantNom}</span>
-            </ModalHeader>
-            <ModalBody>
+    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Backdrop>
+        <Modal.Container>
+          <Modal.Dialog>
+            <Modal.Header>
+              <div className="flex flex-col gap-0.5">
+                {/* Le titre etait peint en ROUGE DE MARQUE. */}
+                <Modal.Heading>Consigner un appel</Modal.Heading>
+                <span className="text-sm text-muted">{restaurantNom}</span>
+              </div>
+              <Modal.CloseTrigger />
+            </Modal.Header>
+
+            <Modal.Body className="flex flex-col gap-4">
+              {/*
+               * Les deux choix etaient des `<Radio>` dont le libelle etait un `<span>`
+               * enfant : la v3 attend `Radio.Content` avec sa pastille explicite, sans
+               * quoi le bouton radio ne se dessine pas du tout.
+               */}
               <RadioGroup
+                onChange={(v) => setAbouti(v as 'non' | 'oui')}
                 orientation="horizontal"
                 value={abouti}
-                onValueChange={(v) => setAbouti(v as 'oui' | 'non')}
               >
                 <Radio value="oui">
-                  <span className="flex items-center gap-1.5">
-                    <PhoneCall className="h-4 w-4 text-success-soft-foreground" />
-                    Abouti
-                  </span>
+                  <Radio.Content>
+                    <Radio.Control>
+                      <Radio.Indicator />
+                    </Radio.Control>
+                    <span className="flex items-center gap-1.5">
+                      <PhoneCall aria-hidden="true" className="size-4 text-success" />
+                      Abouti
+                    </span>
+                  </Radio.Content>
                 </Radio>
                 <Radio value="non">
-                  <span className="flex items-center gap-1.5">
-                    <PhoneMissed className="h-4 w-4 text-danger-soft-foreground" />
-                    Manqué
-                  </span>
+                  <Radio.Content>
+                    <Radio.Control>
+                      <Radio.Indicator />
+                    </Radio.Control>
+                    <span className="flex items-center gap-1.5">
+                      <PhoneMissed aria-hidden="true" className="size-4 text-danger" />
+                      Manqué
+                    </span>
+                  </Radio.Content>
                 </Radio>
               </RadioGroup>
 
               {abouti === 'oui' && (
                 <div className="flex items-end gap-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    label="Durée"
-                    placeholder="0"
-                    value={minutes}
-                    onValueChange={setMinutes}
-                    endContent={<span className="text-xs text-default-400">min</span>}
-                    className="max-w-[110px]"
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    max={59}
-                    aria-label="Secondes"
-                    placeholder="0"
-                    value={secondes}
-                    onValueChange={setSecondes}
-                    endContent={<span className="text-xs text-default-400">s</span>}
-                    className="max-w-[110px]"
-                  />
+                  {/*
+                   * Le champ des SECONDES n'avait pas de libelle visible — seulement un
+                   * `aria-label` — a cote d'un champ « Duree » qui, lui, en avait un. Deux
+                   * cases identiques ou une seule etait nommee : rien a l'ecran ne disait
+                   * laquelle comptait les minutes.
+                   */}
+                  <div className="max-w-[130px]">
+                    <NumberField
+                      minValue={0}
+                      onChange={(v) => setMinutes(Number.isNaN(v) ? '' : String(v))}
+                      value={minutes === '' ? Number.NaN : Number(minutes)}
+                    >
+                      <Label>Minutes</Label>
+                      <NumberField.Group>
+                        <NumberField.Input />
+                      </NumberField.Group>
+                    </NumberField>
+                  </div>
+                  <div className="max-w-[130px]">
+                    <NumberField
+                      maxValue={59}
+                      minValue={0}
+                      onChange={(v) => setSecondes(Number.isNaN(v) ? '' : String(v))}
+                      value={secondes === '' ? Number.NaN : Number(secondes)}
+                    >
+                      <Label>Secondes</Label>
+                      <NumberField.Group>
+                        <NumberField.Input />
+                      </NumberField.Group>
+                    </NumberField>
+                  </div>
                 </div>
               )}
 
-              <Textarea
+              <ChampZoneTexte
                 label="Commentaire"
+                onChange={setCommentaire}
                 placeholder="Motif de l'appel, suite à donner…"
-                value={commentaire}
-                onValueChange={setCommentaire}
-                minRows={2}
+                valeur={commentaire}
               />
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="flat" onPress={() => onOpenChange(false)}>
+            </Modal.Body>
+
+            <Modal.Footer>
+              <Button onPress={() => onOpenChange(false)} variant="ghost">
                 Annuler
               </Button>
               <Button
-                color="primary"
-                isLoading={consigner.isPending}
                 isDisabled={!restaurantId}
+                isPending={consigner.isPending}
                 onPress={enregistrer}
+                variant="primary"
               >
                 Enregistrer
               </Button>
-            </ModalFooter>
-          </>
-        )}
-      </ModalContent>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </Modal>
   );
 }

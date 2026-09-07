@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Avatar, Button, Input, Skeleton, Spinner } from '@/components/heroui';
+import { Avatar, Button, Chip, Input, Label, SearchField, Skeleton, TextField } from '@heroui-v3/react';
+
+import { LienBouton } from '@/components/commons/LienBouton';
 import {
   ArrowLeft,
   Check,
@@ -229,26 +231,27 @@ export function ChatPartenairesContent() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              as={Link}
-              href="/trafic/standard"
-              variant="light"
-              size="sm"
-              startContent={<ArrowLeft className="h-4 w-4" />}
-              className="text-default-500"
-            >
+            {/* `as={Link}` etait une prop de la v2 : le Button v3 l'ignore et le lien de
+                retour vers le Standard disparaitrait. C'est un vrai <a href>. */}
+            <LienBouton href="/trafic/standard" taille="sm" variante="ghost">
+              <ArrowLeft aria-hidden="true" className="size-4" />
               Standard
-            </Button>
-            <h1 className="flex items-center gap-2 text-2xl font-bold text-primary">
+            </LienBouton>
+            {/* Le titre etait peint en ROUGE DE MARQUE, et le compteur de non-lus en
+                DANGER : du courrier en attente n'est pas un danger, c'est ce qui appelle
+                une action. */}
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
               Messages partenaires
               {totalNonLus > 0 && (
-                <span className="inline-flex items-center rounded-full bg-danger/10 px-2.5 py-1 text-xs font-bold text-danger-soft-foreground">
-                  {totalNonLus} non lu{totalNonLus > 1 ? 's' : ''}
-                </span>
+                <Chip color="accent" size="sm" variant="soft">
+                  <Chip.Label>
+                    {totalNonLus} non lu{totalNonLus > 1 ? 's' : ''}
+                  </Chip.Label>
+                </Chip>
               )}
             </h1>
           </div>
-          <p className="mt-1 text-sm text-default-500">
+          <p className="mt-1 text-sm text-muted">
             Discussions avec les partenaires du module Demande de Coursier, rafraîchies toutes les
             15 secondes.
           </p>
@@ -262,17 +265,16 @@ export function ChatPartenairesContent() {
         style={hauteur ? { height: hauteur } : undefined}
       >
         {/* Colonne conversations */}
-        <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-default-200/60 bg-surface dark:bg-content1">
-          <div className="border-b border-default-100 p-3">
-            <Input
-              size="sm"
-              placeholder="Rechercher un partenaire…"
-              value={recherche}
-              onValueChange={setRecherche}
-              startContent={<Search className="h-4 w-4 text-default-400" />}
-              isClearable
-              onClear={() => setRecherche('')}
-            />
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-separator bg-surface">
+          <div className="border-b border-separator p-3">
+            <SearchField onChange={setRecherche} value={recherche}>
+              <Label className="sr-only">Rechercher un partenaire</Label>
+              <SearchField.Group>
+                <SearchField.SearchIcon />
+                <SearchField.Input placeholder="Rechercher un partenaire…" />
+                <SearchField.ClearButton />
+              </SearchField.Group>
+            </SearchField>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {restaurants.isLoading ? (
@@ -285,7 +287,7 @@ export function ChatPartenairesContent() {
                 ))}
               </div>
             ) : conversations.length === 0 ? (
-              <p className="p-4 text-center text-sm text-default-400">Aucun partenaire trouvé.</p>
+              <p className="p-4 text-center text-sm text-muted">Aucun partenaire trouvé.</p>
             ) : (
               conversations.map((c) => {
                 const actif = c.restaurantId === selectedId;
@@ -294,18 +296,22 @@ export function ChatPartenairesContent() {
                     key={c.restaurantId}
                     type="button"
                     onClick={() => setSelectedId(c.restaurantId)}
-                    className={`flex w-full items-center gap-3 border-b border-default-100/70 px-3 py-2.5 text-left transition-colors ${
-                      actif ? 'bg-primary/10' : 'hover:bg-default-100/60'
+                    aria-current={actif ? 'true' : undefined}
+                    className={`flex w-full items-center gap-3 border-b border-separator px-3 py-2.5 text-left transition-colors ${
+                      actif ? 'bg-accent-soft' : 'hover:bg-surface-secondary'
                     }`}
                   >
-                    <Avatar src={c.logoUrl} name={c.nom} size="sm" className="shrink-0" />
+                    <Avatar className="size-9 shrink-0">
+                      {c.logoUrl && <Avatar.Image alt={c.nom} src={c.logoUrl} />}
+                      <Avatar.Fallback>{c.nom?.[0]?.toUpperCase() ?? '?'}</Avatar.Fallback>
+                    </Avatar>
                     <span className={`min-w-0 flex-1 truncate text-sm ${c.nonLus > 0 ? 'font-semibold' : 'font-medium'}`}>
                       {c.nom}
                     </span>
                     {c.nonLus > 0 && (
-                      <span className="inline-flex min-w-[20px] shrink-0 items-center justify-center rounded-full bg-danger px-1.5 py-0.5 text-[11px] font-bold text-white">
-                        {c.nonLus}
-                      </span>
+                      <Chip color="accent" size="sm" variant="soft">
+                        <Chip.Label>{c.nonLus}</Chip.Label>
+                      </Chip>
                     )}
                   </button>
                 );
@@ -315,24 +321,25 @@ export function ChatPartenairesContent() {
         </div>
 
         {/* Colonne fil */}
-        <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-default-200/60 bg-surface dark:bg-content1">
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-separator bg-surface">
           {!selection ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-default-400">
-              <MessageSquare className="h-8 w-8" />
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-muted">
+              <MessageSquare aria-hidden="true" className="size-8" />
               <p className="text-sm">Choisissez une conversation pour afficher les messages.</p>
             </div>
           ) : (
             <>
               {/* Entête de conversation */}
-              <div className="flex items-center gap-3 border-b border-default-100 px-4 py-2.5">
-                <Avatar src={selection.logoUrl} name={selection.nom} size="sm" />
-                <p className="min-w-0 flex-1 truncate font-semibold">{selection.nom}</p>
-                <Button
-                  size="sm"
-                  variant="flat"
-                  startContent={<Phone className="h-4 w-4" />}
-                  onPress={() => setAppelOpen(true)}
-                >
+              <div className="flex items-center gap-3 border-b border-separator px-4 py-2.5">
+                <Avatar className="size-9 shrink-0">
+                  {selection.logoUrl && <Avatar.Image alt={selection.nom} src={selection.logoUrl} />}
+                  <Avatar.Fallback>{selection.nom?.[0]?.toUpperCase() ?? '?'}</Avatar.Fallback>
+                </Avatar>
+                <p className="min-w-0 flex-1 truncate font-semibold text-foreground">
+                  {selection.nom}
+                </p>
+                <Button onPress={() => setAppelOpen(true)} size="sm" variant="outline">
+                  <Phone aria-hidden="true" className="size-4" />
                   Consigner un appel
                 </Button>
               </div>
@@ -342,22 +349,23 @@ export function ChatPartenairesContent() {
                 {fil.hasNextPage && (
                   <div className="flex justify-center">
                     <Button
-                      size="sm"
-                      variant="light"
-                      isLoading={fil.isFetchingNextPage}
+                      isPending={fil.isFetchingNextPage}
                       onPress={() => fil.fetchNextPage()}
-                      className="text-default-400"
+                      size="sm"
+                      variant="ghost"
                     >
                       Messages plus anciens
                     </Button>
                   </div>
                 )}
                 {fil.isLoading ? (
-                  <div className="flex justify-center py-10">
-                    <Spinner color="primary" label="Chargement du fil…" />
+                  <div className="flex flex-col gap-2 py-4">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton className="h-12 rounded-2xl" key={i} />
+                    ))}
                   </div>
                 ) : messages.length === 0 ? (
-                  <p className="py-10 text-center text-sm text-default-400">
+                  <p className="py-10 text-center text-sm text-muted">
                     Aucun message avec ce partenaire pour l&apos;instant.
                   </p>
                 ) : (
@@ -366,28 +374,31 @@ export function ChatPartenairesContent() {
               </div>
 
               {/* Saisie */}
-              <div className="border-t border-default-100 p-3">
+              <div className="border-t border-separator p-3">
                 <div className="flex items-end gap-2">
-                  <Input
-                    placeholder={`Écrire à ${selection.nom}…`}
-                    value={brouillon}
-                    onValueChange={setBrouillon}
+                  <TextField
+                    className="flex-1"
+                    onChange={setBrouillon}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         envoyerMessage();
                       }
                     }}
-                  />
-                  <Button
-                    isIconOnly
-                    color="primary"
-                    aria-label="Envoyer le message"
-                    isLoading={envoyer.isPending}
-                    isDisabled={!brouillon.trim()}
-                    onPress={envoyerMessage}
+                    value={brouillon}
                   >
-                    <SendHorizontal className="h-4 w-4" />
+                    <Label className="sr-only">{`Écrire à ${selection.nom}`}</Label>
+                    <Input placeholder={`Écrire à ${selection.nom}…`} />
+                  </TextField>
+                  <Button
+                    aria-label="Envoyer le message"
+                    isDisabled={!brouillon.trim()}
+                    isIconOnly
+                    isPending={envoyer.isPending}
+                    onPress={envoyerMessage}
+                    variant="primary"
+                  >
+                    <SendHorizontal aria-hidden="true" className="size-4" />
                   </Button>
                 </div>
               </div>

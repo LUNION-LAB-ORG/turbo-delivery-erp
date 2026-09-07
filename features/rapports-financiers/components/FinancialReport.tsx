@@ -1,7 +1,7 @@
 ﻿'use client';
 
-import { Download } from 'lucide-react';
-import { Button, Card, CardBody, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Spinner, ProgressBar } from '@/components/heroui';
+import { Download, FileText } from 'lucide-react';
+import { Button, Card, ProgressBar, Table } from '@heroui-v3/react';
 import DateFilterInput from '@/components/finance/date-filter-input';
 import { useMemo, useState } from 'react';
 import { endOfMonth, format, startOfMonth } from 'date-fns';
@@ -218,27 +218,29 @@ export default function FinancialReport() {
       <div className="bg-surface rounded-xl border border-separator p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
+            {/* Le carre etait peint en `bg-purple-100` avec une icone `text-purple-600`
+                dessinee en SVG a la main — le violet n'appartient a aucune palette de
+                l'ERP, et le projet a une bibliotheque d'icones. */}
+            <div className="flex size-12 items-center justify-center rounded-xl bg-surface-secondary">
+              <FileText aria-hidden="true" className="size-6 text-muted" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-primary">Rapports Financiers</h1>
+              {/* Le titre etait peint en ROUGE DE MARQUE. */}
+              <h1 className="text-2xl font-bold text-foreground">Rapports financiers</h1>
               <p className="text-sm text-muted">Consultez et exportez vos rapports mensuels</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button color="primary" className="bg-purple-600" startContent={<Download className="w-4 h-4" />} onPress={handleExportCsv}>
+            {/* Le premier bouton etait force en `bg-purple-600` par-dessus sa couleur
+                primaire, le second en « secondaire » : deux exports de meme nature,
+                deux apparences differentes. */}
+            <Button onPress={handleExportCsv} variant="outline">
+              <Download aria-hidden="true" className="size-4" />
               Exporter CSV
             </Button>
-            <Button color="secondary" variant="bordered" startContent={<Download className="w-4 h-4" />} onPress={handleExportPdf}>
+            <Button onPress={handleExportPdf} variant="outline">
+              <Download aria-hidden="true" className="size-4" />
               Exporter PDF
             </Button>
           </div>
@@ -258,7 +260,7 @@ export default function FinancialReport() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Vue d'Ensemble */}
           <Card>
-            <CardBody className="p-6">
+            <Card.Content className="p-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">Vue d&#39;Ensemble</h2>
               {/* Sans rapport, `metrics` retombe sur une liste entierement a « 0 FCFA »
                   y compris le benefice : un rapport illisible se lisait comme un mois blanc. */}
@@ -269,22 +271,50 @@ export default function FinancialReport() {
                 {metrics.map((metric, index) => (
                   <div
                     key={index}
-                    className={`flex justify-between items-center py-2 px-3 rounded-lg ${metric.highlight === 'warning' ? 'bg-orange-50' : metric.highlight === 'success' ? 'bg-green-50' : ''}`}
+                    /* Les deux lignes mises en avant — le benefice et le total des
+                       depenses — etaient peintes en `bg-orange-50 text-orange-700` et
+                       `bg-green-50 text-green-700` : quatre classes de la palette brute,
+                       sans variante sombre. Sur un poste en theme sombre, les deux seules
+                       lignes qui comptent dans un compte de resultat etaient les moins
+                       lisibles de la carte. */
+                    className={`flex items-center justify-between rounded-lg px-3 py-2 ${
+                      metric.highlight === 'warning'
+                        ? 'bg-warning-soft'
+                        : metric.highlight === 'success'
+                          ? 'bg-success-soft'
+                          : ''
+                    }`}
                   >
-                    <span className={`text-sm ${metric.highlight ? 'font-medium' : 'text-muted'}`}>{metric.label}</span>
-                    <span className={`text-sm font-semibold ${metric.highlight === 'warning' ? 'text-orange-700' : metric.highlight === 'success' ? 'text-green-700' : 'text-foreground'}`}>
+                    <span
+                      className={`text-sm ${
+                        metric.highlight
+                          ? 'font-medium text-foreground'
+                          : 'text-muted'
+                      }`}
+                    >
+                      {metric.label}
+                    </span>
+                    <span
+                      className={`text-sm font-semibold tabular-nums ${
+                        metric.highlight === 'warning'
+                          ? 'text-warning-soft-foreground'
+                          : metric.highlight === 'success'
+                            ? 'text-success-soft-foreground'
+                            : 'text-foreground'
+                      }`}
+                    >
                       {metric.value}
                     </span>
                   </div>
                 ))}
               </div>
               )}
-            </CardBody>
+            </Card.Content>
           </Card>
 
           {/* Indicateurs Clés */}
           <Card>
-            <CardBody className="p-6">
+            <Card.Content className="p-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">Indicateurs Clés</h2>
               {isErrorRapport ? (
                 <EtatErreur quoi="les indicateurs clés" onReessayer={() => refetchRapport()} enCours={isFetchingRapport} />
@@ -301,13 +331,13 @@ export default function FinancialReport() {
                 ))}
               </div>
               )}
-            </CardBody>
+            </Card.Content>
           </Card>
         </div>
 
         {/* Répartition des Charges Fixes */}
         <Card>
-          <CardBody className="p-6">
+          <Card.Content className="p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">
               Répartition des Charges Fixes
               {fixesTronquees && (
@@ -347,12 +377,12 @@ export default function FinancialReport() {
               ))}
             </div>
             )}
-          </CardBody>
+          </Card.Content>
         </Card>
 
         {/* Dépenses Variables de la Période */}
         <Card>
-          <CardBody className="p-6">
+          <Card.Content className="p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">
               Dépenses Variables de la Période
               {variablesTronquees && (
@@ -371,25 +401,56 @@ export default function FinancialReport() {
             <>
             {/* Tableau — desktop uniquement (≥ md) */}
             <div className="hidden md:block">
-              <Table aria-label="Dépenses variables">
-                <TableHeader>
-                  <TableColumn>DATE</TableColumn>
-                  <TableColumn>DÉSIGNATION</TableColumn>
-                  <TableColumn className="text-right">MONTANT</TableColumn>
-                </TableHeader>
-                <TableBody
-                  isLoading={chargesVariablesLoading}
-                  loadingContent={<Spinner color="primary" label="Chargement des dépenses…" />}
-                  emptyContent={chargesVariablesLoading ? ' ' : 'Aucune dépense variable sur la période'}
-                >
-                  {variableExpenses.map((expense, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="text-sm text-muted">{expense.date}</TableCell>
-                      <TableCell className="text-sm text-foreground">{expense.designation}</TableCell>
-                      <TableCell className="text-sm text-foreground text-right font-medium">{expense.amount}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+              <Table>
+                <Table.ScrollContainer>
+                  <Table.Content aria-label="Dépenses variables">
+                    <Table.Header>
+                      {/* Les trois en-tetes etaient ecrits en CAPITALES dans le texte
+                          meme, pas par une regle de style : le lecteur d'ecran les
+                          epelait lettre par lettre. */}
+                      <Table.Column id="date" isRowHeader>
+                        Date
+                      </Table.Column>
+                      <Table.Column id="designation">Désignation</Table.Column>
+                      <Table.Column className="text-right" id="montant">
+                        Montant
+                      </Table.Column>
+                    </Table.Header>
+                    <Table.Body
+                      renderEmptyState={() =>
+                        chargesVariablesLoading ? null : (
+                          <p className="py-8 text-center text-sm text-muted">
+                            Aucune dépense variable sur la période
+                          </p>
+                        )
+                      }
+                    >
+                      {chargesVariablesLoading
+                        ? Array.from({ length: 5 }).map((_, i) => (
+                            <Table.Row id={`sq-${i}`} key={`sq-${i}`}>
+                              {['date', 'designation', 'montant'].map((c) => (
+                                <Table.Cell key={c}>
+                                  <div className="h-4 w-full animate-pulse rounded bg-surface-secondary" />
+                                </Table.Cell>
+                              ))}
+                            </Table.Row>
+                          ))
+                        : variableExpenses.map((expense, index) => (
+                            <Table.Row id={String(index)} key={index}>
+                              <Table.Cell className="text-sm text-muted">
+                                {expense.date}
+                              </Table.Cell>
+                              <Table.Cell className="text-sm text-foreground">
+                                {expense.designation}
+                              </Table.Cell>
+                              <Table.Cell className="text-right text-sm font-medium tabular-nums text-foreground">
+                                {expense.amount}
+                              </Table.Cell>
+                            </Table.Row>
+                          ))}
+                    </Table.Body>
+                  </Table.Content>
+                </Table.ScrollContainer>
               </Table>
             </div>
 
@@ -414,7 +475,7 @@ export default function FinancialReport() {
             </div>
             </>
             )}
-          </CardBody>
+          </Card.Content>
         </Card>
       </div>
     </div>

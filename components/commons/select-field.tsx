@@ -1,52 +1,61 @@
+'use client';
 
+import { useEffect, useState } from 'react';
 
-import { Select, SelectItem } from "@/components/heroui";
-import { useEffect, useState } from "react";
+import { ChampListe } from '@/components/commons/champs-formulaire';
 
 interface Props {
-    size?: "sm" | "md" | "lg";
-    options?: any[];
-    label: string;
-    selectValue?: string;
-    setSelectValue?: (event?: any) => void;
-    asDefaulValue?: boolean;
-    livreur?: any;
-    setLivreur?: (livreur?: any) => void;
+  asDefaulValue?: boolean;
+  label: string;
+  livreur?: any;
+  options?: { [k: string]: any; id?: string }[];
+  selectValue?: string;
+  setLivreur?: (livreur?: any) => void;
+  setSelectValue?: (event?: any) => void;
+  size?: 'lg' | 'md' | 'sm';
 }
 
+/**
+ * Le choix d'un établissement dans une cellule de tableau.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>C'était un `Select` de la v2, non cherchable, sur la liste COMPLÈTE des partenaires :
+ * pour réaffecter un livreur, il fallait dérouler plusieurs centaines d'entrées. Il passe
+ * par le champ partagé, qui filtre à la frappe.</p>
+ *
+ * <p>Il portait aussi `label={''}` et `aria-labelledby=" "` — un libellé vide et une
+ * référence vers une chaîne d'espace. Le champ n'avait donc AUCUN nom : au lecteur
+ * d'écran, une liste déroulante muette au milieu d'une ligne de tableau.</p>
+ *
+ * <p>⚠ Il existe un second composant du même nom sous `commons/form/select-field`, avec
+ * d'autres props. Les deux sont vivants et appelés depuis des écrans différents.</p>
+ */
 export function SelectField(props: Props) {
-    const selectedKey = props.options?.find(option => option[props.label] === props.selectValue)?.id ?? "";
+  const cleCourante =
+    props.options?.find((o) => o[props.label] === props.selectValue)?.id ?? '';
 
-    const [selectedValue, setSelectedValue] = useState<string | undefined>(selectedKey);
+  const [valeur, setValeur] = useState<string>(cleCourante);
 
-    useEffect(() => {
-        const newSelectedKey = props.options?.find(option => option[props.label] === props.selectValue)?.id ?? "";
-        setSelectedValue(newSelectedKey);
-    }, [props.selectValue, props.options]);
+  useEffect(() => {
+    setValeur(cleCourante);
+  }, [cleCourante]);
 
-    const handleChange = (event: any) => {
-        const newValue = event.target.value;
-        setSelectedValue(newValue);
-        const newLabel = props.options?.find(option => option.id === newValue)?.id ?? "";
-        props.setSelectValue && props.setSelectValue(newLabel);
-        props.setLivreur && props.setLivreur(props.livreur)
-    };
-
-    return (
-        <Select
-            label={""}
-            selectedKeys={[selectedValue || "default"]}
-            size={props.size}
-            aria-labelledby=" "
-            className="max-w-xs"
-            onChange={handleChange}
-        >
-            {(props.options || []).map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                    {option[props.label]}
-                </SelectItem>
-            ))}
-        </Select>
-    );
+  return (
+    <div className="max-w-xs">
+      <ChampListe
+        label="Établissement"
+        onChange={(v) => {
+          setValeur(v);
+          props.setSelectValue?.(v);
+          props.setLivreur?.(props.livreur);
+        }}
+        options={(props.options ?? []).map((o) => ({
+          label: String(o[props.label] ?? ''),
+          value: String(o.id ?? ''),
+        }))}
+        placeholder="Rechercher un établissement"
+        valeur={valeur}
+      />
+    </div>
+  );
 }
-

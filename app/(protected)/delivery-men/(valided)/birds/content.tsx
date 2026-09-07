@@ -1,160 +1,140 @@
 'use client';
 
+import { Button, Chip } from '@heroui-v3/react';
+import { Pencil, X } from 'lucide-react';
 import React from 'react';
-import { PaginatedResponse } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Pagination, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@/components/heroui';
-import { Check, PencilIcon, XIcon } from 'lucide-react';
-import { LivreurStatutVM, Restaurant } from '@/types/models';
-import EmptyDataTable from '@/components/commons/EmptyDataTable';
-import EtatErreur from '@/components/commons/EtatErreur';
+
 import { ConfirmDialog } from '@/components/commons/confirm-dialog';
 import { SearchField } from '@/components/commons/form/search-field';
-import { useTurboysBirdController } from './useTurboAssigneController';
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
+import {
+  ColonneResponsive,
+  TableauResponsive,
+} from '@/components/commons/TableauResponsive';
+import { PaginatedResponse } from '@/types';
+import { LivreurStatutVM, Restaurant } from '@/types/models';
+
+import { CelluleCoursier } from '../../_composants/cellule-coursier';
 import { UpdateDeliveryDialog } from '../../update-delivery/update-delivery';
-import { createUrlFile } from '@/utils/createUrlFile';
+import { useTurboysBirdController } from './useTurboAssigneController';
 
 interface Props {
   initialData: PaginatedResponse<LivreurStatutVM> | null;
   restaurants?: Restaurant[] | null;
 }
 
+/**
+ * Les coursiers birds : validés, mais rattachés à aucun site partenaire.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>La fonction de rendu des cellules commençait par `=> {7894` — quatre chiffres tombés
+ * là au clavier, jamais remarqués parce que c'est une expression JavaScript valide. Ils
+ * étaient en production.</p>
+ *
+ * <p>Comme sur l'écran des assignés, les deux gestes de la ligne étaient des
+ * `&lt;span onClick&gt;` en `text-white` sur une surface claire : invisibles en thème
+ * clair, inatteignables au clavier, et sans nom pour le lecteur d'écran — sur le bouton
+ * qui RETIRE un livreur.</p>
+ *
+ * <p>Et « Confirmé » était un bouton actif sans gestionnaire. Un livreur bird EST validé :
+ * c'est un état, il se lit, on ne clique pas dessus.</p>
+ */
 export default function Content({ initialData, restaurants }: Props) {
-  const livreurNonAssingeCtrl = useTurboysBirdController(initialData);
-  const rows = livreurNonAssingeCtrl.data?.content || [];
+  const ctrl = useTurboysBirdController(initialData);
+  const rows = ctrl.data?.content ?? [];
 
-  // Colonnes pour le tableau des livreurs non assignés
-  const nonAssignedColumns = [
-    { uid: 'nom', name: 'Nom & Prénom' },
-    { uid: 'dateInscription', name: 'Date d’inscription' },
-    { uid: 'actions', name: 'Actions' },
-  ];
+  const colonnes: ColonneResponsive<LivreurStatutVM>[] = [
+    {
+      cle: 'nom',
+      identite: true,
+      libelle: 'Nom et prénom',
+      rendu: (l) => <CelluleCoursier avatarUrl={l.avatarUrl} nom={l.nomPrenom ?? ''} />,
+    },
+    {
+      cle: 'dateInscription',
+      libelle: "Date d'inscription",
+      rendu: (l) => <span className="tabular-nums">{l.dateInscription ?? '-'}</span>,
+    },
+    {
+      cle: 'statut',
+      libelle: 'Statut',
+      rendu: () => (
+        <Chip color="success" size="sm" variant="soft">
+          <Chip.Label>Confirmé</Chip.Label>
+        </Chip>
+      ),
+    },
+    {
+      actions: true,
+      cle: 'actions',
+      libelle: 'Actions',
+      rendu: (l) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            aria-label={`Modifier ${l.nomPrenom ?? 'ce livreur'}`}
+            isIconOnly
+            onPress={() => ctrl.setUpdateLivreurId(l.livreurId ?? '')}
+            size="sm"
+            variant="ghost"
+          >
+            <Pencil aria-hidden="true" className="size-4" />
+          </Button>
 
-  // Fonction de rendu des cellules
-  const renderNonAssignedCell = (item: any, columnKey: string) => {7894
-    switch (columnKey) {
-      case 'nom':
-        return (
-          <div className="flex items-center gap-4">
-            <img src={item.avatarUrl ? createUrlFile(item.avatarUrl, 'backend') : '/assets/images/avatar.png'} alt={item?.nomPrenom} className="w-8 h-8 rounded-full object-cover mr-3 shadow-md" />
-            <div className="font-medium capitalize">{item?.nomPrenom}</div>
-          </div>
-        );
+          <Button
+            aria-label={`Retirer ${l.nomPrenom ?? 'ce livreur'} de la flotte`}
+            isIconOnly
+            onPress={() => ctrl.supprimerLivreur(l, 'WAITING')}
+            size="sm"
+            variant="danger-soft"
+          >
+            <X aria-hidden="true" className="size-4" />
+          </Button>
 
-      case 'dateInscription':
-        return item?.dateInscription;
-
-      case 'actions':
-        return (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button className="h-8">
-              <span className="flex items-center gap-2">
-                <Check size={18} />
-                Confirmé
-              </span>
+          {ctrl.updateLivreurId === l.livreurId && (
+            <Button onPress={() => ctrl.modifier(l)} size="sm" variant="outline">
+              Assigner à un site partenaire
             </Button>
-
-            <span className="text-white p-1 bg-surface-tertiary rounded-full hover:bg-red-500 cursor-pointer" onClick={() => livreurNonAssingeCtrl.setUpdateLivreurId(item?.livreurId)}>
-              <PencilIcon className="h-4 w-4" />
-            </span>
-
-            <span className="text-white p-1 bg-surface-tertiary rounded-full hover:bg-red-500 cursor-pointer" onClick={() => livreurNonAssingeCtrl.supprimerLivreur(item, 'WAITING')}>
-              <XIcon className="h-4 w-4" />
-            </span>
-
-            {livreurNonAssingeCtrl.updateLivreurId === item?.livreurId && (
-              <Button variant="outline" className="text-sm h-8 ml-2" onClick={() => livreurNonAssingeCtrl.modifier(item)}>
-                Assigner à un site/partenaire
-              </Button>
-            )}
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="p-6 pt-0 flex-wrap">
-      <SearchField searchKey={livreurNonAssingeCtrl.searchKey} onChange={livreurNonAssingeCtrl.setSearchKey} />
-      <div className="bg-surface rounded-lg overflow-x-auto lg:overflow-hidden xl:overflow-hidden md:overflow-x-auto ms:overflow-x-auto">
-        <div className="bg-surface rounded-lg overflow-x-auto py-4 shadow-sm">
-          {/* L'echec prend la place des donnees : affiche a cote, il cohabiterait
-              avec « Aucun livreur » et l'ecran se contredirait. */}
-          {livreurNonAssingeCtrl.isError ? (
-            <EtatErreur
-              quoi="les livreurs non assignés"
-              onReessayer={livreurNonAssingeCtrl.reessayer}
-              enCours={livreurNonAssingeCtrl.isLoading}
-            />
-          ) : rows.length === 0 ? (
-            <div className="text-center mt-10 text-xl text-primary font-bold">
-              <EmptyDataTable title="Aucun livreur" />
-            </div>
-          ) : (
-            <>
-              {/* Table — desktop uniquement (≥ md) */}
-              <div className="hidden md:block">
-                <Table aria-label="Tableau des livreurs non assignés">
-                  <TableHeader>
-                    {nonAssignedColumns.map((col) => (
-                      <TableColumn key={col.uid}>{col.name}</TableColumn>
-                    ))}
-                  </TableHeader>
-                  <TableBody emptyContent="Aucun livreur à afficher.">
-                    {rows.map((row: any) => (
-                      <TableRow key={row.livreurId}>
-                        {nonAssignedColumns.map((col) => (
-                          <TableCell key={col.uid}>{renderNonAssignedCell(row, col.uid)}</TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile — cartes tactiles (mêmes données / handlers via renderNonAssignedCell) */}
-              <div className="md:hidden space-y-3 px-4">
-                {rows.map((row: any) => (
-                  <div key={row.livreurId} className="bg-surface border border-separator rounded-xl p-4 shadow-xs space-y-2">
-                    <div className="min-w-0">{renderNonAssignedCell(row, 'nom')}</div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs text-muted shrink-0">Date d&apos;inscription</span>
-                      <span className="text-sm text-foreground text-right truncate">{renderNonAssignedCell(row, 'dateInscription')}</span>
-                    </div>
-                    <div className="pt-2 flex flex-wrap gap-2">{renderNonAssignedCell(row, 'actions')}</div>
-                  </div>
-                ))}
-              </div>
-            </>
           )}
         </div>
-        <UpdateDeliveryDialog
-          onClose={livreurNonAssingeCtrl.onClose}
-          isOpen={livreurNonAssingeCtrl.isOpen}
-          livreur={livreurNonAssingeCtrl.livreur}
-          typeLiveur="TURBO"
-          restaurants={restaurants || []}
-        />
-      </div>
-      <ConfirmDialog {...livreurNonAssingeCtrl.confirm} />
+      ),
+    },
+  ];
 
-      {/* Pagination conditionnelle */}
-      {livreurNonAssingeCtrl.data && livreurNonAssingeCtrl.data.totalPages > 1 && (
-        <div className="flex justify-center mt-8">
-          <Pagination
-            total={livreurNonAssingeCtrl.data.totalPages}
-            page={livreurNonAssingeCtrl.currentPage}
-            onChange={livreurNonAssingeCtrl.setCurrentPage}
-            showControls
-            color="primary"
-            variant="bordered"
-            isDisabled={livreurNonAssingeCtrl.isLoading}
-            size="md"
+  return (
+    <div className="flex flex-col gap-4 p-6 pt-0">
+      <SearchField onChange={ctrl.setSearchKey} searchKey={ctrl.searchKey} />
+
+      <TableauResponsive
+        cleLigne={(l) => l.livreurId ?? ''}
+        colonnes={colonnes}
+        enChargement={ctrl.isLoading && rows.length === 0}
+        enCoursDeRelance={ctrl.isLoading}
+        erreur={ctrl.isError}
+        libelle="Coursiers birds"
+        lignes={rows}
+        onReessayer={ctrl.reessayer}
+        quoi="les livreurs non assignés"
+        vide="Aucun livreur bird"
+      />
+
+      {(ctrl.data?.totalPages ?? 0) > 1 && (
+        <div className="flex justify-center">
+          <PaginationTableau
+            onPage={ctrl.setCurrentPage}
+            page={ctrl.currentPage}
+            total={ctrl.data?.totalPages ?? 1}
           />
         </div>
       )}
+
+      <UpdateDeliveryDialog
+        isOpen={ctrl.isOpen}
+        livreur={ctrl.livreur}
+        onClose={ctrl.onClose}
+        restaurants={restaurants || []}
+        typeLiveur="TURBO"
+      />
+      <ConfirmDialog {...ctrl.confirm} />
     </div>
   );
 }

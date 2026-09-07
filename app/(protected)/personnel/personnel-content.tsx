@@ -9,7 +9,7 @@ import { EditEmployeeModal } from '@/components/personnel/edit-employee-modal';
 import { RequestManagement } from '@/components/personnel/request-management';
 import { IEmployee } from '@/features/personnel/types/types';
 import { useAjouterEmployeMutation, useModifierEmployeMutation, useSupprimerEmployeMutation, useSyncJournaliersMutation } from '@/features/personnel/mutations/employee.mutation';
-import { Button } from '@/components/heroui';
+import { Button } from '@heroui-v3/react';
 import { RefreshCw } from 'lucide-react';
 import EmployeeTableNew from '@/components/personnel/employee-table/index';
 import DeductionTabContents from '@/components/personnel/deductions/deduction-tab-contents';
@@ -71,17 +71,18 @@ export default function PersonnelContent() {
     // donc appliqué deux fois.
     <div className="w-full">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-primary">Personnel TURBO</h1>
+        {/* Le titre etait peint en ROUGE DE MARQUE. */}
+        <h1 className="text-2xl font-bold text-foreground">Personnel TURBO</h1>
         <Button
-          variant="bordered"
-          // Un seul indicateur d'attente : HeroUI affiche déjà son propre spinner quand
-          // `isLoading` est vrai, et il conserve `startContent`. Faire tourner l'icône en
-          // plus donnait deux cercles qui tournaient côte à côte. L'icône est donc masquée
-          // pendant le chargement et laisse la place au spinner du bouton.
-          startContent={syncJournaliersMutation.isPending ? undefined : <RefreshCw size={16} />}
-          isLoading={syncJournaliersMutation.isPending}
+          isPending={syncJournaliersMutation.isPending}
           onPress={() => syncJournaliersMutation.mutate()}
+          variant="outline"
         >
+          {/* Un seul indicateur d'attente : le bouton v3 remplace son contenu par son
+              propre indicateur pendant `isPending`. L'icone n'a donc plus a etre masquee
+              a la main — c'etait le contournement d'un defaut de la v2, qui gardait
+              `startContent` et faisait tourner deux cercles cote a cote. */}
+          <RefreshCw aria-hidden="true" className="size-4" />
           Synchroniser
         </Button>
       </div>

@@ -1,17 +1,17 @@
 'use client';
 
+import { useOuverture } from '@/hooks/use-ouverture';
 import useConfirm from '@/components/commons/use-confirm-dialog';
-import { Badge } from '@/components/ui/badge';
 import { rejeterDemandeAssignations, validerDemandeAssignations } from '@/src/actions/delivery-men.actions';
 import { DemandeAssignationVM } from '@/types/models';
-import { useDisclosure } from '@/components/heroui';
+import { Chip } from '@heroui-v3/react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 export function useDemandeAssignationController(demandeAssignations: DemandeAssignationVM[]) {
   const router = useRouter();
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen, onOpen, onClose } = useOuverture();
   const confirm = useConfirm();
   const [data, setData] = useState(demandeAssignations);
   const [selectValue, setSelectValue] = useState<any>('');
@@ -27,16 +27,44 @@ export function useDemandeAssignationController(demandeAssignations: DemandeAssi
     }
   }, [selectValue, demandeAssignations]);
 
-  const recupererStatut = (sttatutDemandeAssignation?: string) => {
-    switch (sttatutDemandeAssignation) {
+  /**
+   * Le statut d'une demande d'assignation.
+   *
+   * <p>Les trois pastilles etaient peintes a la main : `bg-info` (un jeton hérité qui n'a
+   * pas de variante sombre), `bg-green-500` (palette Tailwind brute) et `bg-primary`,
+   * c'est-a-dire le ROUGE DE MARQUE pour dire « rejete ». Le rouge de marque de cet ERP
+   * signale ce qui appelle une action ; un rejet deja prononce n'en appelle plus.</p>
+   *
+   * <p>Le cas par defaut rendait la chaine « Inconu » — sans pastille, et avec une faute.
+   * Une demande dont on ne sait pas lire le statut est une lacune : elle se signale.</p>
+   */
+  const recupererStatut = (statutDemandeAssignation?: string) => {
+    switch (statutDemandeAssignation) {
       case 'EN_ATTENTE':
-        return <Badge className="bg-info rounded-lg pl-2 pr-2 text-sm">En attente</Badge>;
+        // L'attente est le deroulement NORMAL d'une demande : elle ne s'alarme pas.
+        return (
+          <Chip size="sm" variant="soft">
+            <Chip.Label>En attente</Chip.Label>
+          </Chip>
+        );
       case 'VALIDE':
-        return <Badge className="bg-green-500 rounded-lg pl-2 pr-2 text-sm">Validé</Badge>;
+        return (
+          <Chip color="success" size="sm" variant="soft">
+            <Chip.Label>Validé</Chip.Label>
+          </Chip>
+        );
       case 'REJETER':
-        return <Badge className="bg-primary rounded-lg pl-2 pr-2 text-sm">Rejeté</Badge>;
+        return (
+          <Chip color="danger" size="sm" variant="soft">
+            <Chip.Label>Rejeté</Chip.Label>
+          </Chip>
+        );
       default:
-        return 'Inconu';
+        return (
+          <Chip color="warning" size="sm" variant="soft">
+            <Chip.Label>Statut inconnu</Chip.Label>
+          </Chip>
+        );
     }
   };
 

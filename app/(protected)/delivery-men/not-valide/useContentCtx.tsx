@@ -1,11 +1,12 @@
 'use client';
 
+import { CelluleCoursier } from '../_composants/cellule-coursier';
 import DeliveryMenTools from '@/components/dashboard/delivery-men/delivery-men-tools';
 import { getDeliveryMen } from '@/src/actions/delivery-men.actions';
 import { PaginatedResponse } from '@/types';
 import { DeliveryMan } from '@/types/models';
 import { createUrlFile } from '@/utils/createUrlFile';
-import { Avatar, Chip } from '@/components/heroui';
+import { Chip } from '@heroui-v3/react';
 import { Key, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -68,17 +69,15 @@ export default function useContentCtx({ initialData }: Props) {
         switch (columnKey) {
             case 'nom':
                 return (
-                    <div className="flex items-center gap-4">
-                        <Avatar src={createUrlFile(livreur?.avatarUrl ?? '', 'delivery')} />
-                        <div className="font-medium capitalize">
-                            {livreur.prenoms} {livreur.nom}
-                        </div>
-                    </div>
+                    <CelluleCoursier
+                        avatarUrl={livreur?.avatarUrl}
+                        nom={`${livreur.prenoms ?? ''} ${livreur.nom ?? ''}`.trim()}
+                    />
                 );
             case 'status':
                 return (
-                    <Chip size="sm" color={'default'}>
-                        {cellValue == 2 ? 'Nouveau' : 'Inconnu'}
+                    <Chip color={cellValue == 2 ? 'default' : 'warning'} size="sm" variant="soft">
+                        <Chip.Label>{cellValue == 2 ? 'Nouveau' : 'Statut inconnu'}</Chip.Label>
                     </Chip>
                 );
 
@@ -89,8 +88,17 @@ export default function useContentCtx({ initialData }: Props) {
                 const renseignees = statuts.filter((s) => s != null).length;
                 const color = conformes === 3 ? 'success' : conformes > 0 ? 'warning' : 'default';
                 return (
-                    <Chip size="sm" variant="flat" color={color} title={`${renseignees}/3 pièces déposées`}>
-                        {conformes}/3
+                    // Le `title` n'est PAS lu par les lecteurs d'ecran sur un element non
+                    // interactif : « 2/3 » y etait annonce sans qu'on sache 2/3 de quoi.
+                    <Chip color={color} size="sm" variant="soft">
+                        <Chip.Label>
+                            <span aria-hidden="true">{conformes}/3</span>
+                            <span className="sr-only">
+                                {conformes} pièce{conformes > 1 ? 's' : ''} conforme
+                                {conformes > 1 ? 's' : ''} sur 3, {renseignees} déposée
+                                {renseignees > 1 ? 's' : ''}
+                            </span>
+                        </Chip.Label>
                     </Chip>
                 );
             }
@@ -103,13 +111,9 @@ export default function useContentCtx({ initialData }: Props) {
         }
     }, []);
 
-    const renderCols = useCallback((column: { name: string; uid: string }) => {
-        return <div className="flex gap-2 text-primary">{column.name}</div>;
-    }, []);
 
     return {
         renderCell,
-        renderCols,
         columns,
         data,
         fetchData,

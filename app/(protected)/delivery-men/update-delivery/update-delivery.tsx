@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/heroui';
+import { Button, Modal } from '@heroui-v3/react';
 import { SelectField } from '@/components/commons/form/select-field';
 import { LivreurStatutVM, Restaurant } from '@/types/models';
 import { useUpdateDeliveryManController } from './controler';
@@ -19,29 +19,39 @@ export function UpdateDeliveryDialog({ restaurants, isOpen, onClose, livreur, ty
   const ctrl = useUpdateDeliveryManController(livreur, typeLiveur, onClose, isReassign, onSuccess);
   const headerTitle = title ?? (isReassign ? 'Réassigner le livreur' : 'Changer le statut du livreur');
   return (
-    <>
-      <Modal isOpen={isOpen} size={'md'} onClose={onClose}>
-        <ModalContent>
-          <>
-            <ModalHeader className="flex gap-2">
-              {headerTitle} : <b className="text-primary">{livreur?.nomPrenom}</b>
-            </ModalHeader>
-            <ModalBody>
-              <div className="">
-                <SelectField options={restaurants || []} value={ctrl.restaurantSelected} setValue={ctrl.setRestuarantSelect} label="nomEtablissement" placeholder="Selectionnée un restaurant" />
-              </div>
-            </ModalBody>
-            <ModalFooter>
-              <Button color="danger" variant="light" onPress={onClose} size="sm">
+    <Modal isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
+      <Modal.Backdrop>
+        <Modal.Container>
+          <Modal.Dialog>
+            <Modal.Header>
+              {/* Le nom du livreur etait ecrit en ROUGE DE MARQUE au milieu du titre :
+                  c'est le SUJET de la fenetre, pas une alerte. */}
+              <Modal.Heading>
+                {headerTitle} : <b className="text-foreground">{livreur?.nomPrenom}</b>
+              </Modal.Heading>
+              <Modal.CloseTrigger />
+            </Modal.Header>
+            <Modal.Body>
+              <SelectField
+                label="nomEtablissement"
+                options={restaurants || []}
+                placeholder="Rechercher un restaurant"
+                setValue={ctrl.setRestuarantSelect}
+                value={ctrl.restaurantSelected}
+              />
+            </Modal.Body>
+            <Modal.Footer>
+              {/* « Annuler » etait ROUGE : se raviser n'est pas un geste dangereux. */}
+              <Button onPress={onClose} variant="ghost">
                 Annuler
               </Button>
-              <Button color="primary" onPress={ctrl.changerRestaurantLivreurs} size="sm">
+              <Button onPress={ctrl.changerRestaurantLivreurs} variant="primary">
                 Enregistrer
               </Button>
-            </ModalFooter>
-          </>
-        </ModalContent>
-      </Modal>
-    </>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
   );
 }

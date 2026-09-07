@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Chip, Modal, ModalBody, ModalContent, Tooltip } from '@/components/heroui';
+import { Button, Chip, Modal, Tooltip } from '@heroui-v3/react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -88,8 +88,12 @@ export function DocumentsGallery({ docs }: { docs: DocItem[] }) {
     <section className="rounded-xl border border-separator bg-surface p-6 shadow-xs">
       <div className="mb-4 flex items-center justify-between">
         <SectionTitle>Documents du livreur</SectionTitle>
-        <Chip size="sm" variant="flat" color="primary">
-          {items.length} document{items.length > 1 ? 's' : ''}
+        {/* Le compteur etait peint en ROUGE DE MARQUE : un nombre de pieces n'appelle
+            aucune action. */}
+        <Chip size="sm" variant="soft">
+          <Chip.Label>
+            {items.length} document{items.length > 1 ? 's' : ''}
+          </Chip.Label>
         </Chip>
       </div>
 
@@ -104,7 +108,7 @@ export function DocumentsGallery({ docs }: { docs: DocItem[] }) {
                   setZoom(false);
                   setOpenIndex(i);
                 }}
-                className="relative block aspect-4/3 w-full overflow-hidden rounded-xl border border-separator bg-surface-secondary transition-all hover:border-primary hover:shadow-md focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                className="relative block aspect-4/3 w-full overflow-hidden rounded-xl border border-separator bg-surface-secondary transition-all hover:border-foreground/30 hover:shadow-md focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
                 aria-label={`Voir ${d.label}`}
               >
                 {pdf ? (
@@ -126,15 +130,18 @@ export function DocumentsGallery({ docs }: { docs: DocItem[] }) {
                 <span className="truncate text-xs font-medium text-muted" title={d.label}>
                   {d.label}
                 </span>
-                <Tooltip content="Télécharger" size="sm">
-                  <button
-                    type="button"
-                    onClick={() => telecharger(d.url, `${d.label}.${extensionDepuisUrl(d.url)}`)}
-                    className="shrink-0 rounded-md p-1 text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                <Tooltip>
+                  <Button
                     aria-label={`Télécharger ${d.label}`}
+                    className="shrink-0"
+                    isIconOnly
+                    onPress={() => telecharger(d.url, `${d.label}.${extensionDepuisUrl(d.url)}`)}
+                    size="sm"
+                    variant="ghost"
                   >
-                    <Download className="h-4 w-4" />
-                  </button>
+                    <Download aria-hidden="true" className="size-4" />
+                  </Button>
+                  <Tooltip.Content>Télécharger</Tooltip.Content>
                 </Tooltip>
               </div>
             </div>
@@ -142,107 +149,124 @@ export function DocumentsGallery({ docs }: { docs: DocItem[] }) {
         })}
       </div>
 
-      {/* Visionneuse plein écran */}
-      <Modal
-        isOpen={openIndex != null}
-        onOpenChange={(o) => !o && setOpenIndex(null)}
-        size="5xl"
-        scrollBehavior="inside"
-        backdrop="blur"
-        hideCloseButton
-        classNames={{ base: 'bg-neutral-900', body: 'p-0' }}
-      >
-        <ModalContent>
-          {doc && (
-            <>
-              <div className="flex items-center justify-between gap-2 border-b border-separator/10 px-4 py-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  {estPdf(doc.url) ? (
-                    <FileText aria-hidden="true" className="size-4 shrink-0 text-white/60" />
-                  ) : (
-                    <ImageIcon aria-hidden="true" className="size-4 shrink-0 text-white/60" />
-                  )}
-                  <span className="truncate text-sm font-medium text-white">{doc.label}</span>
-                  <span className="shrink-0 text-xs text-white/40">
-                    {(openIndex ?? 0) + 1} / {items.length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="flat"
-                    className="bg-surface/10 text-white"
-                    startContent={<Download className="h-4 w-4" />}
-                    onPress={() => telecharger(doc.url, `${doc.label}.${extensionDepuisUrl(doc.url)}`)}
-                  >
-                    Télécharger
-                  </Button>
-                  <Tooltip content="Ouvrir dans un onglet" size="sm">
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="light"
-                      className="text-white"
-                      onPress={() => window.open(urlInline(doc.url), '_blank', 'noreferrer')}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="Fermer" size="sm">
-                    <Button isIconOnly size="sm" variant="light" className="text-white" onPress={() => setOpenIndex(null)}>
-                      <X className="h-5 w-5" />
-                    </Button>
-                  </Tooltip>
-                </div>
-              </div>
-
-              <ModalBody>
-                <div className="relative flex min-h-[60vh] items-center justify-center">
-                  {items.length > 1 && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => go(-1)}
-                        className="absolute left-2 z-10 rounded-full bg-surface/10 p-2 text-white transition-colors hover:bg-surface/25"
-                        aria-label="Précédent"
+      {/*
+       * Visionneuse plein ecran.
+       *
+       * <p>Elle garde volontairement sa chrome SOMBRE dans les deux themes : une piece
+       * d'identite ou un contrat scanne se regarde sur un fond neutre et fonce, comme dans
+       * toutes les visionneuses. C'est le seul endroit de l'ERP ou une surface ne suit pas
+       * le theme, et c'est un choix, pas un oubli.</p>
+       */}
+      <Modal isOpen={openIndex != null} onOpenChange={(o) => !o && setOpenIndex(null)}>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog className="max-w-6xl bg-neutral-900">
+              {doc && (
+                <>
+                  <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {estPdf(doc.url) ? (
+                        <FileText aria-hidden="true" className="size-4 shrink-0 text-white/60" />
+                      ) : (
+                        <ImageIcon aria-hidden="true" className="size-4 shrink-0 text-white/60" />
+                      )}
+                      <span className="truncate text-sm font-medium text-white">{doc.label}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-white/40">
+                        {(openIndex ?? 0) + 1} / {items.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        className="bg-white/10 text-white hover:bg-white/20"
+                        onPress={() =>
+                          telecharger(doc.url, `${doc.label}.${extensionDepuisUrl(doc.url)}`)
+                        }
+                        size="sm"
+                        variant="ghost"
                       >
-                        <ChevronLeft className="h-6 w-6" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => go(1)}
-                        className="absolute right-2 z-10 rounded-full bg-surface/10 p-2 text-white transition-colors hover:bg-surface/25"
-                        aria-label="Suivant"
-                      >
-                        <ChevronRight className="h-6 w-6" />
-                      </button>
-                    </>
-                  )}
+                        <Download aria-hidden="true" className="size-4" />
+                        Télécharger
+                      </Button>
+                      <Tooltip>
+                        <Button
+                          aria-label="Ouvrir dans un onglet"
+                          className="text-white hover:bg-white/20"
+                          isIconOnly
+                          onPress={() => window.open(urlInline(doc.url), '_blank', 'noreferrer')}
+                          size="sm"
+                          variant="ghost"
+                        >
+                          <ExternalLink aria-hidden="true" className="size-4" />
+                        </Button>
+                        <Tooltip.Content>Ouvrir dans un onglet</Tooltip.Content>
+                      </Tooltip>
+                      <Tooltip>
+                        <Button
+                          aria-label="Fermer"
+                          className="text-white hover:bg-white/20"
+                          isIconOnly
+                          onPress={() => setOpenIndex(null)}
+                          size="sm"
+                          variant="ghost"
+                        >
+                          <X aria-hidden="true" className="size-5" />
+                        </Button>
+                        <Tooltip.Content>Fermer</Tooltip.Content>
+                      </Tooltip>
+                    </div>
+                  </div>
 
-                  {estPdf(doc.url) ? (
-                    <iframe
-                      src={urlInline(doc.url)}
-                      title={doc.label}
-                      className="h-[75vh] w-full rounded-lg bg-surface"
-                    />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={doc.url}
-                      alt={doc.label}
-                      onClick={() => setZoom((z) => !z)}
-                      className={`rounded-lg transition-transform duration-200 ${
-                        zoom
-                          ? 'max-h-none max-w-none cursor-zoom-out'
-                          : 'max-h-[75vh] max-w-full cursor-zoom-in object-contain'
-                      }`}
-                    />
-                  )}
-                </div>
-              </ModalBody>
-            </>
-          )}
-        </ModalContent>
+                  <Modal.Body className="p-0">
+                    <div className="relative flex min-h-[60vh] items-center justify-center">
+                      {items.length > 1 && (
+                        <>
+                          <Button
+                            aria-label="Précédent"
+                            className="absolute left-2 z-10 rounded-full bg-white/10 text-white hover:bg-white/25"
+                            isIconOnly
+                            onPress={() => go(-1)}
+                            variant="ghost"
+                          >
+                            <ChevronLeft aria-hidden="true" className="size-6" />
+                          </Button>
+                          <Button
+                            aria-label="Suivant"
+                            className="absolute right-2 z-10 rounded-full bg-white/10 text-white hover:bg-white/25"
+                            isIconOnly
+                            onPress={() => go(1)}
+                            variant="ghost"
+                          >
+                            <ChevronRight aria-hidden="true" className="size-6" />
+                          </Button>
+                        </>
+                      )}
+
+                      {estPdf(doc.url) ? (
+                        <iframe
+                          className="h-[75vh] w-full rounded-lg bg-surface"
+                          src={urlInline(doc.url)}
+                          title={doc.label}
+                        />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={doc.label}
+                          className={`rounded-lg transition-transform duration-200 ${
+                            zoom
+                              ? 'max-h-none max-w-none cursor-zoom-out'
+                              : 'max-h-[75vh] max-w-full cursor-zoom-in object-contain'
+                          }`}
+                          onClick={() => setZoom((z) => !z)}
+                          src={doc.url}
+                        />
+                      )}
+                    </div>
+                  </Modal.Body>
+                </>
+              )}
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
       </Modal>
     </section>
   );

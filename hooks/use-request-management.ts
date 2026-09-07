@@ -1,7 +1,7 @@
 'use client';
 
+import { useOuverture } from '@/hooks/use-ouverture';
 import { useState } from 'react';
-import { useDisclosure } from '@/components/heroui';
 import { LeaveRequest, IEmployee } from '@/features/personnel/types/types';
 import { useAjouterCongeMutation, useSupprimerCongeMutation, useModifierCongeMutation, useApprouverCongeMutation, useRejeterCongeMutation } from '@/features/conge/mutations/conge.mutation';
 import { CongeType, DurationType } from '@/features/conge/types/conge.type';
@@ -19,18 +19,19 @@ export const useRequestManagement = (employees: IEmployee[]) => {
   const rejeterCongeMutation = useRejeterCongeMutation();
 
   // Modal states
-  const { isOpen: isFormOpen, onOpen: onFormOpen, onOpenChange } = useDisclosure();
+  const { isOpen: isFormOpen, onClose: onFormClose, onOpen: onFormOpen } = useOuverture();
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [editingRequest, setEditingRequest] = useState<Partial<LeaveRequest>>({});
 
-  // Wrapper pour onOpenChange qui accepte un paramètre booléen
+  /*
+   * `onOpenChange` de la v2 etait une BASCULE sans argument : ce wrapper l'appelait dans
+   * la branche « fermer », en comptant sur le fait que la fenetre etait ouverte a ce
+   * moment-la. Fermer s'appelle fermer.
+   */
   const handleFormOpenChange = (open: boolean) => {
-    if (open) {
-      onFormOpen();
-    } else {
-      onOpenChange();
-    }
+    if (open) onFormOpen();
+    else onFormClose();
   };
 
   const mapTypeToEnum = (type: string): CongeType => {

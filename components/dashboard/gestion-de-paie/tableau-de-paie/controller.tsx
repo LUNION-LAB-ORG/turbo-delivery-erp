@@ -1,4 +1,5 @@
-import { Chip, useDisclosure } from "@/components/heroui";
+import { useOuverture } from '@/hooks/use-ouverture';
+import { Chip,} from "@/components/heroui";
 import { useEffect, useState } from "react";
 import { CircleCheckBig, Minus } from "lucide-react";
 import { InfoParJour, PaieErpVM, PaieParLivreur } from "@/types/gestion-de-paie.model";
@@ -6,7 +7,7 @@ import { JourTravaille } from "@/types/creneau-bird";
 
 export function useTableauDePaiController(initialData: PaieErpVM | null, searchKey?: string) {
     const [data, setData] = useState<PaieParLivreur[]>(initialData?.paies || [])
-    const { isOpen, onOpen, onClose } = useDisclosure();
+    const { isOpen, onOpen, onClose } = useOuverture();
     const [details, setDetails] = useState<PaieParLivreur>();
     const [nonEligible, setNonEligible] = useState<boolean>(false);
 

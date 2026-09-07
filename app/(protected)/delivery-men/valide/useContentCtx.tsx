@@ -1,11 +1,12 @@
 'use client';
 
+import { CelluleCoursier } from '../_composants/cellule-coursier';
 import DeliveryMenTools from '@/components/dashboard/delivery-men/delivery-men-tools';
 import { getDeliveryMen } from '@/src/actions/delivery-men.actions';
 import { PaginatedResponse } from '@/types';
 import { DeliveryMan } from '@/types/models';
 import { createUrlFile } from '@/utils/createUrlFile';
-import { Avatar, Chip } from '@/components/heroui';
+import { Chip } from '@heroui-v3/react';
 import { Key, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -67,17 +68,18 @@ export default function useContentCtx({ initialData }: Props) {
         switch (columnKey) {
             case 'nom':
                 return (
-                    <div className="flex items-center gap-4">
-                        <Avatar src={createUrlFile(livreur?.avatarUrl ?? '', 'delivery')} />
-                        <div className="font-medium capitalize">
-                            {livreur.prenoms} {livreur.nom}
-                        </div>
-                    </div>
+                    <CelluleCoursier
+                        avatarUrl={livreur?.avatarUrl}
+                        nom={`${livreur.prenoms ?? ''} ${livreur.nom ?? ''}`.trim()}
+                    />
                 );
             case 'status':
                 return (
-                    <Chip size="sm" color={cellValue == 3 ? 'warning' : 'default'}>
-                        {cellValue == 3 ? 'Partiellement' : 'Inconnu'}
+                    // « Partiellement valide » est une etape NORMALE du parcours, pas une
+                    // anomalie : l'avertissement y disait qu'il fallait s'en inquieter.
+                    // C'est le statut INCONNU qui est une lacune, et qui la garde.
+                    <Chip color={cellValue == 3 ? 'default' : 'warning'} size="sm" variant="soft">
+                        <Chip.Label>{cellValue == 3 ? 'Partiellement validé' : 'Statut inconnu'}</Chip.Label>
                     </Chip>
                 );
 
@@ -89,13 +91,9 @@ export default function useContentCtx({ initialData }: Props) {
         }
     }, []);
 
-    const renderCols = useCallback((column: { name: string; uid: string }) => {
-        return <div className="flex gap-2 text-primary">{column.name}</div>;
-    }, []);
 
     return {
         renderCell,
-        renderCols,
         columns,
         data,
         fetchData,

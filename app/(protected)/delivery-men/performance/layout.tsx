@@ -1,30 +1,26 @@
-"use client"
+'use client';
+
 import React from 'react';
-import { Tabs, Tab} from '@/components/heroui';
-import {usePathname } from 'next/navigation';
-import Link from 'next/link';
+
 import SectionHeaderRetour from '@/components/commons/section-header-retour';
+import { OngletsDeRoute } from '@/components/commons/OngletsDeRoute';
 
+/* Les libelles etaient ecrits en CAPITALES et sans accents : « PERFORMANCE DES TURBOYS
+   ASSIGNES ». Les capitales se lisent plus lentement, et le lecteur d'ecran les epelle. */
+const ONGLETS = [
+  { exact: true, href: '/delivery-men/performance', libelle: 'Performance des birds' },
+  {
+    href: '/delivery-men/performance/turboys-assignes',
+    libelle: 'Performance des turboys assignés',
+  },
+] as const;
 
-export default function SlotLayout({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname()
-    const tabs: { id: string; href: string; label: string }[] = [
-        { id: '/delivery-men/performance', href: '/delivery-men/performance', label: 'PERFORMANCE DES BIRD' },
-        { id: '/delivery-men/performance/turboys-assignes', href: '/delivery-men/performance/turboys-assignes', label: 'PERFORMANCE DES TURBOYS ASSIGNES' },
-    ];
-    
-    return (
-        <div>
-            <SectionHeaderRetour text="Performance"/>
-            <Tabs color="primary" variant="underlined" items={tabs} selectedKey={pathname == '/delivery-men/performance' ? '/delivery-men/performance' : pathname == '/delivery-men/performance/turboys-assignes'?'/delivery-men/performance/turboys-assignes':''} className="w-full">
-                {(item) => {
-                    return (
-                        <Tab key={item.id} as={Link} href={item.href} title={item.label}>
-                            {children}
-                        </Tab>
-                    );
-                }}
-            </Tabs>
-        </div>
-    );
+export default function PerformanceLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <SectionHeaderRetour text="Performance" />
+      <OngletsDeRoute onglets={ONGLETS} />
+      {children}
+    </div>
+  );
 }

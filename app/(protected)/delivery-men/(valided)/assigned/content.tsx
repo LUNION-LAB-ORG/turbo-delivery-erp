@@ -1,207 +1,182 @@
 'use client';
 
+import { Button } from '@heroui-v3/react';
+import { Pencil, X } from 'lucide-react';
 import React from 'react';
-import { PaginatedResponse } from '@/types';
-import { Pagination } from '@/components/heroui';
-import { Button } from '@/components/ui/button';
-import { LivreurStatutVM, Restaurant } from '@/types/models';
-import { Check, PencilIcon, Save, XIcon } from 'lucide-react';
-import { SelectField } from '@/components/commons/select-field';
-import EmptyDataTable from '@/components/commons/EmptyDataTable';
-import EtatErreur from '@/components/commons/EtatErreur';
+
 import { ConfirmDialog } from '@/components/commons/confirm-dialog';
 import { SearchField } from '@/components/commons/form/search-field';
-import { useTurboAssigneController } from './useTurboAssigneController';
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
+import { SelectField } from '@/components/commons/select-field';
+import {
+  ColonneResponsive,
+  TableauResponsive,
+} from '@/components/commons/TableauResponsive';
+import { PaginatedResponse } from '@/types';
+import { LivreurStatutVM, Restaurant } from '@/types/models';
+
+import { CelluleCoursier } from '../../_composants/cellule-coursier';
 import { UpdateDeliveryDialog } from '../../update-delivery/update-delivery';
-import { createUrlFile } from '@/utils/createUrlFile';
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@/components/heroui";
+import { useTurboAssigneController } from './useTurboAssigneController';
 
 interface Props {
-    initialData: PaginatedResponse<LivreurStatutVM> | null;
-    restaurants: Restaurant[] | null
+  initialData: PaginatedResponse<LivreurStatutVM> | null;
+  restaurants: Restaurant[] | null;
 }
 
+/**
+ * Les coursiers affectés à un site partenaire.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Les deux gestes de la ligne — modifier, retirer — étaient des `&lt;span onClick&gt;`
+ * portant `text-white p-1 bg-surface-tertiary`. Trois défauts d'un coup : du texte BLANC
+ * sur une surface CLAIRE, donc une icône invisible en thème clair ; un `&lt;span&gt;`, donc
+ * rien que le clavier atteigne et rien que le lecteur d'écran annonce ; et aucun nom
+ * accessible sur ce qui RETIRE un livreur de la flotte.</p>
+ *
+ * <p>Le bouton « Confirmé » n'avait AUCUN gestionnaire : un bouton pleinement actif,
+ * dessiné comme le geste principal de la ligne, sur lequel il ne se passait rien. Ce
+ * n'était pas une action mais un état — le livreur EST confirmé — et il se lit
+ * maintenant comme tel.</p>
+ *
+ * <p>« Enregistrer » était peint en `destructive` : enregistrer une affectation n'a jamais
+ * détruit quoi que ce soit.</p>
+ *
+ * <p>La pagination était `fixed bottom-4`, posée par-dessus le contenu avec un flou en
+ * arrière-plan, et la phrase « Affichage de X à Y » vivait ailleurs dans la page, sous une
+ * barre qui la recouvrait. Elle calculait ses bornes avec un pas de 5 écrit en dur, alors
+ * que le contrôleur décide de la taille de page : dès que celle-ci change, le décompte
+ * ment.</p>
+ */
 export default function Content({ initialData, restaurants }: Props) {
-    const livreurAssigneCtrl = useTurboAssigneController(initialData, restaurants);
-    const rows = livreurAssigneCtrl.data?.content || [];
-    
+  const ctrl = useTurboAssigneController(initialData, restaurants);
+  const rows = ctrl.data?.content ?? [];
+  const total = ctrl.data?.totalElements ?? 0;
+  const premier = rows.length === 0 ? 0 : (ctrl.currentPage - 1) * ctrl.pageSize + 1;
+  const dernier = Math.min(ctrl.currentPage * ctrl.pageSize, total);
 
-    // Colonnes de la table
-    const columns = [
-        { uid: "nom", name: "Nom & Prénom" },
-        { uid: "dateInscription", name: "Date d’inscription" },
-        { uid: "restaurant", name: "Affectation" },
-        { uid: "actions", name: "Actions" },
-    ];    
-    
-    // Fonction de rendu des cellules
-    const renderCell = (item: any, columnKey: string) => {
-
-        switch (columnKey) {
-            case "nom":
-                return (
-                    <div className="flex items-center gap-4">
-                        <img
-                            src={item.avatarUrl ? createUrlFile(item.avatarUrl, 'backend') : '/assets/images/avatar.png'}
-                            alt={item?.nomPrenom}
-                            className="w-8 h-8 rounded-full object-cover mr-3 shadow-md"
-                        />
-                        <div className="font-medium capitalize">{item?.nomPrenom}</div>
-                    </div>
-                );
-
-            case "dateInscription":
-                return item?.dateInscription;
-
-            case "restaurant":
-            return (
-                <div onClick={() => livreurAssigneCtrl.setLivreur(item)}>
-                <SelectField
-                    options={restaurants || []}
-                    selectValue={item?.restaurantLibelle}
-                    livreur={item}
-                    setLivreur={livreurAssigneCtrl.setLivreur}
-                    setSelectValue={livreurAssigneCtrl.setRestaurantSelected}
-                    label="nomEtablissement"
-                />
-                </div>
-            );
-
-            case "actions":
-                const isModifiable =
-                    livreurAssigneCtrl.livreur?.livreurId &&
-                    livreurAssigneCtrl.restaurantSelected !== item?.restaurantLibelle &&
-                    livreurAssigneCtrl.livreur?.livreurId === item?.livreurId;
-
-            return (
-                <div className="flex items-center gap-2 flex-wrap">
-                {isModifiable ? (
-                    <Button variant="destructive" className="h-8" onClick={() => livreurAssigneCtrl.changerRestaurantLivreurs(item)}>
-                    <span className="flex items-center gap-2">
-                        <Save size={18} />
-                        Enregistrer
-                    </span>
-                    </Button>
-                ) : (
-                    <Button className="h-8">
-                    <span className="flex items-center gap-2">
-                        <Check size={18} />
-                        Confirmé
-                    </span>
-                    </Button>
-                )}
-
-                <span
-                    className="text-white p-1 bg-surface-tertiary rounded-full hover:bg-red-500 cursor-pointer"
-                    onClick={() => livreurAssigneCtrl.setUpdateLivreurId(item?.livreurId)}
-                >
-                    <PencilIcon className="h-5 w-5" />
-                </span>
-                <span className="text-white p-1 bg-surface-tertiary rounded-full hover:bg-red-500 cursor-pointer" onClick={() => livreurAssigneCtrl.supprimerLivreur(item)}
-                >
-                    <XIcon className="h-5 w-5" />
-                </span>
-
-                {livreurAssigneCtrl.updateLivreurId === item?.livreurId && (
-                    <Button variant="outline" className="text-sm h-8" onClick={() => livreurAssigneCtrl.onConfirmStatut(item, "FREE")}>
-                        Désassigner (passer en Bird)
-                    </Button>
-                )}
-                </div>
-            );
-
-            default:
-            return null;
-        }
-    };
-
-    return (
-        <div className="p-6 pt-0 flex-wrap">
-            <SearchField searchKey={livreurAssigneCtrl.searchKey} onChange={livreurAssigneCtrl.setSearchKey} />
-            <div className="bg-surface rounded-lg overflow-x-auto p-4">
-                {/* L'echec prend la place des donnees : affiche a cote, il cohabiterait
-                    avec « Aucun livreur » et l'ecran se contredirait. */}
-                {livreurAssigneCtrl.isError ? (
-                    <EtatErreur
-                        quoi="les livreurs assignés"
-                        onReessayer={livreurAssigneCtrl.reessayer}
-                        enCours={livreurAssigneCtrl.isLoading}
-                    />
-                ) : rows.length === 0 ? (
-                    <div className="text-center py-6 text-primary font-bold mt-10 text-xl">
-                    <EmptyDataTable title="Aucun livreur" />
-                    </div>
-                ) : (
-                    <>
-                    <div className="border-b-2 mb-4 text-lg font-semibold">Aujourd&apos;hui</div>
-                    {/* Table — desktop uniquement (≥ md) */}
-                    <div className="hidden md:block">
-                        <Table aria-label="Tableau des livreurs">
-                            <TableHeader>
-                            {columns.map((column) => (
-                                <TableColumn key={column.uid}>{column.name}</TableColumn>
-                            ))}
-                            </TableHeader>
-                            <TableBody emptyContent="Aucun livreur à afficher.">
-                            {rows.map((row: any) => (
-                                <TableRow key={row?.livreurId}>
-                                {columns.map((column) => (
-                                    <TableCell key={column.uid}>{renderCell(row, column.uid)}</TableCell>
-                                ))}
-                                </TableRow>
-                            ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-
-                    {/* Mobile — cartes tactiles (mêmes données / handlers que le tableau via renderCell) */}
-                    <div className="md:hidden space-y-3">
-                        {rows.map((row: any) => (
-                            <div key={row?.livreurId} className="bg-surface border border-separator rounded-xl p-4 shadow-xs space-y-2">
-                                <div className="min-w-0">{renderCell(row, 'nom')}</div>
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="text-xs text-muted shrink-0">Date d&apos;inscription</span>
-                                    <span className="text-sm text-foreground text-right truncate">{renderCell(row, 'dateInscription')}</span>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-xs text-muted">Affectation</span>
-                                    {renderCell(row, 'restaurant')}
-                                </div>
-                                <div className="pt-2 flex flex-wrap gap-2">{renderCell(row, 'actions')}</div>
-                            </div>
-                        ))}
-                    </div>
-                    <UpdateDeliveryDialog
-                        onClose={livreurAssigneCtrl.onClose}
-                        isOpen={livreurAssigneCtrl.isOpen}
-                        livreur={livreurAssigneCtrl.livreur}
-                        restaurants={restaurants}
-                        typeLiveur="TURBO"
-                    />
-                    </>
-                )}
-            </div>
-            <ConfirmDialog {...livreurAssigneCtrl.confirm} />
-
-            <div className="flex h-fit z-10 justify-center mt-8 fixed bottom-4">
-                <div className="bg-surface-tertiary absolute inset-0 w-full h-full blur-xs opacity-50"></div>
-                <Pagination 
-                    total={livreurAssigneCtrl.data?.totalPages ?? 1} 
-                    page={livreurAssigneCtrl.currentPage}
-                    onChange={livreurAssigneCtrl.setCurrentPage} // Gère automatiquement pagination serveur/client
-                    showControls 
-                    color="primary" 
-                    variant="bordered" 
-                    isDisabled={livreurAssigneCtrl.isLoading} 
-                />
-            </div>
-
-            <div className="flex justify-between items-center mt-4 px-4">
-                <span className="text-sm text-muted">
-                    Affichage de {((livreurAssigneCtrl.currentPage - 1) * 5) + 1} à {Math.min(livreurAssigneCtrl.currentPage * 5, livreurAssigneCtrl.data?.totalElements ?? 0)} sur {livreurAssigneCtrl.data?.totalElements ?? 0} résultats
-                    {livreurAssigneCtrl.searchKey && ` (filtré de ${livreurAssigneCtrl.initialData?.totalElements ?? 0} total)`}
-                </span>
-            </div>
+  const colonnes: ColonneResponsive<LivreurStatutVM>[] = [
+    {
+      cle: 'nom',
+      identite: true,
+      libelle: 'Nom et prénom',
+      rendu: (l) => <CelluleCoursier avatarUrl={l.avatarUrl} nom={l.nomPrenom ?? ''} />,
+    },
+    {
+      cle: 'dateInscription',
+      libelle: "Date d'inscription",
+      rendu: (l) => <span className="tabular-nums">{l.dateInscription ?? '-'}</span>,
+    },
+    {
+      cle: 'restaurant',
+      libelle: 'Affectation',
+      rendu: (l) => (
+        <div onClick={() => ctrl.setLivreur(l)}>
+          <SelectField
+            label="nomEtablissement"
+            livreur={l}
+            options={restaurants || []}
+            selectValue={l.restaurantLibelle}
+            setLivreur={ctrl.setLivreur}
+            setSelectValue={ctrl.setRestaurantSelected}
+          />
         </div>
-    );
+      ),
+    },
+    {
+      actions: true,
+      cle: 'actions',
+      libelle: 'Actions',
+      rendu: (l) => {
+        const modifiable =
+          ctrl.livreur?.livreurId &&
+          ctrl.restaurantSelected !== l.restaurantLibelle &&
+          ctrl.livreur?.livreurId === l.livreurId;
+
+        return (
+          <div className="flex flex-wrap items-center gap-2">
+            {modifiable && (
+              <Button
+                onPress={() => ctrl.changerRestaurantLivreurs(l)}
+                size="sm"
+                variant="primary"
+              >
+                Enregistrer l&apos;affectation
+              </Button>
+            )}
+
+            <Button
+              aria-label={`Modifier ${l.nomPrenom ?? 'ce livreur'}`}
+              isIconOnly
+              onPress={() => ctrl.setUpdateLivreurId(l.livreurId ?? '')}
+              size="sm"
+              variant="ghost"
+            >
+              <Pencil aria-hidden="true" className="size-4" />
+            </Button>
+
+            <Button
+              aria-label={`Retirer ${l.nomPrenom ?? 'ce livreur'} de la flotte`}
+              isIconOnly
+              onPress={() => ctrl.supprimerLivreur(l)}
+              size="sm"
+              variant="danger-soft"
+            >
+              <X aria-hidden="true" className="size-4" />
+            </Button>
+
+            {ctrl.updateLivreurId === l.livreurId && (
+              <Button onPress={() => ctrl.onConfirmStatut(l, 'FREE')} size="sm" variant="outline">
+                Désassigner (passer en bird)
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4 p-6 pt-0">
+      <SearchField onChange={ctrl.setSearchKey} searchKey={ctrl.searchKey} />
+
+      <TableauResponsive
+        cleLigne={(l) => l.livreurId ?? ''}
+        colonnes={colonnes}
+        enChargement={ctrl.isLoading && rows.length === 0}
+        enCoursDeRelance={ctrl.isLoading}
+        erreur={ctrl.isError}
+        libelle="Coursiers assignés"
+        lignes={rows}
+        onReessayer={ctrl.reessayer}
+        quoi="les livreurs assignés"
+        vide="Aucun livreur assigné"
+      />
+
+      {(ctrl.data?.totalPages ?? 0) > 1 && (
+        <div className="flex justify-center">
+          <PaginationTableau
+            onPage={ctrl.setCurrentPage}
+            page={ctrl.currentPage}
+            total={ctrl.data?.totalPages ?? 1}
+          />
+        </div>
+      )}
+
+      {/* Le decompte suit la taille de page DU CONTROLEUR, plus un 5 ecrit en dur. */}
+      <p className="text-center text-sm text-muted">
+        Affichage de {premier} à {dernier} sur {total} résultat{total > 1 ? 's' : ''}
+        {ctrl.searchKey && ` (filtré de ${ctrl.initialData?.totalElements ?? 0} au total)`}
+      </p>
+
+      <UpdateDeliveryDialog
+        isOpen={ctrl.isOpen}
+        livreur={ctrl.livreur}
+        onClose={ctrl.onClose}
+        restaurants={restaurants}
+        typeLiveur="TURBO"
+      />
+      <ConfirmDialog {...ctrl.confirm} />
+    </div>
+  );
 }

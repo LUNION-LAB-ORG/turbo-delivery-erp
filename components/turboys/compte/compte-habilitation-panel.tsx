@@ -211,7 +211,7 @@ export default function CompteHabilitationPanel({ driverId }: { driverId: string
              * annoncees a AUCUN lecteur d'ecran : le chiffre a cote, lui, l'etait. Le
              * `Meter` de la v3 porte le seuil, la valeur et son role.
              */}
-            <Meter className="mt-3" maxValue={100} value={score ?? 0}>
+            <Meter className="mt-3" color={coteColor} maxValue={100} value={score ?? 0}>
               <Meter.Track>
                 <Meter.Fill />
               </Meter.Track>

@@ -192,7 +192,7 @@ export default function LocalisationClientPage() {
     return (
       <Cadre>
         <div className="text-center">
-          <p className="text-lg font-semibold text-foreground">Ce lien n'est plus valable</p>
+          <p className="text-lg font-semibold text-foreground">Ce lien n&apos;est plus valable</p>
           <p className="mt-2 text-sm text-muted">{etat.message}</p>
         </div>
       </Cadre>
@@ -218,7 +218,7 @@ export default function LocalisationClientPage() {
           >
             Modifier ma position
           </button>
-          <p className="text-xs text-muted">Modifiable jusqu'à l'enlèvement de votre commande.</p>
+          <p className="text-xs text-muted">Modifiable jusqu&apos;à l&apos;enlèvement de votre commande.</p>
         </div>
       </Cadre>
     );
@@ -269,7 +269,7 @@ export default function LocalisationClientPage() {
       </button>
 
       <p className="text-center text-xs text-muted">
-        Votre position n'est utilisée que pour cette livraison, jamais après.
+        Votre position n&apos;est utilisée que pour cette livraison, jamais après.
       </p>
     </Cadre>
   );

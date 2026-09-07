@@ -1,50 +1,71 @@
 'use client';
 
+import { Button } from '@heroui-v3/react';
+import { Home, RefreshCcw } from 'lucide-react';
 import { useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { RefreshCcw, Home } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/heroui';
 
-export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-    const router = useRouter();
+import { LienBouton } from '@/components/commons/LienBouton';
 
-    useEffect(() => {
-        console.error(error);
-    }, [error]);
+/**
+ * L'écran d'une erreur serveur.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le « 500 » était un chiffre de neuf unités de haut, en dégradé du rouge de danger au
+ * rouge de marque : la moitié de l'écran occupée par un nombre que personne ne peut
+ * exploiter, au-dessus de la seule phrase utile. Il reste, plus petit, au-dessus de ce
+ * qu'on est venu lire.</p>
+ *
+ * <p>Les deux boutons portaient `onClick`, que le Button v3 ignore EN SILENCE. Ils sont
+ * passés à `onPress`, et « Accueil » est devenu un vrai lien : sur la page où
+ * l'application est tombée, la sortie doit fonctionner même si React ne reprend pas la
+ * main.</p>
+ *
+ * <p>Les trois animations d'entrée en cascade — 0 ms, 200 ms, 400 ms, 600 ms — faisaient
+ * apparaître le message d'erreur APRÈS le chiffre, et le code de référence en dernier.
+ * Sur un écran qu'on n'atteint que quand quelque chose ne va pas, on ne fait pas attendre.</p>
+ */
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
 
-    return (
-        <div className="h-screen w-full flex items-center justify-center bg-linear-to-b from-background to-muted">
-            <div className="text-center space-y-8 px-4">
-                <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5 }} className="space-y-4">
-                    <div className="relative">
-                        <h1 className="text-9xl font-bold tracking-tighter bg-linear-to-r from-destructive to-primary text-transparent bg-clip-text">500</h1>
-                       
-                    </div>
-                    <h2 className="text-4xl font-semibold text-foreground">Erreur Serveur</h2>
-                </motion.div>
+  return (
+    <div className="flex min-h-dvh w-full items-center justify-center bg-background px-4">
+      <div className="flex max-w-md flex-col items-center gap-6 text-center">
+        <p className="text-sm font-semibold tracking-widest text-muted uppercase">Erreur 500</p>
+        <h1 className="text-3xl font-bold text-foreground">Le serveur n&apos;a pas répondu</h1>
+        <p className="text-sm text-muted">
+          Une erreur inattendue s&apos;est produite. Réessayez : votre session reste ouverte.
+          Si cela persiste, signalez-le.
+        </p>
 
-                <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="text-muted-foreground max-w-sm mx-auto">
-                    Une erreur inattendue s&apos;est produite. Réessayez : votre session reste ouverte. Si cela persiste, signalez-le.
-                </motion.p>
-
-                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }} className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button color="primary" onClick={() => reset()} className="space-x-2">
-                        <RefreshCcw className="w-4 h-4" />
-                        <span>Réessayer</span>
-                    </Button>
-                    <Button onClick={() => router.push('/')} className="space-x-2">
-                        <Home className="w-4 h-4" />
-                        <span>Accueil</span>
-                    </Button>
-                </motion.div>
-
-                {error.digest && (
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="text-sm text-muted-foreground">
-                        Code erreur: {error.digest}
-                    </motion.p>
-                )}
-            </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button onPress={() => reset()} variant="primary">
+            <RefreshCcw aria-hidden="true" className="size-4" />
+            Réessayer
+          </Button>
+          {/*
+           * Un vrai `<a href>`, pas un bouton qui pousse l'historique : on est sur l'ecran
+           * d'une panne, et la sortie doit tenir meme si le routeur ne repond plus.
+           */}
+          <LienBouton href="/" variante="outline">
+            <Home aria-hidden="true" className="size-4" />
+            Accueil
+          </LienBouton>
         </div>
-    );
+
+        {error.digest && (
+          <p className="text-xs text-muted">
+            Référence à citer : <span className="font-mono">{error.digest}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }

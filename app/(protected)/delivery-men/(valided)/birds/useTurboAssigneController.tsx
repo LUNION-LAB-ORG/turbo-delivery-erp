@@ -1,10 +1,10 @@
 'use client';
 
+import { useOuverture } from '@/hooks/use-ouverture';
 import useConfirm from '@/components/commons/use-confirm-dialog';
 import { changerStatusLivreur, getToutLivreurStatusNonAssigners, mettreLivreurEnAttente } from '@/src/actions/delivery-men.actions';
 import { PaginatedResponse } from '@/types';
 import { LivreurStatutVM } from '@/types/models';
-import { useDisclosure } from '@/components/heroui';
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 export function useTurboysBirdController(initialData: PaginatedResponse<LivreurStatutVM> | null) {
   const router = useRouter();
   const confirm = useConfirm();
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen, onOpen, onClose } = useOuverture();
   const [data, setData] = useState<PaginatedResponse<LivreurStatutVM> | null>(initialData);
   const [allDataForFilter, setAllDataForFilter] = useState<LivreurStatutVM[]>([]);
   const [searchKey, setSearchKey] = useState<string>('');

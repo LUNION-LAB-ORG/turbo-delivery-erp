@@ -80,7 +80,18 @@ function MonthFinancials({ month }: MonthCardProps) {
           <span className="text-muted">Progression annuelle</span>
           <span className="text-muted">{month.progress}/12</span>
         </div>
-        <ProgressBar value={(month.progress / 12) * 100} className="h-2"><ProgressBar.Track><ProgressBar.Fill /></ProgressBar.Track></ProgressBar>
+        {/* Sans `color`, la v3 remplit en accent — le rouge de marque sur un simple
+            avancement dans l'annee. */}
+        <ProgressBar
+          aria-label="Progression annuelle"
+          className="h-2"
+          color="default"
+          value={(month.progress / 12) * 100}
+        >
+          <ProgressBar.Track>
+            <ProgressBar.Fill />
+          </ProgressBar.Track>
+        </ProgressBar>
       </div>
     </>
   );

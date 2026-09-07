@@ -331,7 +331,18 @@ export default function FinancialReport() {
                       <span className="text-sm font-medium text-foreground w-24 text-right">{cost.amount}</span>
                     </div>
                   </div>
-                  <ProgressBar value={cost.percentage} color="accent" className="h-2"><ProgressBar.Track><ProgressBar.Fill /></ProgressBar.Track></ProgressBar>
+                  {/* `accent` peignait en ROUGE DE MARQUE la part de chaque poste de
+                      cout : dix barres rouges pour dix repartitions ordinaires. */}
+                  <ProgressBar
+                    aria-label={cost.label}
+                    className="h-2"
+                    color="default"
+                    value={cost.percentage}
+                  >
+                    <ProgressBar.Track>
+                      <ProgressBar.Fill />
+                    </ProgressBar.Track>
+                  </ProgressBar>
                 </div>
               ))}
             </div>

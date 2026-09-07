@@ -1,38 +1,22 @@
 'use client';
 
-import { Tab, Tabs } from '@/components/heroui';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { OngletsDeRoute } from '@/components/commons/OngletsDeRoute';
+
+const ONGLETS = [
+  { exact: true, href: '/delivery-men', libelle: 'Tous' },
+  { href: '/delivery-men/assigned', libelle: 'Assignés' },
+  { href: '/delivery-men/birds', libelle: 'Birds' },
+  { href: '/delivery-men/requests', libelle: "Demandes d'identification" },
+  { href: '/delivery-men/turboys', libelle: 'Indépendants et journaliers' },
+] as const;
 
 export default function DeliveryMenLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const tabs: {
-    id: string;
-    href: string;
-    label: string;
-  }[] = [
-    { id: '/delivery-men', href: '/delivery-men', label: 'Tous' },
-    { id: '/delivery-men/assigned', href: '/delivery-men/assigned', label: 'Assignés' },
-    { id: '/delivery-men/birds', href: '/delivery-men/birds', label: 'Birds' },
-    { id: '/delivery-men/requests', href: '/delivery-men/requests', label: "Demandes d'identification" },
-    { id: '/delivery-men/turboys', href: '/delivery-men/turboys', label: "Indépendants / Journaliers" },
-  ];
-  const currentTab = tabs.find((tab) => pathname.startsWith(tab.id) && tab.id !== '/delivery-men');
-
   return (
-    <div className="w-full h-full pb-10 flex flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-primary">Coursiers</h1>
-      </div>
-      <Tabs color="primary" variant="underlined" items={tabs} selectedKey={pathname == '/delivery-men' ? '/delivery-men' : currentTab ? currentTab.id : ''} className="w-full">
-        {(item) => {
-          return (
-            <Tab key={item.id} as={Link} href={item.href} title={item.label}>
-              {children}
-            </Tab>
-          );
-        }}
-      </Tabs>
+    <div className="flex h-full w-full flex-1 flex-col gap-4 pb-10">
+      {/* Le titre etait peint en ROUGE DE MARQUE. */}
+      <h1 className="text-2xl font-bold text-foreground">Coursiers</h1>
+      <OngletsDeRoute onglets={ONGLETS} />
+      {children}
     </div>
   );
 }

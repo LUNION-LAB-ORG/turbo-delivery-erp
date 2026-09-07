@@ -1,10 +1,10 @@
 'use client';
 
+import { useOuverture } from '@/hooks/use-ouverture';
 import useConfirm from '@/components/commons/use-confirm-dialog';
 import { changerRestaurantLivreur, changerStatusLivreur, getToutLivreurStatusAssigners, mettreLivreurEnAttente } from '@/src/actions/delivery-men.actions';
 import { PaginatedResponse } from '@/types';
 import { LivreurStatutVM, Restaurant, TypeEnum } from '@/types/models';
-import { useDisclosure } from '@/components/heroui';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -17,7 +17,7 @@ export function useTurboAssigneController(initialData: PaginatedResponse<Livreur
   const [restaurantSelected, setRestaurantSelected] = useState('');
   const [searchKey, setSearchKey] = useState('');
   const [livreur, setLivreur] = useState<LivreurStatutVM | undefined>({});
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen, onOpen, onClose } = useOuverture();
   const [pageSize] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);

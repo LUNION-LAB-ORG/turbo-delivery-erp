@@ -1,140 +1,123 @@
 'use client';
+
+import { Button } from '@heroui-v3/react';
+import { Check, X } from 'lucide-react';
 import React from 'react';
-import { Check, XIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import EmptyDataTable from '@/components/commons/EmptyDataTable';
-import { DemandeAssignationVM, Restaurant } from '@/types/models';
-import ValidateDialog from '@/components/commons/validate-dialog';
+
 import { ConfirmDialog } from '@/components/commons/confirm-dialog';
 import { SearchField } from '@/components/commons/form/search-field';
-import { useDemandeAssignationController } from './useDemandeAssignationController';
-import { createUrlFile } from '@/utils/createUrlFile';
-import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@/components/heroui';
+import {
+  ColonneResponsive,
+  TableauResponsive,
+} from '@/components/commons/TableauResponsive';
+import ValidateDialog from '@/components/commons/validate-dialog';
+import { DemandeAssignationVM, Restaurant } from '@/types/models';
 
-export default function Content({ demandeAssignations, allRestaurant }: { demandeAssignations: DemandeAssignationVM[]; allRestaurant: Restaurant[] }) {
-  const demandeCtrl = useDemandeAssignationController(demandeAssignations);
-  const rows = demandeCtrl.data || [];
-  // Colonnes
-  const demandeColumns = [
-    { uid: 'nom', name: 'Nom complet' },
-    { uid: 'statut', name: 'Statut' },
-    { uid: 'date', name: 'Date' },
-    { uid: 'actions', name: 'Actions' },
+import { CelluleCoursier } from '../../_composants/cellule-coursier';
+import { useDemandeAssignationController } from './useDemandeAssignationController';
+
+/**
+ * Les demandes d'identification déposées par les coursiers.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le bouton « Accorder » — celui des demandes de passage en bird — était peint en
+ * `bg-orange-500`, une couleur de la palette Tailwind brute qui n'appartient à aucune
+ * palette de l'ERP et n'a pas de variante sombre. Le bouton « Accepter » juste à côté,
+ * lui, portait la couleur par défaut. Deux gestes de même nature, deux apparences, et une
+ * seule des deux lisible en thème sombre.</p>
+ *
+ * <p>Le rejet était un `&lt;span onClick&gt;` en `text-white` sur une surface claire :
+ * invisible en thème clair, inatteignable au clavier, sans nom accessible. Son état
+ * désactivé était obtenu par `pointer-events-none` — ce qui le retire de la souris mais le
+ * laisse dans l'ordre de tabulation, où il ne fait rien.</p>
+ *
+ * <p>L'écran n'avait AUCUN état d'échec : la liste vient d'un chargement serveur, et une
+ * lecture ratée rendait un tableau vide, donc « Aucune demande » — la phrase exacte d'une
+ * file réellement traitée. L'opérateur en concluait qu'il n'avait rien à faire.</p>
+ */
+export default function Content({
+  allRestaurant,
+  demandeAssignations,
+}: {
+  allRestaurant: Restaurant[];
+  demandeAssignations: DemandeAssignationVM[];
+}) {
+  const ctrl = useDemandeAssignationController(demandeAssignations);
+  const rows = ctrl.data ?? [];
+
+  const colonnes: ColonneResponsive<DemandeAssignationVM>[] = [
+    {
+      cle: 'nom',
+      identite: true,
+      libelle: 'Nom complet',
+      rendu: (d) => <CelluleCoursier avatarUrl={d.avatarUrl} nom={d.nomComplet ?? ''} />,
+    },
+    {
+      cle: 'statut',
+      libelle: 'Statut',
+      rendu: (d) => ctrl.recupererStatut(d.statutDemandeAssignation),
+    },
+    {
+      cle: 'date',
+      libelle: 'Date',
+      rendu: (d) => <span className="tabular-nums">{d.date ?? '-'}</span>,
+    },
+    {
+      actions: true,
+      cle: 'actions',
+      libelle: 'Actions',
+      rendu: (d) => {
+        const rejetee = d.statutDemandeAssignation === 'REJETER';
+        return (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onPress={() => (d.type === 'FREE' ? ctrl.accortder(d) : ctrl.onOpenDialog(d))}
+              size="sm"
+              variant="primary"
+            >
+              <Check aria-hidden="true" className="size-4" />
+              {d.type === 'FREE' ? 'Accorder' : 'Accepter'}
+            </Button>
+
+            <Button
+              aria-label={`Rejeter la demande de ${d.nomComplet ?? 'ce livreur'}`}
+              isDisabled={rejetee}
+              isIconOnly
+              onPress={() => ctrl.retirer(d.id ?? '')}
+              size="sm"
+              variant="danger-soft"
+            >
+              <X aria-hidden="true" className="size-4" />
+            </Button>
+          </div>
+        );
+      },
+    },
   ];
 
-  // Rendu dynamique des cellules
-  const renderDemandeCell = (item: any, columnKey: string) => {
-    switch (columnKey) {
-      case 'nom':
-        return (
-          <div className="flex items-center gap-4">
-            <img src={item.avatarUrl ? createUrlFile(item.avatarUrl, 'backend') : '/assets/images/avatar.png'} alt={item?.nomComplet} className="w-8 h-8 rounded-full object-cover mr-3 shadow-md" />
-            <div className="font-medium capitalize">{item?.nomComplet}</div>
-          </div>
-        );
-
-      case 'statut':
-        return demandeCtrl.recupererStatut(item.statutDemandeAssignation);
-
-      case 'date':
-        return item.date;
-
-      case 'actions':
-        const isRejected = item.statutDemandeAssignation === 'REJETER';
-
-        return (
-          <div className="flex gap-4 items-center">
-            {item.type === 'FREE' ? (
-              <Button onClick={() => demandeCtrl.accortder(item)} className="h-8 bg-orange-500">
-                <span className="flex gap-2">
-                  <Check size={15} /> Accorder
-                </span>
-              </Button>
-            ) : (
-              <Button onClick={() => demandeCtrl.onOpenDialog(item)} className="h-7">
-                <span className="flex gap-2 items-center">
-                  <Check size={15} /> Accepter
-                </span>
-              </Button>
-            )}
-
-            <span
-              className={`text-white p-1 bg-surface-tertiary rounded-full hover:bg-primary ${isRejected ? 'cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
-              onClick={() => !isRejected && demandeCtrl.retirer(item.id)}
-            >
-              <XIcon className="h-5 w-5" />
-            </span>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="p-6 pt-0 flex-wrap">
-      <SearchField searchKey={demandeCtrl.selectValue} onChange={demandeCtrl.setSelectValue} />
+    <div className="flex flex-col gap-4 p-6 pt-0">
+      <SearchField onChange={ctrl.setSelectValue} searchKey={ctrl.selectValue} />
 
-      <div className="bg-surface rounded-lg overflow-x-auto lg:overflow-hidden xl:overflow-hidden md:overflow-x-auto ms:overflow-x-auto">
-        <div className="bg-surface rounded-lg overflow-x-auto py-4 shadow-sm">
-          {rows.length === 0 ? (
-            <div className="text-center mt-10 text-xl text-primary font-bold">
-              <EmptyDataTable title="Aucune demande" />
-            </div>
-          ) : (
-            <>
-              {/* Table — desktop uniquement (≥ md) */}
-              <div className="hidden md:block">
-                <Table aria-label="Tableau des demandes d’assignation">
-                  <TableHeader>
-                    {demandeColumns.map((col) => (
-                      <TableColumn key={col.uid}>{col.name}</TableColumn>
-                    ))}
-                  </TableHeader>
-                  <TableBody emptyContent="Aucune demande à afficher.">
-                    {rows.map((row: any) => (
-                      <TableRow key={row.id}>
-                        {demandeColumns.map((col) => (
-                          <TableCell key={col.uid}>{renderDemandeCell(row, col.uid)}</TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+      <TableauResponsive
+        cleLigne={(d) => d.id ?? ''}
+        colonnes={colonnes}
+        libelle="Demandes d'identification"
+        lignes={rows}
+        vide="Aucune demande en attente"
+      />
 
-              {/* Mobile — cartes tactiles (mêmes données / handlers via renderDemandeCell) */}
-              <div className="md:hidden space-y-3 px-4">
-                {rows.map((row: any) => (
-                  <div key={row.id} className="bg-surface border border-separator rounded-xl p-4 shadow-xs space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">{renderDemandeCell(row, 'nom')}</div>
-                      <div className="shrink-0">{renderDemandeCell(row, 'statut')}</div>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs text-muted shrink-0">Date</span>
-                      <span className="text-sm text-foreground text-right truncate">{renderDemandeCell(row, 'date')}</span>
-                    </div>
-                    <div className="pt-2 flex flex-wrap gap-2">{renderDemandeCell(row, 'actions')}</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-        <ValidateDialog
-          restaurants={allRestaurant}
-          isOpen={demandeCtrl.isOpen}
-          onClose={demandeCtrl.onCloseDialog}
-          nomComplet={demandeCtrl.nomComplet}
-          setRestaurantId={demandeCtrl.setRestaurantSelectId}
-          valider={demandeCtrl.valider}
-          rejeter={demandeCtrl.rejeter}
-          demandeAssignationId={demandeCtrl.demandeAssignationId}
-        />
-      </div>
-      <ConfirmDialog {...demandeCtrl.confirm} />
+      <ValidateDialog
+        demandeAssignationId={ctrl.demandeAssignationId}
+        isOpen={ctrl.isOpen}
+        nomComplet={ctrl.nomComplet}
+        onClose={ctrl.onCloseDialog}
+        rejeter={ctrl.rejeter}
+        restaurants={allRestaurant}
+        setRestaurantId={ctrl.setRestaurantSelectId}
+        valider={ctrl.valider}
+      />
+      <ConfirmDialog {...ctrl.confirm} />
     </div>
   );
 }

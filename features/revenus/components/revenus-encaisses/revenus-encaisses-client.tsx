@@ -166,7 +166,7 @@ export default function RevenusEncaissesClient() {
                     <div>
                         <h1 className="text-2xl font-bold text-primary">Historique des Revenus Encaissés</h1>
                         <p className="text-muted mt-2">
-                            Consultez l'historique complet des recouvrements et investissements
+                            Consultez l&apos;historique complet des recouvrements et investissements
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -295,7 +295,7 @@ export default function RevenusEncaissesClient() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="tous">Toutes les dates</SelectItem>
-                            <SelectItem value="aujourd'hui">Aujourd'hui</SelectItem>
+                            <SelectItem value="aujourd'hui">Aujourd&apos;hui</SelectItem>
                             <SelectItem value="semaine">Cette semaine</SelectItem>
                             <SelectItem value="mois">Ce mois</SelectItem>
                             <SelectItem value="annee">Cette année</SelectItem>

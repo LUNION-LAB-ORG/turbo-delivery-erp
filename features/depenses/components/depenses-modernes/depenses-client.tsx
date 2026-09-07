@@ -132,7 +132,7 @@ export default function DepensesModernesClient() {
                     <div>
                         <h1 className="text-2xl font-bold text-primary">Historique des Dépenses</h1>
                         <p className="text-muted mt-2">
-                            Consultez l'historique complet des dépenses par catégorie
+                            Consultez l&apos;historique complet des dépenses par catégorie
                         </p>
                     </div>
                     <Button className="flex items-center gap-2">
@@ -239,7 +239,7 @@ export default function DepensesModernesClient() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="tous">Toutes les dates</SelectItem>
-                            <SelectItem value="aujourd'hui">Aujourd'hui</SelectItem>
+                            <SelectItem value="aujourd'hui">Aujourd&apos;hui</SelectItem>
                             <SelectItem value="semaine">Cette semaine</SelectItem>
                             <SelectItem value="mois">Ce mois</SelectItem>
                             <SelectItem value="annee">Cette année</SelectItem>

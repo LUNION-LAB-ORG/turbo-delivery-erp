@@ -58,7 +58,9 @@ function CarteMesure({
           <Chip.Label>{nature}</Chip.Label>
         </Chip>
         <p className="text-4xl font-bold tabular-nums text-foreground">{chiffre}%</p>
-        <ProgressBar aria-label={titre} value={chiffre}>
+        {/* `ProgressBar` remplit en ACCENT par defaut, le rouge de marque : les deux
+            barres de mesure s'affichaient dans la couleur de l'alarme. */}
+        <ProgressBar aria-label={titre} color="default" value={chiffre}>
           <ProgressBar.Track>
             <ProgressBar.Fill />
           </ProgressBar.Track>

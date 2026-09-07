@@ -6,8 +6,16 @@ import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Button, Input, Select, SelectItem, Switch } from '@/components/heroui';
-import { ArrowLeft, Camera, Upload, Plus, Eye, EyeOff, FileText } from 'lucide-react';
+import { Avatar, Button, Switch } from '@heroui-v3/react';
+import { ArrowLeft, Camera, FileText, Upload } from 'lucide-react';
+
+import {
+  ChampListe,
+  ChampMotDePasse,
+  ChampTexte,
+} from '@/components/commons/champs-formulaire';
+import { LienBouton } from '@/components/commons/LienBouton';
+import { TitreSection } from '@/components/commons/TitreSection';
 import {
   createTurboySchema,
   type CreateTurboyDTO,
@@ -16,10 +24,11 @@ import {
 } from '@/features/turboys/schemas/create-turboy.schema';
 import { createLivreur } from '@/features/turboys/actions/create-turboy.action';
 
-// ─── Section title ────────────────────────────────────────────────────────────
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-base font-semibold text-primary mb-4">{children}</h2>;
-}
+/*
+ * Les cinq titres de section etaient peints en ROUGE DE MARQUE par un `SectionTitle`
+ * local — le sixieme exemplaire de ce composant dans le projet, tous identiques. Le
+ * `TitreSection` partage en tient lieu.
+ */
 
 // ─── File upload zone ─────────────────────────────────────────────────────────
 function UploadZone({
@@ -36,34 +45,34 @@ function UploadZone({
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div className="flex items-center gap-3">
+      {/*
+       * DEUX boutons pour le meme geste : le carre et le rond ouvraient tous les deux le
+       * meme selecteur de fichier. Aucun des deux n'avait de nom accessible — au clavier,
+       * on tabulait sur deux boutons muets qui faisaient la meme chose.
+       */}
       <button
-        type="button"
+        aria-label={label}
+        className="flex size-16 flex-col items-center justify-center rounded-lg border-2 border-dashed border-separator text-muted transition-colors hover:border-foreground/40 hover:text-foreground focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
         onClick={() => ref.current?.click()}
-        className="w-16 h-16 border-2 border-dashed border-separator rounded-lg flex flex-col items-center justify-center text-muted hover:border-primary hover:text-primary transition-colors"
+        type="button"
       >
         {preview ? (
-          <img src={preview} alt="preview" className="w-full h-full object-cover rounded-lg" />
+          // eslint-disable-next-line @next/next/no-img-element
+          <img alt="Aperçu du fichier choisi" className="size-full rounded-lg object-cover" src={preview} />
         ) : (
           <>
-            <Upload className="w-5 h-5 mb-1" />
-            <span className="text-[10px] text-center leading-tight">{label}</span>
+            <Upload aria-hidden="true" className="mb-1 size-5" />
+            <span className="text-center text-[10px] leading-tight">{label}</span>
           </>
         )}
       </button>
-      <button
-        type="button"
-        onClick={() => ref.current?.click()}
-        className="w-10 h-10 rounded-full border-2 border-dashed border-separator flex items-center justify-center text-muted hover:border-primary hover:text-primary transition-colors"
-      >
-        <Plus className="w-4 h-4" />
-      </button>
       <input
+        accept="image/*"
+        className="hidden"
+        multiple={multiple}
+        onChange={(e) => onChange(e.target.files)}
         ref={ref}
         type="file"
-        accept="image/*"
-        multiple={multiple}
-        className="hidden"
-        onChange={(e) => onChange(e.target.files)}
       />
     </div>
   );
@@ -79,7 +88,6 @@ export default function CreateContent() {
   const [contratFile, setContratFile] = useState<File | null>(null);
   // fiche d'identification (PDF ou image scannée)
   const [ficheIdentificationFile, setFicheIdentificationFile] = useState<File | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const avatarRef = useRef<HTMLInputElement>(null);
@@ -148,40 +156,43 @@ export default function CreateContent() {
       {/* Back link */}
       <Link
         href="/delivery-men/men"
-        className="flex items-center gap-1.5 text-sm text-muted hover:text-primary mb-4 transition-colors"
+        className="mb-4 flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="w-4 h-4" />
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Retour à la liste
       </Link>
 
       {/* Header */}
-      <h1 className="text-2xl font-bold text-primary mb-1">Créer un nouveau profil</h1>
+      <h1 className="mb-1 text-2xl font-bold text-foreground">Créer un nouveau profil</h1>
       <p className="text-sm text-muted mb-8">Enregistrer un nouveau coursier dans le système</p>
 
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8">
         {/* ── Photo de profil ── */}
         <section className="bg-surface rounded-xl border border-separator shadow-xs p-6">
-          <SectionTitle>Photo de profil</SectionTitle>
+          <TitreSection>Photo de profil</TitreSection>
           <div className="flex items-center gap-5">
+            {/*
+             * L'emplacement de la photo etait un `<div onClick>` — donc rien que le
+             * clavier atteigne — peint en `bg-primary/20` avec un « ? » en ROUGE DE
+             * MARQUE au centre. Le seul vrai bouton, celui de l'appareil photo, n'avait
+             * pas de nom accessible.
+             */}
             <div className="relative">
-              <div
-                className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden cursor-pointer border-2 border-primary/30"
-                onClick={() => avatarRef.current?.click()}
+              <Avatar className="size-16">
+                {avatarPreview && <Avatar.Image alt="Photo choisie" src={avatarPreview} />}
+                <Avatar.Fallback>?</Avatar.Fallback>
+              </Avatar>
+              <Button
+                aria-label="Choisir une photo de profil"
+                className="absolute -right-1 -bottom-1 rounded-full"
+                isIconOnly
+                onPress={() => avatarRef.current?.click()}
+                size="sm"
+                variant="primary"
               >
-                {avatarPreview ? (
-                  <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-primary font-bold text-xl">?</span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => avatarRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white shadow-sm"
-              >
-                <Camera className="w-3 h-3" />
-              </button>
-              <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                <Camera aria-hidden="true" className="size-3" />
+              </Button>
+              <input accept="image/*" className="hidden" onChange={handleAvatarChange} ref={avatarRef} type="file" />
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">Téléchargez une photo</p>
@@ -195,7 +206,7 @@ export default function CreateContent() {
             <div>
               <p className="text-sm font-medium text-foreground mb-2">Contrat du livreur</p>
               <label className="flex items-center gap-3 cursor-pointer">
-                <div className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-separator rounded-lg text-muted hover:border-primary hover:text-primary transition-colors text-sm">
+                <div className="flex items-center gap-2 rounded-lg border-2 border-dashed border-separator px-4 py-2.5 text-sm text-muted transition-colors hover:border-foreground/40 hover:text-foreground">
                   <FileText className="w-4 h-4 shrink-0" />
                   <span>{contratFile ? contratFile.name : 'Importer le contrat (PDF, JPG, PNG)'}</span>
                 </div>
@@ -207,15 +218,15 @@ export default function CreateContent() {
                 />
               </label>
               {contratFile && (
-                <p className="text-xs text-green-600 mt-1.5">{contratFile.name} sélectionné</p>
+                <p className="mt-1.5 text-xs text-success">{contratFile.name} sélectionné</p>
               )}
             </div>
 
             {/* Fiche d'identification Turboy */}
             <div>
-              <p className="text-sm font-medium text-foreground mb-2">Fiche d'identification Turboy</p>
+              <p className="text-sm font-medium text-foreground mb-2">Fiche d&apos;identification Turboy</p>
               <label className="flex items-center gap-3 cursor-pointer">
-                <div className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-separator rounded-lg text-muted hover:border-primary hover:text-primary transition-colors text-sm">
+                <div className="flex items-center gap-2 rounded-lg border-2 border-dashed border-separator px-4 py-2.5 text-sm text-muted transition-colors hover:border-foreground/40 hover:text-foreground">
                   <FileText className="w-4 h-4 shrink-0" />
                   <span>{ficheIdentificationFile ? ficheIdentificationFile.name : 'Importer la fiche (PDF, JPG, PNG)'}</span>
                 </div>
@@ -227,7 +238,9 @@ export default function CreateContent() {
                 />
               </label>
               {ficheIdentificationFile && (
-                <p className="text-xs text-green-600 mt-1.5">{ficheIdentificationFile.name} sélectionné</p>
+                <p className="mt-1.5 text-xs text-success">
+                  {ficheIdentificationFile.name} sélectionné
+                </p>
               )}
             </div>
           </div>
@@ -235,64 +248,103 @@ export default function CreateContent() {
 
         {/* ── Informations personnelles ── */}
         <section className="bg-surface rounded-xl border border-separator shadow-xs p-6">
-          <SectionTitle>Informations personnelles</SectionTitle>
+          <TitreSection>Informations personnelles</TitreSection>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller
               name="nom"
               control={control}
               render={({ field }) => (
-                <Input {...field} label="Nom" placeholder="Douze" isInvalid={!!errors.nom} errorMessage={errors.nom?.message} variant="bordered" />
+                <ChampTexte
+                  erreur={errors.nom?.message}
+                  label="Nom"
+                  onChange={field.onChange}
+                  placeholder="Douze"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="prenoms"
               control={control}
               render={({ field }) => (
-                <Input {...field} label="Prénom" placeholder="Ousmane" isInvalid={!!errors.prenoms} errorMessage={errors.prenoms?.message} variant="bordered" />
+                <ChampTexte
+                  erreur={errors.prenoms?.message}
+                  label="Prénom"
+                  onChange={field.onChange}
+                  placeholder="Ousmane"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="birthDay"
               control={control}
               render={({ field }) => (
-                <Input {...field} type="date" label="Date de naissance" isInvalid={!!errors.birthDay} errorMessage={errors.birthDay?.message} variant="bordered" startContent={<span className="text-muted text-sm">📅</span>} />
+                <ChampTexte
+                  erreur={errors.birthDay?.message}
+                  label="Date de naissance"
+                  onChange={field.onChange}
+                  type="date"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="habitation"
               control={control}
               render={({ field }) => (
-                <Input {...field} label="Domicile" placeholder="Koumasi Zone 4" isInvalid={!!errors.habitation} errorMessage={errors.habitation?.message} variant="bordered" startContent={<span className="text-muted text-sm">🏠</span>} />
+                <ChampTexte
+                  erreur={errors.habitation?.message}
+                  label="Domicile"
+                  onChange={field.onChange}
+                  placeholder="Koumassi Zone 4"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="telephone"
               control={control}
               render={({ field }) => (
-                <Input {...field} label="Téléphone" placeholder="+225 0000000000" description="Laisser vide si le numéro n'est pas connu" isInvalid={!!errors.telephone} errorMessage={errors.telephone?.message} variant="bordered" startContent={<span className="text-muted text-sm">📞</span>} />
+                <ChampTexte
+                  aide="Laisser vide si le numéro n'est pas connu"
+                  erreur={errors.telephone?.message}
+                  label="Téléphone"
+                  onChange={field.onChange}
+                  placeholder="+225 0000000000"
+                  type="tel"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="email"
               control={control}
               render={({ field }) => (
-                <Input {...field} type="email" label="Adresse mail" placeholder="email@example.com" isInvalid={!!errors.email} errorMessage={errors.email?.message} variant="bordered" startContent={<span className="text-muted text-sm">✉️</span>} />
+                <ChampTexte
+                  erreur={errors.email?.message}
+                  label="Adresse mail"
+                  onChange={field.onChange}
+                  placeholder="email@example.com"
+                  type="email"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="numeroPersonneAContacter"
               control={control}
               render={({ field }) => (
-                <Input
-                  {...field}
-                  label="Personne à contacter (urgence)"
-                  placeholder="+225 0000000000"
-                  isInvalid={!!errors.numeroPersonneAContacter}
-                  errorMessage={errors.numeroPersonneAContacter?.message}
-                  variant="bordered"
-                  startContent={<span className="text-muted text-sm">📞</span>}
-                  className="sm:col-span-2"
-                />
+                <div className="sm:col-span-2">
+                  <ChampTexte
+                    erreur={errors.numeroPersonneAContacter?.message}
+                    label="Personne à contacter en cas d'urgence"
+                    onChange={field.onChange}
+                    placeholder="+225 0000000000"
+                    type="tel"
+                    valeur={field.value ?? ''}
+                  />
+                </div>
               )}
             />
           </div>
@@ -308,10 +360,11 @@ export default function CreateContent() {
                     <p className="text-sm font-medium text-foreground">Permis de conduire</p>
                     <p className="text-xs text-muted">Le livreur détient-il un permis valide ?</p>
                   </div>
-                  <Switch
-                    isSelected={field.value ?? false}
-                    onValueChange={field.onChange}
-                  />
+                  <Switch isSelected={field.value ?? false} onChange={field.onChange}>
+                    <Switch.Control>
+                      <Switch.Thumb />
+                    </Switch.Control>
+                  </Switch>
                 </div>
               )}
             />
@@ -320,30 +373,33 @@ export default function CreateContent() {
 
         {/* ── Document d'identité ── */}
         <section className="bg-surface rounded-xl border border-separator shadow-xs p-6">
-          <SectionTitle>Document d'identité</SectionTitle>
+          <TitreSection>Document d&apos;identité</TitreSection>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
             <Controller
               name="typeDocument"
               control={control}
               render={({ field }) => (
-                <Select
+                <ChampListe
+                  erreur={errors.typeDocument?.message}
                   label="Type de document"
-                  placeholder="Sélectionner un type"
-                  selectedKeys={field.value ? [field.value] : []}
-                  onSelectionChange={(keys) => field.onChange(Array.from(keys as Set<string>)[0] ?? '')}
-                  isInvalid={!!errors.typeDocument}
-                  errorMessage={errors.typeDocument?.message}
-                  variant="bordered"
-                >
-                  {TYPE_DOCUMENT_OPTIONS.map((o) => <SelectItem key={o.value}>{o.label}</SelectItem>)}
-                </Select>
+                  onChange={field.onChange}
+                  options={TYPE_DOCUMENT_OPTIONS}
+                  placeholder="Rechercher un type"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="numeroCni"
               control={control}
               render={({ field }) => (
-                <Input {...field} label="Numéro de la pièce" placeholder="CI0000000000" isInvalid={!!errors.numeroCni} errorMessage={errors.numeroCni?.message} variant="bordered" />
+                <ChampTexte
+                  erreur={errors.numeroCni?.message}
+                  label="Numéro de la pièce"
+                  onChange={field.onChange}
+                  placeholder="CI0000000000"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
           </div>
@@ -357,44 +413,58 @@ export default function CreateContent() {
               }}
             />
             {cniFiles.length > 0 && (
-              <p className="text-xs text-green-600 mt-2">{cniFiles.length} fichier(s) sélectionné(s)</p>
+              <p className="mt-2 text-xs text-success">
+                {cniFiles.length} fichier{cniFiles.length > 1 ? 's' : ''} sélectionné
+                {cniFiles.length > 1 ? 's' : ''}
+              </p>
             )}
           </div>
         </section>
 
         {/* ── Informations du véhicule ── */}
         <section className="bg-surface rounded-xl border border-separator shadow-xs p-6">
-          <SectionTitle>Informations du véhicule</SectionTitle>
+          <TitreSection>Informations du véhicule</TitreSection>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
             <Controller
               name="typeVehicule"
               control={control}
               render={({ field }) => (
-                <Select
+                <ChampListe
+                  erreur={errors.typeVehicule?.message}
                   label="Type"
-                  placeholder="Sélectionner un type"
-                  selectedKeys={field.value ? [field.value] : []}
-                  onSelectionChange={(keys) => field.onChange(Array.from(keys as Set<string>)[0] ?? '')}
-                  isInvalid={!!errors.typeVehicule}
-                  errorMessage={errors.typeVehicule?.message}
-                  variant="bordered"
-                >
-                  {TYPE_VEHICULE_OPTIONS.map((o) => <SelectItem key={o.value}>{o.label}</SelectItem>)}
-                </Select>
+                  onChange={field.onChange}
+                  options={TYPE_VEHICULE_OPTIONS}
+                  placeholder="Rechercher un type"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="nomVehicule"
               control={control}
               render={({ field }) => (
-                <Input {...field} label="Nom du véhicule" placeholder="KTML 31" isInvalid={!!errors.nomVehicule} errorMessage={errors.nomVehicule?.message} variant="bordered" />
+                <ChampTexte
+                  erreur={errors.nomVehicule?.message}
+                  label="Nom du véhicule"
+                  onChange={field.onChange}
+                  placeholder="KTML 31"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="immatriculation"
               control={control}
               render={({ field }) => (
-                <Input {...field} label="Immatriculation du véhicule" placeholder="CI0000000000" isInvalid={!!errors.immatriculation} errorMessage={errors.immatriculation?.message} variant="bordered" className="sm:col-span-2" />
+                <div className="sm:col-span-2">
+                  <ChampTexte
+                    erreur={errors.immatriculation?.message}
+                    label="Immatriculation du véhicule"
+                    onChange={field.onChange}
+                    placeholder="CI0000000000"
+                    valeur={field.value ?? ''}
+                  />
+                </div>
               )}
             />
           </div>
@@ -405,39 +475,38 @@ export default function CreateContent() {
               onChange={(files) => { if (files?.[0]) setVehicleFile(files[0]); }}
             />
             {vehicleFile && (
-              <p className="text-xs text-green-600 mt-2">{vehicleFile.name}</p>
+              <p className="mt-2 text-xs text-success">{vehicleFile.name} sélectionné</p>
             )}
           </div>
         </section>
 
         {/* ── Compte du livreur ── */}
         <section className="bg-surface rounded-xl border border-separator shadow-xs p-6">
-          <SectionTitle>Compte du livreur</SectionTitle>
+          <TitreSection>Compte du livreur</TitreSection>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller
               name="telephoneCompte"
               control={control}
               render={({ field }) => (
-                <Input {...field} label="Numéro de téléphone" placeholder="0930000300" isInvalid={!!errors.telephoneCompte} errorMessage={errors.telephoneCompte?.message} variant="bordered" />
+                <ChampTexte
+                  erreur={errors.telephoneCompte?.message}
+                  label="Numéro de téléphone"
+                  onChange={field.onChange}
+                  placeholder="0930000300"
+                  type="tel"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
             <Controller
               name="password"
               control={control}
               render={({ field }) => (
-                <Input
-                  {...field}
-                  type={showPassword ? 'text' : 'password'}
+                <ChampMotDePasse
+                  erreur={errors.password?.message}
                   label="Mot de passe"
-                  placeholder="••••••••"
-                  isInvalid={!!errors.password}
-                  errorMessage={errors.password?.message}
-                  variant="bordered"
-                  endContent={
-                    <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-muted hover:text-foreground">
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  }
+                  onChange={field.onChange}
+                  valeur={field.value ?? ''}
                 />
               )}
             />
@@ -446,15 +515,12 @@ export default function CreateContent() {
 
         {/* ── Footer actions ── */}
         <div className="flex items-center justify-end gap-3 pt-2">
-          <Button
-            type="button"
-            variant="flat"
-            as={Link}
-            href="/delivery-men/men"
-          >
+          {/* `as={Link}` etait une prop de la v2 : le Button v3 l'ignore et le lien
+              disparaitrait. C'est un vrai <a href>, portant les classes du bouton. */}
+          <LienBouton href="/delivery-men/men" variante="ghost">
             Annuler
-          </Button>
-          <Button type="submit" color="primary" isLoading={isSubmitting}>
+          </LienBouton>
+          <Button isPending={isSubmitting} type="submit" variant="primary">
             Enregistrer
           </Button>
         </div>

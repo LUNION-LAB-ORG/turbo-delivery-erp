@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Chip, Pagination, Skeleton } from '@/components/heroui';
+import { Chip, Skeleton } from '@heroui-v3/react';
 
 import { PaginatedResponse } from '@/types';
 import { Restaurant } from '@/types/models';
 import EmptyDataTable from '@/components/commons/EmptyDataTable';
 import EtatErreur from '@/components/commons/EtatErreur';
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
 import { getPaginationCourseExterneJournaliere } from '@/src/actions/courses.actions';
 import CourseJournaliere from '../external_delivery/component/course-journaliere';
 
@@ -71,16 +72,25 @@ export default function Content({ data: initialData }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-primary">Courses journalières</h1>
+          {/* Le titre etait peint en ROUGE DE MARQUE. */}
+          <h1 className="text-2xl font-bold text-foreground">Courses journalières</h1>
           <p className="text-sm text-muted mt-0.5 capitalize">
             {dayjs().format('dddd DD/MM/YYYY')} — point par restaurant partenaire
           </p>
         </div>
         {/* Le compteur se tait en cas d'echec : sans donnee, il afficherait un
-            "Tout est a jour" vert qui contredit l'etat d'erreur juste dessous. */}
+            "Tout est a jour" vert qui contredit l'etat d'erreur juste dessous.
+
+            « X courses a suivre » etait peint en AVERTISSEMENT. Des courses en cours,
+            c'est l'activite normale d'une journee de livraison, pas une anomalie : c'est
+            ce qu'il reste a suivre, donc l'accent, qui dit « regarde ici ». */}
         {!(erreurLecture && restaurants.length === 0) && (
-          <Chip color={totalEnCours > 0 ? 'warning' : 'success'} variant="flat">
-            {totalEnCours > 0 ? `${totalEnCours} course${totalEnCours > 1 ? 's' : ''} à suivre` : 'Tout est à jour'}
+          <Chip color={totalEnCours > 0 ? 'accent' : 'success'} variant="soft">
+            <Chip.Label>
+              {totalEnCours > 0
+                ? `${totalEnCours} course${totalEnCours > 1 ? 's' : ''} à suivre`
+                : 'Tout est à jour'}
+            </Chip.Label>
           </Chip>
         )}
       </div>
@@ -116,14 +126,10 @@ export default function Content({ data: initialData }: Props) {
       {/* Pagination */}
       {(data?.totalPages ?? 0) > 1 && (
         <div className="flex justify-center mt-2 w-full">
-          <Pagination
-            total={data?.totalPages ?? 1}
+          <PaginationTableau
+            onPage={fetchData}
             page={currentPage}
-            onChange={fetchData}
-            showControls
-            color="primary"
-            variant="bordered"
-            isDisabled={isLoading}
+            total={data?.totalPages ?? 1}
           />
         </div>
       )}

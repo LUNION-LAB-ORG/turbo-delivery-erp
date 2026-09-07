@@ -1,36 +1,21 @@
-"use client"
-import React from 'react';
-import { Tabs, Tab } from '@/components/heroui';
-import {usePathname } from 'next/navigation';
-import Link from 'next/link';
-import SectionHeader from '@/components/dashboard/slot/sectionHeader';
+'use client';
 
+import React from 'react';
+
+import SectionHeader from '@/components/dashboard/slot/sectionHeader';
+import { OngletsDeRoute } from '@/components/commons/OngletsDeRoute';
+
+const ONGLETS = [
+  { exact: true, href: '/delivery-men/slot', libelle: 'Flotte de turboys birds' },
+  { href: '/delivery-men/slot/turboys-assignes', libelle: 'Flotte de turboys assignés' },
+] as const;
 
 export default function SlotLayout({ children }: { children: React.ReactNode }) {
-
-    const pathname = usePathname()
-
-    const tabs: {
-        id: string;
-        href: string;
-        label: string;
-    }[] = [
-        { id: '/delivery-men/slot', href: '/delivery-men/slot', label: 'FLOTTE DE TURBOYS BIRD' },
-        { id: '/delivery-men/slot/turboys-assignes', href: '/delivery-men/slot/turboys-assignes', label: 'FLOTTE DE TURBOYS ASSIGNES' },
-    ];
-
-    return (
-        <div>
-            <SectionHeader/>  
-            <Tabs color="primary" variant="underlined" items={tabs} selectedKey={pathname == '/delivery-men/slot' ? '/delivery-men/slot' : pathname == '/delivery-men/slot/turboys-assignes'?'/delivery-men/slot/turboys-assignes':''} className="w-full">
-                {(item) => {
-                    return (
-                        <Tab key={item.id} as={Link} href={item.href} title={item.label}>
-                            {children}
-                        </Tab>
-                    );
-                }}
-            </Tabs>
-        </div>
-    );
+  return (
+    <div className="flex flex-col gap-4">
+      <SectionHeader />
+      <OngletsDeRoute onglets={ONGLETS} />
+      {children}
+    </div>
+  );
 }

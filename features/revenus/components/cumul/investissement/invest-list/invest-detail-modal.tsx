@@ -59,7 +59,7 @@ export function InvestDetailModal({ investissement }: InvestDetailModalProps) {
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <div>
-            <DialogTitle className="text-xl">Détails de l'investissement</DialogTitle>
+            <DialogTitle className="text-xl">Détails de l&apos;investissement</DialogTitle>
             <p className="text-sm text-muted-foreground mt-1">Informations complètes</p>
           </div>
         </DialogHeader>
@@ -95,7 +95,7 @@ export function InvestDetailModal({ investissement }: InvestDetailModalProps) {
                 <Calendar className="h-5 w-5 text-muted" />
               </div>
               <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Date d'investissement</p>
+                <p className="text-xs text-muted-foreground">Date d&apos;investissement</p>
                 <p className="font-medium">{formatDateFR(investissement.dateInvestissement)}</p>
               </div>
             </div>

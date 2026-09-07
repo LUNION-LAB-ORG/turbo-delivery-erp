@@ -1,6 +1,7 @@
 
 // }
 
+import { useOuverture } from '@/hooks/use-ouverture';
 import React from "react";
 import {
     Modal,
@@ -8,9 +9,7 @@ import {
     ModalHeader,
     ModalBody,
     ModalFooter,
-    Button,
-    useDisclosure,
-    Select,
+    Button,Select,
     SelectItem,
 } from "@/components/heroui";
 import { Restaurant } from "@/types/models";

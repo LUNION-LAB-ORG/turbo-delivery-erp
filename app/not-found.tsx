@@ -1,41 +1,52 @@
-"use client"
-import { Metadata } from 'next';
-import Link from 'next/link';
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Home, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/heroui';
+'use client';
+
+import { Button } from '@heroui-v3/react';
+import { ArrowLeft, Home } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import React from 'react';
 
-export const metadata: Metadata = {
-    title: 'Error 404',
-};
+import { LienBouton } from '@/components/commons/LienBouton';
 
+/**
+ * L'écran d'une page introuvable.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le fichier exportait un `metadata` — Next l'IGNORE dans un composant client, la page
+ * n'a donc jamais porté le titre « Error 404 » qu'il annonçait.</p>
+ *
+ * <p>Le « 404 » était un chiffre de neuf unités de haut, en dégradé du rouge de marque au
+ * jaune, écrit en couleurs brutes. Et le texte disait « semble avoir disparu dans
+ * l'espace » : sur l'ERP d'une société de livraison, un opérateur qui suit un lien mort
+ * n'a pas besoin d'une métaphore, il a besoin de savoir quoi faire.</p>
+ *
+ * <p>« Accueil » était un `Button as={Link}`, ce qui rend un `&lt;button&gt;` contenant un
+ * `&lt;a&gt;` : du HTML invalide, annoncé par les lecteurs d'écran comme un bouton dont le
+ * nom est un lien. Et « Retour » portait `onClick`, ignoré en silence par le Button v3.</p>
+ */
 export default function NotFound() {
-    const router = useRouter();
-    return (
-        <div className="h-screen w-full flex items-center justify-center bg-linear-to-b from-background to-muted">
-            <div className="text-center space-y-8 px-4">
-                <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5 }} className="space-y-4">
-                    <h1 className="text-9xl font-bold tracking-tighter bg-linear-to-r from-primary to-yellow-600 text-transparent bg-clip-text">404</h1>
-                    <h2 className="text-4xl font-semibold text-foreground">Page non trouvée</h2>
-                </motion.div>
+  const router = useRouter();
 
-                <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="text-muted-foreground max-w-sm mx-auto">
-                    Désolé, la page que vous recherchez semble avoir disparu dans l&apos;espace. Peut-être a-t-elle été déplacée ou supprimée.
-                </motion.p>
+  return (
+    <div className="flex min-h-dvh w-full items-center justify-center bg-background px-4">
+      <div className="flex max-w-md flex-col items-center gap-6 text-center">
+        <p className="text-sm font-semibold tracking-widest text-muted uppercase">Erreur 404</p>
+        <h1 className="text-3xl font-bold text-foreground">Cette page n&apos;existe pas</h1>
+        <p className="text-sm text-muted">
+          Le lien est peut-être périmé, ou l&apos;adresse a été saisie à la main. Revenez à
+          l&apos;écran précédent, ou repartez de l&apos;accueil.
+        </p>
 
-                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }} className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button color='primary' as={Link} href={'/'} className="space-x-2">
-                        <Home className="w-4 h-4" />
-                        <span>Accueil</span>
-                    </Button>
-                    <Button variant="light" onClick={() => router.back()} className="space-x-2">
-                        <ArrowLeft className="w-4 h-4" />
-                        <span>Retour</span>
-                    </Button>
-                </motion.div>
-            </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <LienBouton href="/" variante="primary">
+            <Home aria-hidden="true" className="size-4" />
+            Accueil
+          </LienBouton>
+          <Button onPress={() => router.back()} variant="outline">
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            Retour
+          </Button>
         </div>
-    );
+      </div>
+    </div>
+  );
 }

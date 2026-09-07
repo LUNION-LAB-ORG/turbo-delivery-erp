@@ -1,6 +1,6 @@
+import { useOuverture } from '@/hooks/use-ouverture';
 import { getFichePaieByEmploiAndLivreur, getFichePaieById } from "@/src/actions/gestion-de-paie.actions";
 import { FichePaieDetailVM, GainHebdomadaireVm, GainParJour, GainVm, PaieParLivreur } from "@/types/gestion-de-paie.model";
-import { useDisclosure } from "@/components/heroui";
 import { useEffect, useState } from "react";
 
 export function useInitierPaiementController(details?: PaieParLivreur, isOpen?: boolean) {
@@ -36,7 +36,7 @@ export function useInitierPaiementController(details?: PaieParLivreur, isOpen?: 
         fetchDetailFichePaie()
     }, [details, isOpen]);
 
-    const creneauDePaieClosure = useDisclosure();
+    const creneauDePaieClosure = useOuverture();
 
     const onpenCrennauxDialog = (gainsHedomadaires?: GainHebdomadaireVm) => {
         setGainsHedomadaires(gainsHedomadaires);

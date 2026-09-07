@@ -3,22 +3,17 @@
 import { useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import {
-  Button,
-  Card,
-  CardBody,
-  Input,
-  Select,
-  SelectItem,
-  Pagination,
-  Spinner,
-  Chip,
-} from '@/components/heroui';
-import { Bell, Search, CheckCheck, ExternalLink } from 'lucide-react';
+import { Button, Card, Chip, Label, SearchField } from '@heroui-v3/react';
+import { Bell, CheckCheck, ExternalLink } from 'lucide-react';
+
 import { CardHeader } from '@/components/commons/card-header';
+import { ChampListe } from '@/components/commons/champs-formulaire';
 import EmptyDataTable from '@/components/commons/EmptyDataTable';
-import { PageWrapper } from '@/components/commons/page-wrapper';
 import EtatErreur from '@/components/commons/EtatErreur';
+import { LienBouton } from '@/components/commons/LienBouton';
+import { PageWrapper } from '@/components/commons/page-wrapper';
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
+import { FiltreStatut } from '@/components/finance/common/filtre-statut';
 import {
   useNotificationsListQuery,
   useMarkAsReadMutation,
@@ -37,31 +32,42 @@ import {
 const PAGE_SIZE = 15;
 
 const STATUS_OPTIONS = [
-  { key: 'all', label: 'Toutes' },
-  { key: 'unread', label: 'Non lues' },
-  { key: 'read', label: 'Lues' },
-];
+  { label: 'Toutes', value: 'Tous' },
+  { label: 'Non lues', value: 'unread' },
+  { label: 'Lues', value: 'read' },
+] as const;
 
 // Tous les types possibles (alignés sur l'enum backend TypeNotification V44)
 const TYPE_GROUPS = [
-  { key: 'all', label: 'Tous types' },
-  { key: 'TICKET_AUTHENTIFIE', label: 'Tickets — à valider V1' },
-  { key: 'TICKET_V1_VALIDE', label: 'Tickets — à valider V2' },
-  { key: 'TICKET_V2_VALIDE', label: 'Tickets — validés V2' },
-  { key: 'CHARGE_A_VISER_DGA', label: 'Dépenses — à viser DGA' },
-  { key: 'CHARGE_A_APPROUVER_DG', label: 'Dépenses — à approuver DG' },
-  { key: 'CHARGE_A_DECAISSER', label: 'Dépenses — à décaisser' },
-  { key: 'CHARGE_DECAISSEE', label: 'Dépenses — décaissées' },
-  { key: 'CHARGE_REJETEE', label: 'Dépenses — rejetées' },
-  { key: 'NOUVELLE_COURSE', label: 'Livraison — nouvelle course' },
-  { key: 'ACCEPTATION_COURSE', label: 'Livraison — course acceptée' },
-];
+  { label: 'Tous types', value: 'all' },
+  { label: 'Tickets — à valider V1', value: 'TICKET_AUTHENTIFIE' },
+  { label: 'Tickets — à valider V2', value: 'TICKET_V1_VALIDE' },
+  { label: 'Tickets — validés V2', value: 'TICKET_V2_VALIDE' },
+  { label: 'Dépenses — à viser DGA', value: 'CHARGE_A_VISER_DGA' },
+  { label: 'Dépenses — à approuver DG', value: 'CHARGE_A_APPROUVER_DG' },
+  { label: 'Dépenses — à décaisser', value: 'CHARGE_A_DECAISSER' },
+  { label: 'Dépenses — décaissées', value: 'CHARGE_DECAISSEE' },
+  { label: 'Dépenses — rejetées', value: 'CHARGE_REJETEE' },
+  { label: 'Livraison — nouvelle course', value: 'NOUVELLE_COURSE' },
+  { label: 'Livraison — course acceptée', value: 'ACCEPTATION_COURSE' },
+] as const;
 
-function prettyType(type: string): string {
-  return type
-    .toLowerCase()
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+/**
+ * Le libellé d'un type, tel que le filtre l'écrit juste au-dessus.
+ *
+ * <p>La page en avait DEUX versions : celle du filtre (« Dépenses — à viser DGA ») et une
+ * `prettyType` qui remettait l'enum en forme au petit bonheur (« Charge A Viser Dga »).
+ * C'est cette seconde qui s'affichait sur les cartes, si bien qu'on filtrait sur un nom et
+ * qu'on en lisait un autre juste en dessous.</p>
+ */
+function libelleType(type: string): string {
+  return (
+    TYPE_GROUPS.find((t) => t.value === type)?.label ??
+    type
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
 export function NotificationContent() {
@@ -100,164 +106,169 @@ export function NotificationContent() {
 
   return (
     <PageWrapper>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <CardHeader title="Liste des notifications" />
         <div className="flex items-center gap-3">
-          <Chip color={unreadCount > 0 ? 'danger' : 'default'} variant="flat">
-            {unreadCount} non lue{unreadCount > 1 ? 's' : ''}
+          {/*
+           * Le compteur etait peint en DANGER des qu'une notification n'etait pas lue.
+           * Du courrier en attente n'est pas un danger : c'est ce qui appelle une action,
+           * donc l'accent — et le neutre quand la boite est a jour.
+           */}
+          <Chip color={unreadCount > 0 ? 'accent' : 'default'} variant="soft">
+            <Chip.Label>
+              {unreadCount} non lue{unreadCount > 1 ? 's' : ''}
+            </Chip.Label>
           </Chip>
           <Button
-            size="sm"
-            color="primary"
-            variant="bordered"
-            startContent={<CheckCheck className="w-4 h-4" />}
-            onPress={() => markAllMut.mutate()}
             isDisabled={unreadCount === 0 || markAllMut.isPending}
-            isLoading={markAllMut.isPending}
+            isPending={markAllMut.isPending}
+            onPress={() => markAllMut.mutate()}
+            size="sm"
+            variant="outline"
           >
+            <CheckCheck aria-hidden="true" className="size-4" />
             Tout marquer lu
           </Button>
         </div>
       </div>
 
-      {/* Filtres */}
-      <div className="bg-surface rounded-xl border border-separator p-4 shadow-xs mb-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <Input
-            className="flex-1 min-w-[200px]"
-            placeholder="Rechercher dans le titre ou le message..."
-            startContent={<Search className="text-muted w-4 h-4 shrink-0" />}
+      <Card className="mb-4">
+        <Card.Content className="flex-row flex-wrap items-end gap-3">
+          <SearchField
+            className="min-w-[220px] flex-1"
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
+          >
+            <Label>Rechercher</Label>
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder="Dans le titre ou le message" />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
+
+          {/* Trois options : une rangee sur un poste, une liste cherchable sur un
+              telephone. Onze types : une liste cherchable partout. */}
+          <FiltreStatut
+            onChange={(v) => {
+              setStatus((v || 'all') as 'all' | 'read' | 'unread');
               setPage(1);
             }}
-            variant="bordered"
-            size="sm"
+            options={STATUS_OPTIONS}
+            valeur={status === 'all' ? '' : status}
           />
-          <Select
-            label="Statut"
-            className="w-full sm:w-[180px]"
-            size="sm"
-            variant="bordered"
-            selectedKeys={new Set([status])}
-            onSelectionChange={(keys) => {
-              const k = Array.from(keys as Set<string>)[0] as 'all' | 'unread' | 'read';
-              setStatus(k || 'all');
-              setPage(1);
-            }}
-            disallowEmptySelection
-          >
-            {STATUS_OPTIONS.map((o) => (
-              <SelectItem key={o.key}>{o.label}</SelectItem>
-            ))}
-          </Select>
-          <Select
-            label="Type"
-            className="w-full sm:w-[260px]"
-            size="sm"
-            variant="bordered"
-            selectedKeys={new Set([type])}
-            onSelectionChange={(keys) => {
-              const k = Array.from(keys as Set<string>)[0];
-              setType(k || 'all');
-              setPage(1);
-            }}
-            disallowEmptySelection
-          >
-            {TYPE_GROUPS.map((o) => (
-              <SelectItem key={o.key}>{o.label}</SelectItem>
-            ))}
-          </Select>
-        </div>
-      </div>
+          <div className="w-full sm:w-[280px]">
+            <ChampListe
+              label="Type"
+              onChange={(v) => {
+                setType(v || 'all');
+                setPage(1);
+              }}
+              options={TYPE_GROUPS}
+              placeholder="Tous types"
+              valeur={type}
+            />
+          </div>
+        </Card.Content>
+      </Card>
 
       {/* Liste. `data = []` par defaut : un echec produisait une liste vide, donc
           « Aucune notification » — le message exact d'une boite reellement vide.
           L'erreur ouvre desormais la chaine. */}
       {isError ? (
-        <EtatErreur quoi="les notifications" onReessayer={() => refetch()} enCours={isFetching} />
+        <EtatErreur enCours={isFetching} onReessayer={() => refetch()} quoi="les notifications" />
       ) : isLoading ? (
-        <div className="flex justify-center py-10">
-          <Spinner color="primary" />
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div className="h-24 animate-pulse rounded-xl bg-surface-secondary" key={i} />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-10 text-primary font-bold text-xl">
-          <EmptyDataTable title="Aucune notification" />
-        </div>
+        /* « Aucune notification » etait ecrit en ROUGE DE MARQUE, en gras et en 20 px :
+           une boite a jour se lisait comme une alerte. */
+        <EmptyDataTable title="Aucune notification" />
       ) : (
         <>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {pageItems.map((notification) => (
-              <Card key={notification.id} className={notification.lu ? '' : 'border-l-4 border-l-red-500'}>
-                <CardBody className="p-2 w-full hover:bg-primary/5">
-                  <div className="flex items-center px-4 py-2">
-                    <div className="flex w-full justify-between ml-2 flex-wrap sm:flex-nowrap gap-3">
-                      <div className="h-10 w-10 rounded-full mr-3 flex items-center justify-center bg-red-50 text-red-500 shrink-0">
-                        <Bell className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h6 className={notification.lu ? 'font-medium' : 'font-bold'}>
-                          {notification.titre}
-                        </h6>
-                        {notification.message && (
-                          <p className={`text-sm text-muted ${!notification.lu && 'font-medium'}`}>
-                            {notification.message}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          {notification.lien && (
-                            <Link href={notification.lien}>
-                              <Button
-                                size="sm"
-                                color="primary"
-                                variant="flat"
-                                endContent={<ExternalLink className="w-3 h-3" />}
-                              >
-                                {prettyType(notification.type)}
-                              </Button>
-                            </Link>
-                          )}
-                          <Link href={`/notification/${notification.id}`} className="text-xs text-blue-500 hover:underline">
-                            Détail
-                          </Link>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span className="text-xs text-muted">{notification.tempsPasse}</span>
-                        {!notification.lu && (
-                          <Button
-                            size="sm"
-                            variant="light"
-                            color="success"
-                            startContent={<CheckCheck className="w-3 h-3" />}
-                            onPress={() => markOneMut.mutate({ notificationId: notification.id })}
-                          >
-                            Lu
-                          </Button>
-                        )}
-                      </div>
+              <Card
+                className={notification.lu ? undefined : 'border-l-4 border-l-accent'}
+                key={notification.id}
+              >
+                <Card.Content className="flex-row flex-wrap items-start gap-3 p-4 sm:flex-nowrap">
+                  {/*
+                   * La cloche etait dans un rond `bg-red-50 text-red-500` — deux classes
+                   * de la palette brute, sans variante sombre, et sur CHAQUE ligne, lue ou
+                   * non. Une liste de notifications ordinaires se lisait comme une liste
+                   * d'incidents. Le seul signal utile, « pas encore lue », est porte par
+                   * le liseret de gauche.
+                   */}
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-muted">
+                    <Bell aria-hidden="true" className="size-5" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <h6
+                      className={
+                        notification.lu
+                          ? 'font-medium text-foreground'
+                          : 'font-bold text-foreground'
+                      }
+                    >
+                      {notification.titre}
+                    </h6>
+                    {notification.message && (
+                      <p className={`text-sm text-muted ${notification.lu ? '' : 'font-medium'}`}>
+                        {notification.message}
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {notification.lien && (
+                        /* C'etait un `<Link>` enveloppant un `<Button>` : un <a> contenant
+                           un <button>, du HTML invalide. */
+                        <LienBouton href={notification.lien} taille="sm" variante="outline">
+                          {libelleType(notification.type)}
+                          <ExternalLink aria-hidden="true" className="size-3" />
+                        </LienBouton>
+                      )}
+                      <LienBouton
+                        href={`/notification/${notification.id}`}
+                        taille="sm"
+                        variante="ghost"
+                      >
+                        Détail
+                      </LienBouton>
                     </div>
                   </div>
-                </CardBody>
+
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <span className="text-xs text-muted">{notification.tempsPasse}</span>
+                    {!notification.lu && (
+                      <Button
+                        onPress={() => markOneMut.mutate({ notificationId: notification.id })}
+                        size="sm"
+                        variant="ghost"
+                      >
+                        <CheckCheck aria-hidden="true" className="size-3" />
+                        Lu
+                      </Button>
+                    )}
+                  </div>
+                </Card.Content>
               </Card>
             ))}
           </div>
 
           {totalPages > 1 && (
-            <div className="flex justify-center mt-6">
-              <Pagination
-                total={totalPages}
-                page={currentPage}
-                onChange={setPage}
-                color="primary"
-                showControls
-                variant="bordered"
-              />
+            <div className="mt-6 flex justify-center">
+              <PaginationTableau onPage={setPage} page={currentPage} total={totalPages} />
             </div>
           )}
 
-          <p className="text-xs text-muted text-center mt-3">
+          <p className="mt-3 text-center text-xs text-muted">
             {filtered.length} notification{filtered.length > 1 ? 's' : ''}
             {filtered.length !== data.length && ` (filtrées sur ${data.length})`}
           </p>

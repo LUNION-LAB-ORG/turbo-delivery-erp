@@ -96,7 +96,7 @@ function FinancialReportPdfDocument({ metrics, kpis, fixedCosts, variableExpense
         </View>
 
         {/* Section 1 — Vue d'Ensemble */}
-        <Text style={s.sectionTitle}>Vue d'Ensemble</Text>
+        <Text style={s.sectionTitle}>{"Vue d'ensemble"}</Text>
         <View style={s.kpiRow}>
           {metrics.map((m, i) => {
             const cardStyle = m.label === 'Total Depenses' || m.label === 'Total Dépenses'

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { Table, Tabs } from '@heroui-v3/react';
-import { TableLayout, Virtualizer } from 'react-aria-components';
+
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
 import EtatErreur from '@/components/commons/EtatErreur';
 import { useHauteurDisponible } from '@/hooks/use-hauteur-disponible';
 import { toast } from 'sonner';
@@ -14,7 +15,6 @@ import { Ticket } from '@/types/bon-livraison.model';
 import { StatutControle } from '@/types/statut-controle.enum';
 import useTickets from '@/features/tickets/hooks/use-tickets';
 import { useAbility } from '@/hooks/use-ability';
-import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 import { useTicketAuthentication } from '@/features/tickets/hooks/use-ticket-authentication';
 import StatsSection from '@/components/tickets/stats-section';
 import { TicketArchivesTable } from './ticket-archives-table';
@@ -76,18 +76,53 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
 
   const activeTab = filters.tab;
   /*
-   * Plus de sentinelle manuelle sur le tableau : le chargement de page suivante passe
-   * par `Table.LoadMore`, qui vit DANS la collection. C'est la seule facon de le faire
-   * cohabiter avec le virtualiseur, qui ne rend que les lignes visibles — une sentinelle
-   * posee en dehors ne serait jamais atteinte, ou le serait tout le temps.
+   * PAGINATION, et non defilement infini.
+   *
+   * <h3>Pourquoi</h3>
+   * <p>Le `Table` de la v3 monte TOUTES ses lignes. Mesure au banc
+   * `/apercu/charge-tableau`, sur des lignes de texte plus legeres que celles-ci :</p>
+   *
+   * <pre>
+   *   750 lignes, Table v3          : 1 258 Mo, 1 455 ms
+   *   750 lignes, &lt;table&gt; ordinaire :   453 Mo,   139 ms
+   * </pre>
+   *
+   * <p>Une semaine ordinaire compte 726 tickets. Le defilement infini les empilait tous
+   * dans le tableau, le navigateur atteignait son plafond memoire et TUAIT l'onglet.
+   * Le virtualiseur de react-aria bornait bien la memoire, mais posait les cellules en
+   * absolu : les colonnes se chevauchaient, et l'ecran restait inutilisable.</p>
+   *
+   * <p>Une page a la fois, cinquante lignes : la v3 les encaisse sans effort, et aucune
+   * donnee ne disparait — elles se parcourent page par page, comme partout ailleurs dans
+   * l'ERP.</p>
    */
-  // Sentinelle dédiée aux cartes mobile (le sentinel desktop est masqué < md et n'intersecte jamais)
-  const observerTargetMobile = useInfiniteScroll(
-    infiniteState.fetchNextPage,
-    infiniteState.hasNextPage,
-    infiniteState.isFetchingNextPage,
+  const [pageAffichee, setPageAffichee] = useState(0);
+
+  // Un changement de filtre repart de la premiere page : rester sur la page 7 d'un
+  // resultat qui n'en a plus que deux afficherait un tableau vide.
+  useEffect(() => {
+    setPageAffichee(0);
+  }, [filters.search, filters.livreurId, filters.restaurantId, filters.debut, filters.fin]);
+
+  const lignesDeLaPage = infiniteState.pagesTickets[pageAffichee] ?? [];
+
+  const allerALaPage = useCallback(
+    (p: number) => {
+      const cible = p - 1;
+      // La page n'est pas encore chargee : on la demande, et on s'y place des qu'elle
+      // arrive — `pagesTickets` grandit, le rendu suit.
+      if (cible >= infiniteState.pagesTickets.length && infiniteState.hasNextPage) {
+        infiniteState.fetchNextPage();
+      }
+      setPageAffichee(cible);
+    },
+    [infiniteState],
   );
-  const allTickets = useMemo(() => [...newTickets, ...ticketsData], [newTickets, ticketsData]);
+
+  const allTickets = useMemo(
+    () => [...newTickets, ...lignesDeLaPage],
+    [newTickets, lignesDeLaPage],
+  );
   const columns = useMemo(() => createTicketColumns(), []);
 
   const handleDeleteRow = useCallback((id: string) => setTicketsToDelete([id]), []);
@@ -301,28 +336,6 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
                   ref={zoneTableRef}
                   style={hauteurTable ? { height: hauteurTable } : undefined}
                 >
-                  {/*
-                   * VIRTUALISATION — sans elle, cet ecran tue l'onglet.
-                   *
-                   * <p>Mesure au banc (`/apercu/charge-tableau`), sur des lignes de texte
-                   * simple, plus legeres que celles-ci : a 750 lignes, le `Table` v3
-                   * occupe 1 258 Mo de tas et met 1 455 ms a se rendre, contre 453 Mo et
-                   * 139 ms pour un `<table>` ordinaire. La production compte 726 tickets
-                   * sur une semaine : le navigateur atteignait son plafond memoire et
-                   * tuait l'onglet des que le tableau chargeait la page suivante.</p>
-                   *
-                   * <p>Avec le virtualiseur : 751 lignes dans la collection, 42 dans le
-                   * DOM, 273 Mo. Aucune donnee ne disparait — seul ce qui est hors de
-                   * l'ecran cesse d'exister en tant que noeuds.</p>
-                   *
-                   * <p>`estimatedRowHeight` et non `rowHeight` : la hauteur reste mesuree
-                   * ligne par ligne, ce qui laisse une cellule s'ecarter du gabarit sans
-                   * decaler tout le tableau.</p>
-                   */}
-                  <Virtualizer
-                    layout={TableLayout}
-                    layoutOptions={{ estimatedHeadingHeight: 40, estimatedRowHeight: 36 }}
-                  >
                   <Table.Content aria-label="Tickets de livraison">
                     <Table.Header>
                       {table.getFlatHeaders().map((header, i) => (
@@ -387,20 +400,16 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
                               ))}
                             </Table.Row>
                           ))}
-                      <Table.LoadMore
-                        isLoading={infiniteState.isFetchingNextPage}
-                        onLoadMore={() => {
-                          if (infiniteState.hasNextPage) infiniteState.fetchNextPage();
-                        }}
-                      >
-                        <Table.LoadMoreContent className="py-2 text-center text-xs text-muted">
-                          Chargement des données…
-                        </Table.LoadMoreContent>
-                      </Table.LoadMore>
                     </Table.Body>
                   </Table.Content>
-                  </Virtualizer>
                 </Table.ScrollContainer>
+                <Table.Footer>
+                  <PaginationTableau
+                    onPage={allerALaPage}
+                    page={pageAffichee + 1}
+                    total={infiniteState.totalPages}
+                  />
+                </Table.Footer>
               </Table>
             </div>
 
@@ -431,9 +440,17 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
                   />
                 ))
               )}
-              <div className="h-0.5" ref={observerTargetMobile}>
-                {infiniteState.isFetchingNextPage && <p className="w-full py-2 text-center text-xs text-muted">Chargement des données...</p>}
-              </div>
+              {/* Les cartes suivent la meme pagination que le tableau : le defilement
+                  infini y chargeait des pages que l'ecran n'affichait plus. */}
+              {infiniteState.totalPages > 1 && (
+                <div className="flex justify-center pt-2">
+                  <PaginationTableau
+                    onPage={allerALaPage}
+                    page={pageAffichee + 1}
+                    total={infiniteState.totalPages}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}

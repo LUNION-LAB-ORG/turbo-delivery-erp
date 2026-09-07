@@ -13,7 +13,6 @@ import {
   SearchField,
 } from '@heroui-v3/react';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { TableLayout, Virtualizer } from 'react-aria-components';
 import { toast } from 'sonner';
 import { ArchiveRestore, X } from 'lucide-react';
 
@@ -21,7 +20,7 @@ import ConfirmModal from '@/components/ui/confirm-modal';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatCFA, formatDateFR, formatHoursMinutes } from '@/src/actions/bonLivraison.mapper';
 import { useAbility } from '@/hooks/use-ability';
-import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
 import { useTicketArchivesInfiniteQuery } from '@/features/tickets/queries/ticket-archives.query';
 import { useRestaurerArchives } from '@/features/tickets/queries/tickets.mutation';
 import { IArchiveBonLivraisonVm } from '@/features/tickets/types/tickets.type';
@@ -57,20 +56,37 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
     livreurId: livreurId || undefined,
   });
 
-  const archives = useMemo<IArchiveBonLivraisonVm[]>(
-    () => archivesQuery.data?.pages.flatMap((p) => p.content) ?? [],
+  /*
+   * PAGINATION, et non defilement infini — meme raison que l'onglet « Tous les
+   * tickets » : le `Table` de la v3 monte toutes ses lignes, et sa memoire part
+   * au-dela de quelques centaines (mesure au banc `/apercu/charge-tableau`).
+   */
+  const [pageAffichee, setPageAffichee] = useState(0);
+  const pagesArchives = useMemo(
+    () => (archivesQuery.data?.pages ?? []).map((p) => p.content),
     [archivesQuery.data],
+  );
+  const totalPages = archivesQuery.data?.pages[0]?.totalPages ?? 1;
+
+  const allerALaPage = useCallback(
+    (p: number) => {
+      const cible = p - 1;
+      if (cible >= pagesArchives.length && archivesQuery.hasNextPage) {
+        archivesQuery.fetchNextPage();
+      }
+      setPageAffichee(cible);
+    },
+    [pagesArchives.length, archivesQuery],
+  );
+
+  const archives = useMemo<IArchiveBonLivraisonVm[]>(
+    () => pagesArchives[pageAffichee] ?? [],
+    [pagesArchives, pageAffichee],
   );
   const totalItems = archivesQuery.data?.pages[0]?.totalElements ?? 0;
 
-  /* Le chargement de page passe par `Table.LoadMore`, dans la collection : une
-     sentinelle posee en dehors ne cohabite pas avec le virtualiseur. */
   // Sentinelle dédiée aux cartes mobile (le sentinel desktop est masqué < md et n'intersecte jamais)
-  const observerTargetMobile = useInfiniteScroll(
-    archivesQuery.fetchNextPage,
-    archivesQuery.hasNextPage ?? false,
-    archivesQuery.isFetchingNextPage,
-  );
+
 
   const restaurerMutation = useRestaurerArchives(
     // Sur succes seulement : la selection se vide et la modale se ferme.
@@ -256,14 +272,6 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
             ref={zoneArchivesRef}
             style={hauteurArchives ? { height: hauteurArchives } : undefined}
           >
-            {/* Meme virtualisation que l'onglet « Tous les tickets », et pour la meme
-                raison : les archives s'accumulent page par page, et le `Table` v3 tient
-                mal au-dela de quelques centaines de lignes. Mesures au banc
-                `/apercu/charge-tableau`. */}
-            <Virtualizer
-              layout={TableLayout}
-              layoutOptions={{ estimatedHeadingHeight: 40, estimatedRowHeight: 36 }}
-            >
             <Table.Content aria-label="Tickets archivés">
               <Table.Header>
                 {table.getFlatHeaders().map((header, i) => (
@@ -309,20 +317,16 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
                         ))}
                       </Table.Row>
                     ))}
-                <Table.LoadMore
-                  isLoading={archivesQuery.isFetchingNextPage}
-                  onLoadMore={() => {
-                    if (archivesQuery.hasNextPage) archivesQuery.fetchNextPage();
-                  }}
-                >
-                  <Table.LoadMoreContent className="py-2 text-center text-xs text-muted">
-                    Chargement des données…
-                  </Table.LoadMoreContent>
-                </Table.LoadMore>
               </Table.Body>
             </Table.Content>
-            </Virtualizer>
           </Table.ScrollContainer>
+          <Table.Footer>
+            <PaginationTableau
+              onPage={allerALaPage}
+              page={pageAffichee + 1}
+              total={totalPages}
+            />
+          </Table.Footer>
         </Table>
       </div>
 
@@ -399,9 +403,16 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
             );
           })
         )}
-        <div className="h-0.5" ref={observerTargetMobile}>
-          {archivesQuery.isFetchingNextPage && <p className="w-full py-2 text-center text-xs text-muted">Chargement des données...</p>}
-        </div>
+        {/* Les cartes suivent la meme pagination que le tableau. */}
+        {totalPages > 1 && (
+          <div className="flex justify-center pt-2">
+            <PaginationTableau
+              onPage={allerALaPage}
+              page={pageAffichee + 1}
+              total={totalPages}
+            />
+          </div>
+        )}
       </div>
         </>
       )}

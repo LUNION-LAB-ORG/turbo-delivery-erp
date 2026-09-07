@@ -35,7 +35,21 @@ export default function useTickets(restaurants: Restaurant[] = []) {
     [data],
   );
 
+  /*
+   * Les pages restent SEPAREES en plus d'etre aplaties.
+   *
+   * <p>Le tableau n'en rend qu'une a la fois : le `Table` de la v3 monte toutes ses
+   * lignes, et sa memoire part au-dela de quelques centaines — mesure au banc
+   * `/apercu/charge-tableau`. La liste aplatie sert toujours a l'edition et aux actions,
+   * qui doivent retrouver un ticket quelle que soit la page ou il a ete charge.</p>
+   */
+  const pagesTickets = useMemo(
+    () => (data?.pages ?? []).map((page) => page.content.map(bonLivraisonToTicket)),
+    [data],
+  );
+
   const totalItems = data?.pages[0]?.totalElements || 0;
+  const totalPages = data?.pages[0]?.totalPages || 1;
 
   const editing = useTicketEditing({
     restaurants,
@@ -51,7 +65,7 @@ export default function useTickets(restaurants: Restaurant[] = []) {
     isLoading,
     isError,
     error,
-    infiniteState: { status, isFetching, isFetchingNextPage, isFetchingPreviousPage, fetchNextPage, hasNextPage, totalItems, refetch },
+    infiniteState: { status, isFetching, isFetchingNextPage, isFetchingPreviousPage, fetchNextPage, hasNextPage, totalItems, totalPages, pagesTickets, refetch },
     mutations: { deleteBonLivraisonMutation, deleteBonLivraisonAsync, isDeletingBonLivraison, updateBonLivraisonMutation, isUpdatingBonLivraison },
     editing,
   };

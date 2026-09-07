@@ -2,14 +2,26 @@
 
 import { Button, Table } from '@heroui-v3/react';
 import React from 'react';
-import { TableLayout, Virtualizer } from 'react-aria-components';
 
 /**
  * Banc de charge : combien coûte le `Table` v3 quand les lignes s'accumulent ?
  *
- * <p>Le tableau des tickets charge ses pages par cinquante et les empile. On mesure ici
- * le temps de rendu et la mémoire du tas à chaque palier, pour savoir si la croissance
- * est linéaire ou si elle part.</p>
+ * <h3>Ce que la mesure a donné</h3>
+ * <pre>
+ *   750 lignes, Table v3          : 1 258 Mo, 1 455 ms
+ *   750 lignes, &lt;table&gt; ordinaire :   453 Mo,   139 ms
+ * </pre>
+ *
+ * <p>Le `Table` de la v3 monte toutes ses lignes et sa mémoire part. Une semaine
+ * ordinaire compte 726 tickets : le navigateur atteignait son plafond et tuait l'onglet.
+ * C'est ce qui a fait passer le tableau des tickets en PAGINATION.</p>
+ *
+ * <h3>Et le virtualiseur ?</h3>
+ * <p>`Virtualizer` + `TableLayout` de react-aria bornent bien la mémoire — 751 lignes
+ * dans la collection, 42 dans le DOM, 273 Mo. Mais il pose les cellules en ABSOLU sans
+ * reprendre la largeur des colonnes du `Table` v3 : les en-têtes se chevauchent et la
+ * première ligne se superpose à eux. Essayé, mesuré, écarté. Une page de cinquante
+ * lignes, la v3 l'encaisse sans effort.</p>
  */
 const COLONNES = [
   'Code',
@@ -25,16 +37,6 @@ const COLONNES = [
   'Créé par',
 ] as const;
 
-/** Enveloppe le tableau dans le virtualiseur de react-aria, ou non. */
-function MaybeVirtualizer({ actif, children }: { actif: boolean; children: React.ReactNode }) {
-  if (!actif) return <>{children}</>;
-  return (
-    <Virtualizer layout={TableLayout} layoutOptions={{ headingHeight: 40, rowHeight: 40 }}>
-      {children}
-    </Virtualizer>
-  );
-}
-
 interface Mesure {
   lignes: number;
   memoire: number;
@@ -43,8 +45,7 @@ interface Mesure {
 
 export default function ApercuChargeTableau() {
   const [pages, setPages] = React.useState(1);
-  const [mode, setMode] = React.useState<'brut' | 'v3' | 'virtuel'>('v3');
-  const brut = mode === 'brut';
+  const [brut, setBrut] = React.useState(false);
   const [mesures, setMesures] = React.useState<Mesure[]>([]);
   const debut = React.useRef(0);
   const compteChargements = React.useRef(0);
@@ -89,13 +90,8 @@ export default function ApercuChargeTableau() {
         >
           Charger 50 lignes de plus
         </Button>
-        <Button
-          onPress={() =>
-            setMode((m) => (m === 'v3' ? 'brut' : m === 'brut' ? 'virtuel' : 'v3'))
-          }
-          variant="outline"
-        >
-          {mode === 'v3' ? 'Table v3' : mode === 'brut' ? 'Tableau HTML simple' : 'Table v3 virtualisée'}
+        <Button onPress={() => setBrut((v) => !v)} variant="outline">
+          {brut ? 'Tableau HTML simple' : 'Table v3'}
         </Button>
         <span className="text-sm tabular-nums">{lignes.length} lignes</span>
       </div>
@@ -142,7 +138,6 @@ export default function ApercuChargeTableau() {
       ) : (
       <Table>
         <Table.ScrollContainer className="h-[400px]">
-          <MaybeVirtualizer actif={mode === 'virtuel'}>
           <Table.Content aria-label="Banc de charge">
             <Table.Header>
               {COLONNES.map((c, i) => (
@@ -183,7 +178,6 @@ export default function ApercuChargeTableau() {
               </Table.LoadMore>
             </Table.Body>
           </Table.Content>
-          </MaybeVirtualizer>
         </Table.ScrollContainer>
       </Table>
       )}

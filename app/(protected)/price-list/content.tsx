@@ -3,18 +3,24 @@
 import EmptyDataTable from '@/components/commons/EmptyDataTable';
 import EtatErreur from '@/components/commons/EtatErreur';
 import { DeliveryFee } from '@/types/price-list';
-import { Pagination, Tab, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tabs } from '@/components/heroui';
-import { Search } from 'lucide-react';
-import Link from 'next/link';
-import Select from 'react-select';
+import { Card, Table } from '@heroui-v3/react';
+
+import { ChampListe } from '@/components/commons/champs-formulaire';
+import { OngletsDeRoute } from '@/components/commons/OngletsDeRoute';
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
 import usePriceListTable from '@/features/price-list/hooks/use-price-list-table';
 import { priceListColumns, usePriceListRenderCell } from '@/components/dashboard/price-liste/price-list-columns';
 import PriceListFormModal from '@/components/dashboard/price-liste/price-list-form-modal';
 
-const tabsItems = [
-  { id: '/price-list', href: '/price-list', label: 'Liste des restaurants définis' },
-  { id: '/price-list/restaurants-undefined', href: '/price-list/restaurants-undefined', label: 'Liste des restaurants indéfinis' },
-];
+/*
+ * Les onglets etaient un `Tabs` de la v2 dont chaque `Tab` recevait `as={Link}` : un
+ * composant d'onglets detourne en barre de navigation. Ils passent par le composant
+ * partage, qui rend de vrais liens et porte `aria-current`.
+ */
+const ONGLETS = [
+  { exact: true, href: '/price-list', libelle: 'Restaurants définis' },
+  { href: '/price-list/restaurants-undefined', libelle: 'Restaurants indéfinis' },
+] as const;
 
 const SKELETON_COUNT = 8;
 const skeletonRows = Array.from({ length: SKELETON_COUNT }, (_, i) => ({ id: String(i) }) as DeliveryFee);
@@ -42,31 +48,29 @@ export default function Content() {
     .map((tab) => ({ value: tab.id, label: tab.nomComplet }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  const tableItems = (isLoading && !!selectedKey) ? skeletonRows : deliveryFees;
-
   return (
     <>
-      <Tabs color="primary" variant="underlined" items={tabsItems} selectedKey={tabsItems.find((tab) => tab.id === '/price-list')?.id} className="w-full">
-        {(item) => <Tab key={item.id} as={Link} href={item.href} title={item.label} />}
-      </Tabs>
+      <OngletsDeRoute onglets={ONGLETS} />
 
-      <div className="flex flex-col mt-4">
-        <div className="flex items-center gap-4 border shadow-sm rounded-xl py-3 px-4">
-          <Select
-            options={restaurantOptions}
-            value={restaurantOptions.find((o) => o.value === selectedKey) ?? null}
-            onChange={(opt) => handleChangeSelectedKey(opt?.value ?? null)}
-            placeholder="Sélectionner un restaurant"
-            isClearable
-            className="text-xs w-full max-w-sm"
-            classNamePrefix="react-select"
-            styles={{
-              control: (base) => ({ ...base, minHeight: '36px', height: '36px', width: '100%' }),
-              valueContainer: (base) => ({ ...base, height: '36px', padding: '0 8px' }),
-              indicatorsContainer: (base) => ({ ...base, height: '36px' }),
-            }}
-          />
-        </div>
+      <div className="mt-4 flex flex-col">
+        <Card>
+          <Card.Content>
+            {/*
+             * C'etait le second `react-select` du projet, avec sa hauteur imposee en
+             * pixels dans un objet `styles` — la seule liste de l'ERP qui ne suivait ni le
+             * theme ni la taille des autres champs.
+             */}
+            <div className="w-full max-w-sm">
+              <ChampListe
+                label="Restaurant"
+                onChange={(v) => handleChangeSelectedKey(v || null)}
+                options={restaurantOptions.map((o) => ({ label: o.label, value: o.value }))}
+                placeholder="Rechercher un restaurant"
+                valeur={selectedKey ?? ''}
+              />
+            </div>
+          </Card.Content>
+        </Card>
 
         {/* En echec, on remplace les DEUX rendus (tableau et cartes) : laisser
             l'un des deux afficher "Aucun frais de livraison" ferait lire une
@@ -82,44 +86,63 @@ export default function Content() {
         {/* Tableau (desktop ≥ md) */}
         <div className="hidden md:block">
           <Table
-            aria-label="Tableau de Frais de livraison"
             className={`mt-4 transition-opacity ${isFetching && !isLoading ? 'opacity-60' : 'opacity-100'}`}
-            bottomContent={
-              !isLoading && pagination.totalPages > 0 ? (
-                <Pagination initialPage={pagination.currentPage} total={pagination.totalPages} onChange={pagination.onPageChange} />
-              ) : null
-            }
           >
-            <TableHeader columns={priceListColumns}>
-              {(column) => (
-                <TableColumn
-                  key={column.uid}
-                  className={column.uid === 'zone' ? 'flex items-center gap-2' : ''}
-                  align={column.uid === 'actions' ? 'center' : 'start'}
+            <Table.ScrollContainer>
+              <Table.Content aria-label="Frais de livraison">
+                <Table.Header>
+                  {priceListColumns.map((column, i) => (
+                    <Table.Column
+                      className={column.uid === 'actions' ? 'text-center' : undefined}
+                      id={column.uid}
+                      isRowHeader={i === 0}
+                      key={column.uid}
+                    >
+                      {/* Une LOUPE etait posee dans l'en-tete de la premiere colonne, qui
+                          n'est pas un champ de recherche : le symbole promettait une
+                          fonction que la colonne n'a pas. */}
+                      {column.name}
+                    </Table.Column>
+                  ))}
+                </Table.Header>
+                <Table.Body
+                  renderEmptyState={() =>
+                    isLoading ? null : <EmptyDataTable title="Aucun frais de livraison" />
+                  }
                 >
-                  {column.uid === 'zone' && <Search />} {column.name}
-                </TableColumn>
-              )}
-            </TableHeader>
-            <TableBody items={tableItems} emptyContent={!isLoading ? <EmptyDataTable title="Aucun frais de livraison" /> : ' '}>
-              {(item) =>
-                isLoading ? (
-                  <TableRow key={item.id}>
-                    {priceListColumns.map((col) => (
-                      <TableCell key={col.uid}>
-                        <div className="h-4 bg-surface-tertiary rounded animate-pulse" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ) : (
-                  <TableRow key={item.id} className={(item.actif ?? true) ? '' : 'opacity-50'}>
-                    {priceListColumns.map((column) => (
-                      <TableCell key={column.uid}>{renderCell(item, column.uid)}</TableCell>
-                    ))}
-                  </TableRow>
-                )
-              }
-            </TableBody>
+                  {(isLoading && !!selectedKey ? skeletonRows : deliveryFees).map((item) =>
+                    isLoading && !!selectedKey ? (
+                      <Table.Row id={item.id} key={item.id}>
+                        {priceListColumns.map((col) => (
+                          <Table.Cell key={col.uid}>
+                            <div className="h-4 animate-pulse rounded bg-surface-secondary" />
+                          </Table.Cell>
+                        ))}
+                      </Table.Row>
+                    ) : (
+                      <Table.Row
+                        className={(item.actif ?? true) ? undefined : 'opacity-50'}
+                        id={item.id}
+                        key={item.id}
+                      >
+                        {priceListColumns.map((column) => (
+                          <Table.Cell key={column.uid}>{renderCell(item, column.uid)}</Table.Cell>
+                        ))}
+                      </Table.Row>
+                    ),
+                  )}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+            {!isLoading && pagination.totalPages > 1 && (
+              <Table.Footer>
+                <PaginationTableau
+                  onPage={pagination.onPageChange}
+                  page={pagination.currentPage}
+                  total={pagination.totalPages}
+                />
+              </Table.Footer>
+            )}
           </Table>
         </div>
 
@@ -165,9 +188,13 @@ export default function Content() {
               </div>
             ))
           )}
-          {!isLoading && pagination.totalPages > 0 && (
+          {!isLoading && pagination.totalPages > 1 && (
             <div className="flex justify-center pt-2">
-              <Pagination initialPage={pagination.currentPage} total={pagination.totalPages} onChange={pagination.onPageChange} />
+              <PaginationTableau
+                onPage={pagination.onPageChange}
+                page={pagination.currentPage}
+                total={pagination.totalPages}
+              />
             </div>
           )}
         </div>

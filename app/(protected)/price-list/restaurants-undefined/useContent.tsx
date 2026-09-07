@@ -1,43 +1,16 @@
 'use client';
 
 import { RestaurantDefini } from '@/types/price-list';
-import { createUrlFile } from '@/utils/createUrlFile';
-import { Avatar } from '@/components/heroui';
-import Link from 'next/link';
-import { useCallback } from 'react';
-interface Props {
-    initialData: RestaurantDefini[];
-}
 
-export default function useContent({ initialData }: Props) {
-
-
-    const renderCell = useCallback((undefinedRestaurant: RestaurantDefini, columnKey: any) => {
-        switch (columnKey) {
-            case 'nomEtablissement':
-                return (
-                    <span className="flex items-center gap-3">
-                        <Avatar isBordered radius="full" size="md" src={createUrlFile(undefinedRestaurant.logo_Url, 'restaurant')} />
-                        {undefinedRestaurant.nomEtablissement}
-                    </span>
-                );
-            case 'actions':
-                return (
-                    <Link
-
-                        href={`/restaurants/${undefinedRestaurant.id}`}
-                        className='bg-red-500 text-white font-semibold py-2 px-4 rounded-xl'
-                    >
-                        Definie type restaurent
-                    </Link>
-                );
-            default:
-                return <></>;
-        }
-    }, []);
-
-    return {
-        undefinedRestaurant: initialData,
-        renderCell,
-    };
+/**
+ * ⚠ Ce contrôleur ne portait qu'un `renderCell` — l'avatar, le nom et le lien d'action
+ * d'une ligne. C'est le rendu de l'écran, pas de la logique : il vit maintenant dans
+ * `ListeRestaurantsIndefinis`, partagé avec la variante paginée.
+ *
+ * <p>Il ne reste rien à faire ici : la liste arrive déjà prête du serveur. Le hook est
+ * conservé le temps que la page qui l'appelle soit revue, et se contente de rendre ce
+ * qu'on lui donne.</p>
+ */
+export default function useContent({ initialData }: { initialData: RestaurantDefini[] }) {
+  return { undefinedRestaurant: initialData ?? [] };
 }

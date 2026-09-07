@@ -1,9 +1,6 @@
 'use client';
 
-import { DeliveryFee, RestaurantDefini } from '@/types/price-list';
-import { createUrlFile } from '@/utils/createUrlFile';
-import { Avatar } from '@/components/heroui';
-import Link from 'next/link';
+import { RestaurantDefini } from '@/types/price-list';
 import { useCallback, useState } from 'react';
 import { PaginatedResponse } from '@/types';
 import { getRestaurantUndefined2 } from '@/src/price-list/price-list.action';
@@ -18,8 +15,6 @@ export default function useContent({ initialData }: Props) {
     const [currentPage, setCurrentPage] = useState(1);
     const [data, setData] = useState<PaginatedResponse<RestaurantDefini> | null>(initialData);
 
-    const [initialDataPriceList, setInitialDataPriceList] = useState<DeliveryFee[]>([])
-   
     // Fonction de récupération des données
     const fetchData = useCallback(async (page: number) => {
         setIsLoading(true);
@@ -55,39 +50,13 @@ export default function useContent({ initialData }: Props) {
     // const tabs = initialData.map((resto) => ({ id: resto.id, nomComplet: resto.nomEtablissement }));
 
 
-    const renderCell = useCallback((undefinedRestaurant: RestaurantDefini, columnKey: any) => {
-        switch (columnKey) {
-            case 'nomEtablissement':
-                return (
-                    <span className="flex items-center gap-3">
-                        <Avatar isBordered radius="full" size="md" src={createUrlFile(undefinedRestaurant.logo_Url, 'restaurant')} />
-                        {undefinedRestaurant.nomEtablissement}
-                    </span>
-                );
-            case 'typeCommission':
-                return (<span>
-                    {undefinedRestaurant.typeCommission === 'POURCENTAGE' ? 'POURCENTAGE %' :
-                        undefinedRestaurant.typeCommission === 'FIXE' ? '(XOF)' : 'Non definie'};
-                    {/* {undefinedRestaurant.typeCommission == 'POURCENTAGE' ? ' POURCENTAGE %' :undefinedRestaurant.typeCommission == '(XOF)'? '(XOF)':''} */}
-                </span>
-                );
-            case 'actions':
-                return (
-                    <Link
-
-                        href={`/restaurants/${undefinedRestaurant.id}`}
-                        className='bg-red-500 text-white font-semibold py-2 px-4 rounded-xl'
-                    >
-                        Definie type restaurent
-                    </Link>
-                );
-            default:
-                return <></>;
-        }
-    }, []);
+    /*
+     * `renderCell` vivait ici : l'avatar, le nom, le type de commission et le lien
+     * d'action. C'est le rendu de l'ecran, pas sa logique — il est parti dans le
+     * composant partage `ListeRestaurantsIndefinis`, avec la variante non paginee.
+     */
 
     return {
-        renderCell,
         data,
         fetchData,
         currentPage,

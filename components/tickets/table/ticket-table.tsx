@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { Table, Tabs } from '@heroui-v3/react';
+import { TableLayout, Virtualizer } from 'react-aria-components';
 import EtatErreur from '@/components/commons/EtatErreur';
 import { useHauteurDisponible } from '@/hooks/use-hauteur-disponible';
 import { toast } from 'sonner';
@@ -74,11 +75,12 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
   const activeTab = filters.tab;
-  const observerTarget = useInfiniteScroll(
-    infiniteState.fetchNextPage,
-    infiniteState.hasNextPage,
-    infiniteState.isFetchingNextPage,
-  );
+  /*
+   * Plus de sentinelle manuelle sur le tableau : le chargement de page suivante passe
+   * par `Table.LoadMore`, qui vit DANS la collection. C'est la seule facon de le faire
+   * cohabiter avec le virtualiseur, qui ne rend que les lignes visibles — une sentinelle
+   * posee en dehors ne serait jamais atteinte, ou le serait tout le temps.
+   */
   // Sentinelle dédiée aux cartes mobile (le sentinel desktop est masqué < md et n'intersecte jamais)
   const observerTargetMobile = useInfiniteScroll(
     infiniteState.fetchNextPage,
@@ -299,6 +301,28 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
                   ref={zoneTableRef}
                   style={hauteurTable ? { height: hauteurTable } : undefined}
                 >
+                  {/*
+                   * VIRTUALISATION — sans elle, cet ecran tue l'onglet.
+                   *
+                   * <p>Mesure au banc (`/apercu/charge-tableau`), sur des lignes de texte
+                   * simple, plus legeres que celles-ci : a 750 lignes, le `Table` v3
+                   * occupe 1 258 Mo de tas et met 1 455 ms a se rendre, contre 453 Mo et
+                   * 139 ms pour un `<table>` ordinaire. La production compte 726 tickets
+                   * sur une semaine : le navigateur atteignait son plafond memoire et
+                   * tuait l'onglet des que le tableau chargeait la page suivante.</p>
+                   *
+                   * <p>Avec le virtualiseur : 751 lignes dans la collection, 42 dans le
+                   * DOM, 273 Mo. Aucune donnee ne disparait — seul ce qui est hors de
+                   * l'ecran cesse d'exister en tant que noeuds.</p>
+                   *
+                   * <p>`estimatedRowHeight` et non `rowHeight` : la hauteur reste mesuree
+                   * ligne par ligne, ce qui laisse une cellule s'ecarter du gabarit sans
+                   * decaler tout le tableau.</p>
+                   */}
+                  <Virtualizer
+                    layout={TableLayout}
+                    layoutOptions={{ estimatedHeadingHeight: 40, estimatedRowHeight: 36 }}
+                  >
                   <Table.Content aria-label="Tickets de livraison">
                     <Table.Header>
                       {table.getFlatHeaders().map((header, i) => (
@@ -363,26 +387,19 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
                               ))}
                             </Table.Row>
                           ))}
+                      <Table.LoadMore
+                        isLoading={infiniteState.isFetchingNextPage}
+                        onLoadMore={() => {
+                          if (infiniteState.hasNextPage) infiniteState.fetchNextPage();
+                        }}
+                      >
+                        <Table.LoadMoreContent className="py-2 text-center text-xs text-muted">
+                          Chargement des données…
+                        </Table.LoadMoreContent>
+                      </Table.LoadMore>
                     </Table.Body>
                   </Table.Content>
-                  {/*
-                   * La sentinelle de defilement infini vit DANS la zone qui defile.
-                   *
-                   * <p>Posee juste apres `</Table>`, elle se retrouvait sous une zone de
-                   * hauteur fixe, donc EN PERMANENCE dans la fenetre. L'observateur
-                   * d'intersection la voyait des le premier rendu, appelait
-                   * `fetchNextPage`, et l'arrivee de la page suivante relancait l'effet,
-                   * qui la revoyait aussitot : toutes les pages se chargeaient a la
-                   * chaine, sans que personne ait defile, jusqu'a ce que l'onglet manque
-                   * de memoire et tombe.</p>
-                   */}
-                  <div className="h-0.5" ref={observerTarget}>
-                    {infiniteState.isFetchingNextPage && (
-                      <p className="w-full py-2 text-center text-xs text-muted">
-                        Chargement des données...
-                      </p>
-                    )}
-                  </div>
+                  </Virtualizer>
                 </Table.ScrollContainer>
               </Table>
             </div>

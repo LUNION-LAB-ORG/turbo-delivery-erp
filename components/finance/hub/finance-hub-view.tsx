@@ -737,7 +737,7 @@ export function FinanceHubView() {
                     )}
                   >
                     {paged.map((item) => (
-                      <Table.Row id={`dep-row-${item.id}`} key={`${item.type}-${item.id}`}>
+                      <Table.Row id={`dep-row-${item.id}`} key={`dep-row-${item.id}`}>
                         <Table.Cell
                           className={cn(highlightId === item.id && 'bg-accent-soft/40')}
                         >

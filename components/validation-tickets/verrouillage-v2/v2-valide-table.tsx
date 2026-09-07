@@ -106,6 +106,17 @@ export function V2ValideTable({
                   </Table.Column>
                 ))}
               </Table.Header>
+              {/*
+               * La CLE React doit valoir l'`id` de la collection.
+               *
+               * <p>Elle valait l'index — 0, 1, 2 — tandis que les vraies lignes portent
+               * `key={row.id}`, et l'identifiant par defaut de TanStack EST l'index sous
+               * forme de chaine : « 0 », « 1 »… React voyait donc la meme cle au moment
+               * ou le squelette cede la place aux donnees, reutilisait l'element, et
+               * react-aria recevait un `id` qui change sur un element deja monte. Il leve
+               * « Cannot change the id of an item », et la page entiere tombe sur son
+               * garde-fou.</p>
+               */}
               <Table.Body
                 renderEmptyState={() =>
                   /* Un echec de chargement ne doit pas se lire comme une liste vide. */
@@ -120,7 +131,7 @@ export function V2ValideTable({
               >
                 {isLoading
                   ? Array.from({ length: 6 }).map((_, i) => (
-                      <Table.Row id={`sq-${i}`} key={i}>
+                      <Table.Row id={`sq-${i}`} key={`sq-${i}`}>
                         {table.getFlatHeaders().map((header) => (
                           <Table.Cell key={header.id}>
                             <Skeleton className="h-4" />

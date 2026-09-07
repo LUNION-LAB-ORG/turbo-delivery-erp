@@ -13,6 +13,7 @@ import {
   SearchField,
 } from '@heroui-v3/react';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { TableLayout, Virtualizer } from 'react-aria-components';
 import { toast } from 'sonner';
 import { ArchiveRestore, X } from 'lucide-react';
 
@@ -62,11 +63,8 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
   );
   const totalItems = archivesQuery.data?.pages[0]?.totalElements ?? 0;
 
-  const observerTarget = useInfiniteScroll(
-    archivesQuery.fetchNextPage,
-    archivesQuery.hasNextPage ?? false,
-    archivesQuery.isFetchingNextPage,
-  );
+  /* Le chargement de page passe par `Table.LoadMore`, dans la collection : une
+     sentinelle posee en dehors ne cohabite pas avec le virtualiseur. */
   // Sentinelle dédiée aux cartes mobile (le sentinel desktop est masqué < md et n'intersecte jamais)
   const observerTargetMobile = useInfiniteScroll(
     archivesQuery.fetchNextPage,
@@ -258,6 +256,14 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
             ref={zoneArchivesRef}
             style={hauteurArchives ? { height: hauteurArchives } : undefined}
           >
+            {/* Meme virtualisation que l'onglet « Tous les tickets », et pour la meme
+                raison : les archives s'accumulent page par page, et le `Table` v3 tient
+                mal au-dela de quelques centaines de lignes. Mesures au banc
+                `/apercu/charge-tableau`. */}
+            <Virtualizer
+              layout={TableLayout}
+              layoutOptions={{ estimatedHeadingHeight: 40, estimatedRowHeight: 36 }}
+            >
             <Table.Content aria-label="Tickets archivés">
               <Table.Header>
                 {table.getFlatHeaders().map((header, i) => (
@@ -303,18 +309,19 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
                         ))}
                       </Table.Row>
                     ))}
+                <Table.LoadMore
+                  isLoading={archivesQuery.isFetchingNextPage}
+                  onLoadMore={() => {
+                    if (archivesQuery.hasNextPage) archivesQuery.fetchNextPage();
+                  }}
+                >
+                  <Table.LoadMoreContent className="py-2 text-center text-xs text-muted">
+                    Chargement des données…
+                  </Table.LoadMoreContent>
+                </Table.LoadMore>
               </Table.Body>
             </Table.Content>
-            {/* La sentinelle vit DANS la zone qui defile : posee dessous, elle restait en
-                permanence dans la fenetre et enchainait le chargement de toutes les pages
-                jusqu'a faire tomber l'onglet. */}
-            <div className="h-0.5" ref={observerTarget}>
-              {archivesQuery.isFetchingNextPage && (
-                <p className="w-full py-2 text-center text-xs text-muted">
-                  Chargement des données...
-                </p>
-              )}
-            </div>
+            </Virtualizer>
           </Table.ScrollContainer>
         </Table>
       </div>

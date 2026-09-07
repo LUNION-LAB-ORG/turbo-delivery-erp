@@ -29,9 +29,12 @@ export function EncoursDeductionsTable({
               <Table.Column id="motif">Motif</Table.Column>
               <Table.Column id="montant">Montant déduit</Table.Column>
             </Table.Header>
+            {/* La cle React vaut l'`id` de la collection : deux valeurs differentes
+                exposent react-aria a recevoir un `id` qui change sur un element deja
+                monte, ce qui fait tomber la page entiere. */}
             <Table.Body>
               {deductions.map((d, i) => (
-                <Table.Row id={`d-${i}`} key={`${d.partenaire}-${i}`}>
+                <Table.Row id={`d-${i}`} key={`d-${i}`}>
                   <Table.Cell>
                     <span className="whitespace-nowrap font-medium">{d.partenaire}</span>
                   </Table.Cell>

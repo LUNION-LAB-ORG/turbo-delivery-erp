@@ -1,14 +1,15 @@
 'use client';
 
-import IconUserPlus from '@/components/icon/icon-user-plus';
-import IconX from '@/components/icon/icon-x';
 import { createTypePlat } from '@/src/actions/type-plats.actions';
 import { _createTypePlatSchema, createTypePlatSchema } from '@/src/schemas/type-plats.schema';
-import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input } from "@/components/heroui";
+import { Button, Label } from '@heroui-v3/react';
+import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import React, { Fragment, useState } from 'react';
+import React, { useState } from 'react';
+
+import { ChampTexte, ChampZoneTexte } from '@/components/commons/champs-formulaire';
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { useActionState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -65,119 +66,78 @@ const TypePlatAdd = () => {
 
     return (
         <>
-            <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>
-                <IconUserPlus className="ltr:mr-2 rtl:ml-2" />
+            {/* C'etait un `<button className="btn btn-primary">` du gabarit d'origine, avec
+                une icone « ajouter un UTILISATEUR » sur l'ecran des types de plat. */}
+            <Button onPress={() => setOpen(true)} variant="primary">
+                <Plus aria-hidden="true" className="size-4" />
                 Ajouter un type de plat
-            </button>
-            <Transition appear show={open} as={Fragment}>
-                <Dialog as="div" open={open} onClose={() => setOpen(false)} className="relative z-50">
-                    <TransitionChild as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-                        <div className="fixed inset-0 bg-[black]/60" />
-                    </TransitionChild>
-                    <div className="fixed inset-0 overflow-y-auto">
-                        <div className="flex min-h-full items-center justify-center px-4 py-8">
-                            <TransitionChild
-                                as={Fragment}
-                                enter="ease-out duration-300"
-                                enterFrom="opacity-0 scale-95"
-                                enterTo="opacity-100 scale-100"
-                                leave="ease-in duration-200"
-                                leaveFrom="opacity-100 scale-100"
-                                leaveTo="opacity-0 scale-95"
-                            >
-                                <DialogPanel className="panel w-full max-w-lg overflow-hidden rounded-lg border-0 p-0 text-black dark:text-white-dark">
-                                    <button
-                                        type="button"
-                                        onClick={() => setOpen(false)}
-                                        className="absolute top-4 text-muted outline-hidden hover:text-foreground ltr:right-4 rtl:left-4 dark:hover:text-muted"
-                                    >
-                                        <IconX />
-                                    </button>
-                                    <div className="bg-surface-secondary py-3 text-lg font-medium ltr:pl-5 ltr:pr-[50px] rtl:pl-[50px] rtl:pr-5 text-primary">Ajouter un type de plat</div>
-                                    <form action={formAction}>
-                                        <div className="grid gap-4 p-5">
-                                            <Controller
-                                                control={control}
-                                                name="libelle"
-                                                render={({ field }) => (
-                                                    <Input
-                                                        {...field}
-                                                        isRequired
-                                                        aria-invalid={errors.libelle ? 'true' : 'false'}
-                                                        aria-label="libelle input"
-                                                        errorMessage={errors.libelle?.message ?? ''}
-                                                        isInvalid={!!errors.libelle}
-                                                        label="Libellé"
-                                                        labelPlacement="outside"
-                                                        placeholder="Entrez le libellé"
-                                                        name="libelle"
-                                                        type="text"
-                                                        variant="bordered"
-                                                        radius="sm"
-                                                        value={field.value ?? ''}
-                                                    />
-                                                )}
-                                            />
-                                            <Controller
-                                                control={control}
-                                                name="description"
-                                                render={({ field }) => (
-                                                    <Input
-                                                        {...field}
-                                                        isRequired
-                                                        aria-invalid={errors.description ? 'true' : 'false'}
-                                                        aria-label="description input"
-                                                        errorMessage={errors.description?.message ?? ''}
-                                                        isInvalid={!!errors.description}
-                                                        label="Description"
-                                                        labelPlacement="outside"
-                                                        placeholder="Entrez la description"
-                                                        name="description"
-                                                        type="text"
-                                                        variant="bordered"
-                                                        radius="sm"
-                                                        value={field.value ?? ''}
-                                                    />
-                                                )}
-                                            />
-                                            <Controller
-                                                control={control}
-                                                name="picture"
-                                                render={({ field: { onChange, value, ...field } }) => (
-                                                    <Input
-                                                        {...field}
-                                                        isRequired
-                                                        aria-invalid={errors.picture ? 'true' : 'false'}
-                                                        aria-label="picture input"
-                                                        errorMessage={errors.picture?.message ?? ''}
-                                                        isInvalid={!!errors.picture}
-                                                        label="Image"
-                                                        labelPlacement="outside"
-                                                        placeholder="Entrez l'image"
-                                                        name="picture"
-                                                        type="file"
-                                                        accept=".png,.jpeg,.jpg"
-                                                        variant="bordered"
-                                                        radius="sm"
-                                                        onChange={(e) => onChange(e.target.files?.[0])}
-                                                    />
-                                                )}
-                                            />
+            </Button>
 
-                                            <div className="mt-8 flex items-center justify-end">
-                                                <button type="button" className="btn btn-outline-danger" onClick={() => setOpen(false)}>
-                                                    Annuler
-                                                </button>
-                                                <SubmitButton className="btn btn-primary ltr:ml-4 rtl:mr-4">Modifier</SubmitButton>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </DialogPanel>
-                            </TransitionChild>
-                        </div>
+            <FenetreAction
+                onFermer={() => {
+                    setOpen(false);
+                    router.refresh();
+                }}
+                ouvert={open}
+                titre="Ajouter un type de plat"
+            >
+                <form action={formAction} className="flex flex-col gap-4">
+                    <Controller
+                        control={control}
+                        name="libelle"
+                        render={({ field }) => (
+                            <>
+                                <input name="libelle" type="hidden" value={field.value ?? ''} />
+                                <ChampTexte
+                                    erreur={errors.libelle?.message}
+                                    label="Libellé"
+                                    onChange={field.onChange}
+                                    placeholder="Entrez le libellé"
+                                    valeur={field.value ?? ''}
+                                />
+                            </>
+                        )}
+                    />
+                    <Controller
+                        control={control}
+                        name="description"
+                        render={({ field }) => (
+                            <>
+                                <input name="description" type="hidden" value={field.value ?? ''} />
+                                <ChampZoneTexte
+                                    erreur={errors.description?.message}
+                                    label="Description"
+                                    onChange={field.onChange}
+                                    placeholder="Entrez la description"
+                                    valeur={field.value ?? ''}
+                                />
+                            </>
+                        )}
+                    />
+                    {/*
+                     * L'image passait par un `Input` de texte ordinaire, ou l'on tapait une
+                     * URL a la main. C'est un fichier : le champ le dit, et le navigateur
+                     * ouvre le selecteur.
+                     */}
+                    <div className="flex flex-col gap-1.5">
+                        <Label>Image</Label>
+                        <input
+                            accept="image/*"
+                            className="text-sm text-muted file:mr-3 file:rounded-lg file:border file:border-separator file:bg-surface-secondary file:px-3 file:py-1.5 file:text-sm file:text-foreground"
+                            name="picture"
+                            type="file"
+                        />
+                        {errors.picture?.message && (
+                            <span className="text-xs text-danger">{errors.picture.message}</span>
+                        )}
                     </div>
-                </Dialog>
-            </Transition>
+
+                    <div className="flex items-center justify-end">
+                        {/* Le bouton d'envoi de la fenetre d'AJOUT disait « Modifier ». */}
+                        <SubmitButton className="w-auto">Ajouter</SubmitButton>
+                    </div>
+                </form>
+            </FenetreAction>
         </>
     );
 };

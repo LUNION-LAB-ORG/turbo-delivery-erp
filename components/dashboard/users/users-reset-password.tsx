@@ -1,13 +1,12 @@
 'use client';
 
-import IconX from '@/components/icon/icon-x';
-import { reinitialiserMotDePasseUtilisateur } from '@/src/actions/users.actions';
-import { User } from '@/types/models';
-import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
-import { Button } from '@heroui-v3/react';
+import { Alert } from '@heroui-v3/react';
+import React, { useEffect, useState } from 'react';
 
 import { ChampCopiable } from '@/components/commons/ChampCopiable';
-import React, { Fragment, useEffect, useState } from 'react';
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { reinitialiserMotDePasseUtilisateur } from '@/src/actions/users.actions';
+import { User } from '@/types/models';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
@@ -60,124 +59,62 @@ const UsersResetPassword = ({
 
     const fermer = () => setOpen(false);
 
-    return (
-        <Transition appear show={open} as={Fragment}>
-            <Dialog as="div" open={open} onClose={fermer} className="relative z-50">
-                <TransitionChild
-                    as={Fragment}
-                    enter="ease-out duration-300"
-                    enterFrom="opacity-0"
-                    enterTo="opacity-100"
-                    leave="ease-in duration-200"
-                    leaveFrom="opacity-100"
-                    leaveTo="opacity-0"
-                >
-                    <div className="fixed inset-0 bg-[black]/60" />
-                </TransitionChild>
-                <div className="fixed inset-0 overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center px-4 py-8">
-                        <TransitionChild
-                            as={Fragment}
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 scale-95"
-                            enterTo="opacity-100 scale-100"
-                            leave="ease-in duration-200"
-                            leaveFrom="opacity-100 scale-100"
-                            leaveTo="opacity-0 scale-95"
-                        >
-                            <DialogPanel className="panel w-full max-w-lg overflow-hidden rounded-lg border-0 p-0 text-black dark:text-white-dark">
-                                <button
-                                    type="button"
-                                    onClick={fermer}
-                                    className="absolute top-4 text-muted outline-hidden hover:text-foreground ltr:right-4 rtl:left-4 dark:hover:text-muted"
-                                >
-                                    <IconX />
-                                </button>
-                                <div className="bg-surface-secondary py-3 text-lg font-medium text-primary ltr:pl-5 ltr:pr-[50px] rtl:pl-[50px] rtl:pr-5 ">
-                                    {motDePasse
-                                        ? 'Nouvel accès provisoire'
-                                        : 'Réinitialiser le mot de passe'}
-                                </div>
+    const nom = [user.prenoms, user.nom].filter(Boolean).join(' ') || user.username;
 
-                                {motDePasse ? (
-                                    <div className="grid gap-4 p-5">
-                                        <ul className="list-inside list-disc space-y-4">
-                                            <li className="flex flex-col gap-1">
-                                                Nom d&apos;utilisateur :
-                                                <ChampCopiable valeur={user.username ?? ''} />
-                                            </li>
-                                            <li className="flex flex-col gap-1">
-                                                Mot de passe provisoire :
-                                                <ChampCopiable valeur={motDePasse} />
-                                            </li>
-                                        </ul>
-                                        <div className="rounded border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">
-                                            <p className="font-medium">
-                                                Ce mot de passe ne sera plus jamais affiché.
-                                            </p>
-                                            <p className="mt-1">
-                                                Le serveur ne le conserve que haché : s&apos;il est perdu, il
-                                                faudra recommencer. Transmettez-le à la personne concernée
-                                                par un canal sûr. Elle devra choisir son propre mot de
-                                                passe à sa prochaine connexion.
-                                            </p>
-                                        </div>
-                                        <div className="mt-4 flex items-center justify-end">
-                                            <Button onPress={fermer} variant="primary">
-                                                J&apos;ai noté le mot de passe
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="grid gap-4 p-5">
-                                        <p className="text-muted">
-                                            Générer un nouveau mot de passe pour{' '}
-                                            <strong>
-                                                {[user.prenoms, user.nom].filter(Boolean).join(' ') ||
-                                                    user.username}
-                                            </strong>{' '}
-                                            ?
-                                        </p>
-                                        <div className="rounded border border-danger/30 bg-danger/5 p-3 text-sm">
-                                            <p className="font-medium text-danger-soft-foreground">
-                                                Son mot de passe actuel cessera immédiatement de
-                                                fonctionner.
-                                            </p>
-                                            <p className="mt-1 text-muted">
-                                                À n&apos;utiliser que si la personne a réellement perdu son
-                                                accès : l&apos;ERP n&apos;a pas de « mot de passe oublié », donc
-                                                elle ne pourra pas se dépanner seule.
-                                            </p>
-                                        </div>
-                                        <div className="mt-8 flex items-center justify-end">
-                                            {/*
-                                             * « Annuler » etait un `<button className="btn
-                                             * btn-outline-danger">` — la classe du DANGER sur le
-                                             * bouton qui ne fait rien. Et `onClick` sur un Button
-                                             * v3 est ignore EN SILENCE : c'est `onPress`, sans
-                                             * quoi « Reinitialiser » ne reinitialisait plus.
-                                             */}
-                                            <Button onPress={fermer} variant="ghost">
-                                                Annuler
-                                            </Button>
-                                            <Button
-                                                className="ltr:ml-4 rtl:mr-4"
-                                                isDisabled={enCours}
-                                                isPending={enCours}
-                                                onPress={reinitialiser}
-                                                variant="danger"
-                                            >
-                                                Réinitialiser
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </DialogPanel>
-                        </TransitionChild>
+    return (
+        <FenetreAction
+            destructif
+            enAttente={enCours}
+            libelleAction={motDePasse ? undefined : 'Réinitialiser'}
+            libelleFermer={motDePasse ? "J'ai noté le mot de passe" : 'Annuler'}
+            onAction={reinitialiser}
+            onFermer={fermer}
+            ouvert={open}
+            titre={motDePasse ? 'Nouvel accès provisoire' : `Réinitialiser le mot de passe de ${nom}`}
+        >
+            {motDePasse ? (
+                <>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm text-muted">Nom d&apos;utilisateur</span>
+                        <ChampCopiable valeur={user.username ?? ''} />
                     </div>
-                </div>
-            </Dialog>
-        </Transition>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm text-muted">Mot de passe provisoire</span>
+                        <ChampCopiable valeur={motDePasse} />
+                    </div>
+                    <Alert status="warning">
+                        <Alert.Indicator />
+                        <Alert.Content>
+                            <Alert.Title>Ce mot de passe ne sera plus jamais affiché</Alert.Title>
+                            <Alert.Description>
+                                Le serveur ne le conserve que haché : s&apos;il est perdu, il faudra
+                                recommencer. Transmettez-le à la personne concernée par un canal sûr.
+                                Elle devra choisir son propre mot de passe à sa prochaine connexion.
+                            </Alert.Description>
+                        </Alert.Content>
+                    </Alert>
+                </>
+            ) : (
+                <>
+                    <p className="text-sm text-muted">
+                        Générer un nouveau mot de passe pour <strong className="text-foreground">{nom}</strong> ?
+                    </p>
+                    <Alert status="danger">
+                        <Alert.Indicator />
+                        <Alert.Content>
+                            <Alert.Title>
+                                Son mot de passe actuel cessera immédiatement de fonctionner
+                            </Alert.Title>
+                            <Alert.Description>
+                                À n&apos;utiliser que si la personne a réellement perdu son accès :
+                                l&apos;ERP n&apos;a pas de « mot de passe oublié », donc elle ne pourra pas
+                                se dépanner seule.
+                            </Alert.Description>
+                        </Alert.Content>
+                    </Alert>
+                </>
+            )}
+        </FenetreAction>
     );
 };
 

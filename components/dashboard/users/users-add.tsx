@@ -1,17 +1,19 @@
 'use client';
 
 import EtatErreur from '@/components/commons/EtatErreur';
-import IconUserPlus from '@/components/icon/icon-user-plus';
-import IconX from '@/components/icon/icon-x';
 import { getAllRoles } from '@/src/actions/roles.actions';
 import { createUser } from '@/src/actions/users.actions';
 import { _createUserSchema, createUserSchema } from '@/src/schemas/users.schema';
 import { Role } from '@/types/models';
-import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input, Select, SelectItem, Snippet } from "@/components/heroui";
+import { Button } from '@heroui-v3/react';
+import { UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import React, { Fragment, useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+
+import { ChampCopiable } from '@/components/commons/ChampCopiable';
+import { ChampListe, ChampTexte } from '@/components/commons/champs-formulaire';
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { useActionState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -99,203 +101,147 @@ const UsersAdd = () => {
         },
     });
 
+    const fermer = () => {
+        setOpen(false);
+        router.refresh();
+    };
+
     return (
         <>
-            <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>
-                <IconUserPlus className="ltr:mr-2 rtl:ml-2" />
+            {/* C'etait un `<button className="btn btn-primary">` du gabarit d'origine. */}
+            <Button onPress={() => setOpen(true)} variant="primary">
+                <UserPlus aria-hidden="true" className="size-4" />
                 Ajouter un utilisateur
-            </button>
-            <Transition appear show={open} as={Fragment}>
-                <Dialog
-                    as="div"
-                    open={open}
-                    onClose={() => {
-                        setOpen(false);
-                        router.refresh();
-                    }}
-                    className="relative z-50"
-                >
-                    <TransitionChild as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-                        <div className="fixed inset-0 bg-[black]/60" />
-                    </TransitionChild>
-                    <div className="fixed inset-0 overflow-y-auto">
-                        <div className="flex min-h-full items-center justify-center px-4 py-8">
-                            <TransitionChild
-                                as={Fragment}
-                                enter="ease-out duration-300"
-                                enterFrom="opacity-0 scale-95"
-                                enterTo="opacity-100 scale-100"
-                                leave="ease-in duration-200"
-                                leaveFrom="opacity-100 scale-100"
-                                leaveTo="opacity-0 scale-95"
-                            >
-                                <DialogPanel className="panel w-full max-w-lg overflow-hidden rounded-lg border-0 p-0 text-black dark:text-white-dark">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setOpen(false);
-                                            router.refresh();
-                                        }}
-                                        className="absolute top-4 text-muted outline-hidden hover:text-foreground ltr:right-4 rtl:left-4 dark:hover:text-muted"
-                                    >
-                                        <IconX />
-                                    </button>
-                                    <div className="bg-surface-secondary py-3 text-lg font-medium ltr:pl-5 ltr:pr-[50px] rtl:pl-[50px] rtl:pr-5 text-primary">
-                                        {state.status === 'success' && state.data?.password ? "Les accès de l'utilisateur créé" : 'Ajouter un utilisateur'}
-                                    </div>
-                                    {state.status === 'success' ? (
-                                        <div className="grid gap-4 p-5">
-                                            <ul className="list-disc list-inside space-y-4">
-                                                <li>
-                                                    Nom d&apos;utilisateur: <Snippet symbol=""  color="success" size="sm">{state.data?.user.username}</Snippet>
-                                                </li>
-                                                <li>
-                                                    Mot de passe: <Snippet  symbol=""  color="success" size="sm">{state.data?.password}</Snippet>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    ) : erreurRoles ? (
-                                        <EtatErreur quoi="les rôles" onReessayer={() => fetchRole()} enCours={chargementRoles} />
-                                    ) : (
-                                        <form action={formAction}>
-                                            <div className="grid gap-4 p-5">
-                                                <Controller
-                                                    control={control}
-                                                    name="username"
-                                                    render={({ field }) => (
-                                                        <Input
-                                                            {...field}
-                                                            isRequired
-                                                            aria-invalid={errors.username ? 'true' : 'false'}
-                                                            aria-label="username input"
-                                                            errorMessage={errors.username?.message ?? ''}
-                                                            isInvalid={!!errors.username}
-                                                            label="Nom d'utilisateur"
-                                                            labelPlacement="outside"
-                                                            placeholder="Entrez le nom d'utilisateur"
-                                                            name="username"
-                                                            type="text"
-                                                            variant="bordered"
-                                                            radius="sm"
-                                                            value={field.value ?? ''}
-                                                        />
-                                                    )}
-                                                />
-                                                <Controller
-                                                    control={control}
-                                                    name="name"
-                                                    render={({ field }) => (
-                                                        <Input
-                                                            {...field}
-                                                            isRequired
-                                                            aria-invalid={errors.name ? 'true' : 'false'}
-                                                            aria-label="name input"
-                                                            errorMessage={errors.name?.message ?? ''}
-                                                            isInvalid={!!errors.name}
-                                                            label="Nom"
-                                                            labelPlacement="outside"
-                                                            placeholder="Entrez le nom"
-                                                            name="name"
-                                                            type="text"
-                                                            variant="bordered"
-                                                            radius="sm"
-                                                            value={field.value ?? ''}
-                                                        />
-                                                    )}
-                                                />
-                                                <Controller
-                                                    control={control}
-                                                    name="prenoms"
-                                                    render={({ field }) => (
-                                                        <Input
-                                                            {...field}
-                                                            isRequired
-                                                            aria-invalid={errors.prenoms ? 'true' : 'false'}
-                                                            aria-label="prenoms input"
-                                                            errorMessage={errors.prenoms?.message ?? ''}
-                                                            isInvalid={!!errors.prenoms}
-                                                            label="Prénoms"
-                                                            labelPlacement="outside"
-                                                            placeholder="Entrez le prénom"
-                                                            name="prenoms"
-                                                            type="text"
-                                                            variant="bordered"
-                                                            radius="sm"
-                                                            value={field.value ?? ''}
-                                                        />
-                                                    )}
-                                                />
-                                                <Controller
-                                                    control={control}
-                                                    name="email"
-                                                    render={({ field }) => (
-                                                        <Input
-                                                            {...field}
-                                                            isRequired
-                                                            aria-invalid={errors.email ? 'true' : 'false'}
-                                                            aria-label="email input"
-                                                            errorMessage={errors.email?.message ?? ''}
-                                                            isInvalid={!!errors.email}
-                                                            label="Email"
-                                                            labelPlacement="outside"
-                                                            placeholder="Entrez l'email"
-                                                            name="email"
-                                                            type="email"
-                                                            variant="bordered"
-                                                            radius="sm"
-                                                            value={field.value ?? ''}
-                                                        />
-                                                    )}
-                                                />
-                                                <Controller
-                                                    control={control}
-                                                    name="role"
-                                                    render={({ field }) => (
-                                                        <Select
-                                                            {...field}
-                                                            isRequired
-                                                            required
-                                                            errorMessage={errors.role?.message ?? ''}
-                                                            isInvalid={!!errors.role}
-                                                            name="role"
-                                                            className="w-full"
-                                                            label="Rôle"
-                                                            labelPlacement="outside"
-                                                            placeholder="Entrez le rôle"
-                                                            variant="bordered"
-                                                            radius="sm"
-                                                        >
-                                                            {rolesSelections.map((role) => (
-                                                                <SelectItem key={role.value} textValue={role.label} value={role.value}>
-                                                                    {role.label}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </Select>
-                                                    )}
-                                                />
+            </Button>
 
-                                                <div className="mt-8 flex items-center justify-end">
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-outline-danger"
-                                                        onClick={() => {
-                                                            setOpen(false);
-                                                            router.refresh();
-                                                        }}
-                                                    >
-                                                        Annuler
-                                                    </button>
-                                                    <SubmitButton className="btn btn-primary ltr:ml-4 rtl:mr-4">Ajouter</SubmitButton>
-                                                </div>
-                                            </div>
-                                        </form>
-                                    )}
-                                </DialogPanel>
-                            </TransitionChild>
+            <FenetreAction
+                libelleFermer={state.status === 'success' ? 'Fermer' : 'Annuler'}
+                onFermer={fermer}
+                ouvert={open}
+                titre={
+                    state.status === 'success' && state.data?.password
+                        ? "Les accès de l'utilisateur créé"
+                        : 'Ajouter un utilisateur'
+                }
+            >
+                {state.status === 'success' ? (
+                    /*
+                     * Les identifiants etaient rendus par le `Snippet` de la v2, dans un
+                     * `<li>` a puce, en VERT — comme si distribuer un mot de passe en clair
+                     * etait une bonne nouvelle. `ChampCopiable` les affiche en chasse fixe
+                     * avec un bouton de copie et un retour visible : sans confirmation, on
+                     * recopie a la main « au cas ou ».
+                     */
+                    <>
+                        <div className="flex flex-col gap-1">
+                            <span className="text-sm text-muted">Nom d&apos;utilisateur</span>
+                            <ChampCopiable valeur={state.data?.user.username ?? ''} />
                         </div>
-                    </div>
-                </Dialog>
-            </Transition>
+                        <div className="flex flex-col gap-1">
+                            <span className="text-sm text-muted">Mot de passe</span>
+                            <ChampCopiable valeur={state.data?.password ?? ''} />
+                        </div>
+                    </>
+                ) : erreurRoles ? (
+                    <EtatErreur
+                        enCours={chargementRoles}
+                        onReessayer={() => fetchRole()}
+                        quoi="les rôles"
+                    />
+                ) : (
+                    <form action={formAction} className="flex flex-col gap-4">
+                        {/* Chaque champ portait un `aria-label` en ANGLAIS — « username
+                            input », « prenoms input » — qui REMPLACE le libelle francais
+                            pour le lecteur d'ecran. */}
+                        <Controller
+                            control={control}
+                            name="username"
+                            render={({ field }) => (
+                                <>
+                                    <input name="username" type="hidden" value={field.value ?? ''} />
+                                    <ChampTexte
+                                        erreur={errors.username?.message}
+                                        label="Nom d'utilisateur"
+                                        onChange={field.onChange}
+                                        placeholder="Entrez le nom d'utilisateur"
+                                        valeur={field.value ?? ''}
+                                    />
+                                </>
+                            )}
+                        />
+                        <Controller
+                            control={control}
+                            name="name"
+                            render={({ field }) => (
+                                <>
+                                    <input name="name" type="hidden" value={field.value ?? ''} />
+                                    <ChampTexte
+                                        erreur={errors.name?.message}
+                                        label="Nom"
+                                        onChange={field.onChange}
+                                        placeholder="Entrez le nom"
+                                        valeur={field.value ?? ''}
+                                    />
+                                </>
+                            )}
+                        />
+                        <Controller
+                            control={control}
+                            name="prenoms"
+                            render={({ field }) => (
+                                <>
+                                    <input name="prenoms" type="hidden" value={field.value ?? ''} />
+                                    <ChampTexte
+                                        erreur={errors.prenoms?.message}
+                                        label="Prénoms"
+                                        onChange={field.onChange}
+                                        placeholder="Entrez les prénoms"
+                                        valeur={field.value ?? ''}
+                                    />
+                                </>
+                            )}
+                        />
+                        <Controller
+                            control={control}
+                            name="email"
+                            render={({ field }) => (
+                                <>
+                                    <input name="email" type="hidden" value={field.value ?? ''} />
+                                    <ChampTexte
+                                        erreur={errors.email?.message}
+                                        label="Email"
+                                        onChange={field.onChange}
+                                        placeholder="Entrez l'email"
+                                        type="email"
+                                        valeur={field.value ?? ''}
+                                    />
+                                </>
+                            )}
+                        />
+                        <Controller
+                            control={control}
+                            name="role"
+                            render={({ field }) => (
+                                <>
+                                    <input name="role" type="hidden" value={field.value ?? ''} />
+                                    <ChampListe
+                                        erreur={errors.role?.message}
+                                        label="Rôle"
+                                        onChange={field.onChange}
+                                        options={rolesSelections}
+                                        placeholder="Rechercher un rôle"
+                                        valeur={field.value ?? ''}
+                                    />
+                                </>
+                            )}
+                        />
+
+                        <div className="flex items-center justify-end">
+                            <SubmitButton className="w-auto">Ajouter</SubmitButton>
+                        </div>
+                    </form>
+                )}
+            </FenetreAction>
         </>
     );
 };

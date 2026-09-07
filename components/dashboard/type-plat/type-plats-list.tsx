@@ -4,7 +4,7 @@ import IconSearch from '@/components/icon/icon-search';
 import React, { useState } from 'react';
 import { Collection } from '@/types/models';
 
-import { Avatar, Chip } from "@/components/heroui";
+import { Avatar, Chip } from '@heroui-v3/react';
 import TypePlatsTools from './type-plats-tools';
 import { createUrlFile } from '@/utils/createUrlFile';
 import TypePlatAdd from './type-plats-add';
@@ -51,12 +51,30 @@ const TypePlatsList = ({ typePlats }: { typePlats: Collection[] }) => {
                                     <tr key={typePlat.id}>
                                         <td>
                                             <div className="flex w-max items-center">
-                                                <Avatar src={createUrlFile(typePlat.pictureUrl ?? '', 'erp')} className="mr-2" />
+                                                <Avatar className="mr-2 size-9 shrink-0">
+                                                    {typePlat.pictureUrl && (
+                                                        <Avatar.Image
+                                                            alt={typePlat.libelle}
+                                                            src={createUrlFile(typePlat.pictureUrl, 'erp')}
+                                                        />
+                                                    )}
+                                                    <Avatar.Fallback>
+                                                        {typePlat.libelle?.[0]?.toUpperCase() ?? '?'}
+                                                    </Avatar.Fallback>
+                                                </Avatar>
                                                 <div>{typePlat.libelle}</div>
                                             </div>
                                         </td>
                                         <td>{typePlat.description}</td>
-                                        <td>{typePlat.status === 1 ? <Chip color="success">Actif</Chip> : <Chip color="warning">Inactif</Chip>}</td>
+                                        <td>{typePlat.status === 1 ? (
+                                            <Chip color="success" size="sm" variant="soft">
+                                                <Chip.Label>Actif</Chip.Label>
+                                            </Chip>
+                                        ) : (
+                                            <Chip size="sm" variant="soft">
+                                                <Chip.Label>Inactif</Chip.Label>
+                                            </Chip>
+                                        )}</td>
                                         <td>
                                             <TypePlatsTools typePlat={typePlat} />
                                         </td>
@@ -77,10 +95,28 @@ const TypePlatsList = ({ typePlats }: { typePlats: Collection[] }) => {
                         <div key={typePlat.id} className="space-y-2 rounded-xl border border-separator bg-surface p-4 shadow-xs">
                             <div className="flex items-start justify-between gap-2">
                                 <div className="flex min-w-0 items-center gap-2">
-                                    <Avatar src={createUrlFile(typePlat.pictureUrl ?? '', 'erp')} />
+                                    <Avatar className="size-9 shrink-0">
+                                        {typePlat.pictureUrl && (
+                                            <Avatar.Image
+                                                alt={typePlat.libelle}
+                                                src={createUrlFile(typePlat.pictureUrl, 'erp')}
+                                            />
+                                        )}
+                                        <Avatar.Fallback>
+                                            {typePlat.libelle?.[0]?.toUpperCase() ?? '?'}
+                                        </Avatar.Fallback>
+                                    </Avatar>
                                     <p className="truncate text-sm font-semibold text-foreground">{typePlat.libelle}</p>
                                 </div>
-                                {typePlat.status === 1 ? <Chip color="success">Actif</Chip> : <Chip color="warning">Inactif</Chip>}
+                                {typePlat.status === 1 ? (
+                                            <Chip color="success" size="sm" variant="soft">
+                                                <Chip.Label>Actif</Chip.Label>
+                                            </Chip>
+                                        ) : (
+                                            <Chip size="sm" variant="soft">
+                                                <Chip.Label>Inactif</Chip.Label>
+                                            </Chip>
+                                        )}
                             </div>
 
                             {typePlat.description ? (

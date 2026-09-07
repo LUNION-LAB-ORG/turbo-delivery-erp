@@ -1,7 +1,7 @@
 'use client';
 
 import { Collection } from '@/types/models';
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Button } from "@/components/heroui";
+import { Button, Dropdown } from '@heroui-v3/react';
 import { useState } from 'react';
 import { IconDotsVertical } from '@tabler/icons-react';
 import TypePlatEdit from './type-plats-edit';
@@ -13,24 +13,26 @@ const TypePlatsTools = ({ typePlat }: { typePlat: Collection }) => {
     const canUpdate = ability.can('manage', 'Menu');
     return (
       <>
-        {' '}
         <Dropdown>
-          <DropdownTrigger>
-            <Button variant="light" isIconOnly>
-              <IconDotsVertical />
-            </Button>
-          </DropdownTrigger>
-          <DropdownMenu aria-label="Static Actions">
-            <DropdownSection showDivider title="Actions">
+          <Button
+            aria-label={`Actions sur ${typePlat.libelle ?? 'ce type de plat'}`}
+            isIconOnly
+            size="sm"
+            variant="ghost"
+          >
+            <IconDotsVertical />
+          </Button>
+          <Dropdown.Popover placement="bottom end">
+            <Dropdown.Menu aria-label="Actions">
               {canUpdate ? (
-                <DropdownItem key="edit" onPress={() => setOpen(true)}>
+                <Dropdown.Item id="edit" onAction={() => setOpen(true)} textValue="Modifier">
                   Modifier
-                </DropdownItem>
+                </Dropdown.Item>
               ) : null}
-            </DropdownSection>
-          </DropdownMenu>
+            </Dropdown.Menu>
+          </Dropdown.Popover>
         </Dropdown>
-        <TypePlatEdit typePlat={typePlat} open={open} setOpen={setOpen} />
+        <TypePlatEdit open={open} setOpen={setOpen} typePlat={typePlat} />
       </>
     );
 };

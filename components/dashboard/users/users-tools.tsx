@@ -2,7 +2,7 @@
 
 import { User } from '@/types/models';
 import UsersEdit from './users-edit';
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Button } from "@/components/heroui";
+import { Button, Dropdown } from '@heroui-v3/react';
 import { useState } from 'react';
 import { IconDotsVertical } from '@tabler/icons-react';
 import UsersDeleteRestaure from './users-delete-restaure';
@@ -18,71 +18,109 @@ const UsersTools = ({ user, value }: { user: User; value: 'list' | 'grid' }) => 
     const ability = useAbility();
     const canUpdate = ability.can('update', 'Utilisateur');
     const canDelete = ability.can('delete', 'Utilisateur');
+    const nom = [user.prenoms, user.nom].filter(Boolean).join(' ') || user.username;
+
     return (
         <>
             {value === 'list' && (
+                /*
+                 * `Dropdown.Trigger` rend son PROPRE bouton : le `Button` est enfant DIRECT
+                 * du `Dropdown`, faute de quoi on obtient un bouton dans un bouton. Et il
+                 * n'avait aucun nom accessible — quatre gestes derriere trois points muets.
+                 */
                 <Dropdown>
-                    <DropdownTrigger>
-                        <Button variant="light" isIconOnly>
-                            <IconDotsVertical />
-                        </Button>
-                    </DropdownTrigger>
-                    <DropdownMenu aria-label="Static Actions">
-                        <DropdownSection showDivider title="Actions">
+                    <Button aria-label={`Actions sur ${nom}`} isIconOnly size="sm" variant="ghost">
+                        <IconDotsVertical />
+                    </Button>
+                    <Dropdown.Popover placement="bottom end">
+                        <Dropdown.Menu aria-label={`Actions sur ${nom}`}>
                             {canUpdate ? (
-                                <DropdownItem key="edit" onPress={() => setOpen(true)}>
+                                <Dropdown.Item
+                                    id="edit"
+                                    onAction={() => setOpen(true)}
+                                    textValue="Modifier"
+                                >
                                     Modifier
-                                </DropdownItem>
+                                </Dropdown.Item>
                             ) : null}
                             {canUpdate ? (
-                                <DropdownItem key="resetPassword" onPress={() => setOpenResetPassword(true)}>
+                                <Dropdown.Item
+                                    id="resetPassword"
+                                    onAction={() => setOpenResetPassword(true)}
+                                    textValue="Réinitialiser le mot de passe"
+                                >
                                     Réinitialiser le mot de passe
-                                </DropdownItem>
+                                </Dropdown.Item>
                             ) : null}
                             {canUpdate ? (
-                                <DropdownItem key="disableEnable" className="text-danger-soft-foreground" color="danger" onPress={() => setOpenDisableEnable(true)}>
+                                <Dropdown.Item
+                                    className={user.status ? 'text-danger-soft-foreground' : undefined}
+                                    id="disableEnable"
+                                    onAction={() => setOpenDisableEnable(true)}
+                                    textValue={user.status ? 'Désactiver' : 'Activer'}
+                                >
                                     {user.status ? 'Désactiver' : 'Activer'}
-                                </DropdownItem>
+                                </Dropdown.Item>
                             ) : null}
-                        </DropdownSection>
-                        {canDelete ? (
-                            <DropdownItem key="delete" className="text-danger-soft-foreground" color="danger" onPress={() => setOpenDelete(true)}>
-                                {user.deleted ? 'Restaurer' : 'Supprimer'}
-                            </DropdownItem>
-                        ) : null}
-                    </DropdownMenu>
+                            {canDelete ? (
+                                <Dropdown.Item
+                                    className={user.deleted ? undefined : 'text-danger-soft-foreground'}
+                                    id="delete"
+                                    onAction={() => setOpenDelete(true)}
+                                    textValue={user.deleted ? 'Restaurer' : 'Supprimer'}
+                                >
+                                    {user.deleted ? 'Restaurer' : 'Supprimer'}
+                                </Dropdown.Item>
+                            ) : null}
+                        </Dropdown.Menu>
+                    </Dropdown.Popover>
                 </Dropdown>
             )}
 
             {value === 'grid' && (
-                <div className="absolute bottom-0 mt-6 flex w-full gap-4 p-6 ltr:left-0 rtl:right-0">
+                /*
+                 * Les QUATRE boutons de la vue en grille venaient des classes du gabarit
+                 * d'origine : `btn-outline-danger` sur « Supprimer » comme sur
+                 * « Desactiver », et `btn-outline-primary` — le rouge de marque — sur
+                 * « Modifier » et « Mot de passe ». Quatre boutons rouges cote a cote, dont
+                 * deux ne detruisent rien.
+                 */
+                <div className="absolute bottom-0 left-0 mt-6 flex w-full flex-wrap gap-2 p-6">
                     {canDelete && (
-                        <button type="button" onClick={() => setOpenDelete(true)} className="btn btn-sm btn-outline-danger w-1/2">
+                        <Button
+                            onPress={() => setOpenDelete(true)}
+                            size="sm"
+                            variant={user.deleted ? 'outline' : 'danger-soft'}
+                        >
                             {user.deleted ? 'Restaurer' : 'Supprimer'}
-                        </button>
+                        </Button>
                     )}
                     {canUpdate && (
-                        <button type="button" onClick={() => setOpenDisableEnable(true)} className="btn btn-sm btn-outline-danger w-1/2">
+                        <Button
+                            onPress={() => setOpenDisableEnable(true)}
+                            size="sm"
+                            variant={user.status === 1 ? 'danger-soft' : 'outline'}
+                        >
                             {user.status === 1 ? 'Désactiver' : 'Activer'}
-                        </button>
+                        </Button>
                     )}
                     {canUpdate && (
-                        <button type="button" onClick={() => setOpen(true)} className="btn btn-sm btn-outline-primary w-1/2">
+                        <Button onPress={() => setOpen(true)} size="sm" variant="outline">
                             Modifier
-                        </button>
+                        </Button>
                     )}
                     {canUpdate && (
-                        <button type="button" onClick={() => setOpenResetPassword(true)} className="btn btn-sm btn-outline-primary w-1/2">
+                        <Button onPress={() => setOpenResetPassword(true)} size="sm" variant="outline">
                             Mot de passe
-                        </button>
+                        </Button>
                     )}
                 </div>
             )}
 
-            <UsersEdit user={user} open={open} setOpen={setOpen} />
-            <UsersDeleteRestaure user={user} open={openDelete} setOpen={setOpenDelete} />
-            <UsersDisableEnable user={user} open={openDisableEnable} setOpen={setOpenDisableEnable} />
-            <UsersResetPassword user={user} open={openResetPassword} setOpen={setOpenResetPassword} />
+            <UsersEdit open={open} setOpen={setOpen} user={user} />
+            <UsersDeleteRestaure open={openDelete} setOpen={setOpenDelete} user={user} />
+            <UsersDisableEnable open={openDisableEnable} setOpen={setOpenDisableEnable} user={user} />
+            <UsersResetPassword open={openResetPassword} setOpen={setOpenResetPassword} user={user} />
         </>
     );
 };

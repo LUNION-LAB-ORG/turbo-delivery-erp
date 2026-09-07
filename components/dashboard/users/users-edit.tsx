@@ -2,17 +2,16 @@
 
 import { toast } from 'sonner';
 import { Role, User } from '@/types/models';
-import IconX from '@/components/icon/icon-x';
 import EtatErreur from '@/components/commons/EtatErreur';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { useActionState } from 'react';
 import { updateUser } from '@/src/actions/users.actions';
 import { getAllRoles } from '@/src/actions/roles.actions';
-import React, { Fragment, useCallback, useEffect, useState } from 'react';
-import { Button, Input, Select, SelectItem } from "@/components/heroui";
+import React, { useCallback, useEffect, useState } from 'react';
 import { _createUserSchema, createUserSchema } from '@/src/schemas/users.schema';
-import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
+import { ChampListe, ChampTexte } from '@/components/commons/champs-formulaire';
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { SubmitButton } from '@/components/ui/form-ui/submit-button';
 
 const UsersEdit = ({ user, open, setOpen }: { user: User; open: boolean; setOpen: (open: boolean) => void }) => {
@@ -99,171 +98,112 @@ const UsersEdit = ({ user, open, setOpen }: { user: User; open: boolean; setOpen
 
     const watchedRole = watch("role");
 
-    return (
-        <Transition appear show={open} as={Fragment}>
-            <Dialog as="div" open={open} onClose={() => setOpen(false)} className="relative z-50">
-                <TransitionChild as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-                    <div className="fixed inset-0 bg-[black]/60" />
-                </TransitionChild>
-                <div className="fixed inset-0 overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center px-4 py-8">
-                        <TransitionChild
-                            as={Fragment}
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 scale-95"
-                            enterTo="opacity-100 scale-100"
-                            leave="ease-in duration-200"
-                            leaveFrom="opacity-100 scale-100"
-                            leaveTo="opacity-0 scale-95"
-                        >
-                            <DialogPanel className="panel w-full max-w-lg overflow-hidden rounded-lg border-0 p-0 text-black dark:text-white-dark">
-                                <button
-                                    type="button"
-                                    onClick={() => setOpen(false)}
-                                    className="absolute top-4 text-muted outline-hidden hover:text-foreground ltr:right-4 rtl:left-4 dark:hover:text-muted"
-                                >
-                                    <IconX />
-                                </button>
-                                <div className="bg-surface-secondary py-3 text-lg font-medium ltr:pl-5 ltr:pr-[50px] rtl:pl-[50px] rtl:pr-5 text-primary">Ajouter un utilisateur</div>
-                                {erreurRoles ? (
-                                    <EtatErreur quoi="les rôles" onReessayer={() => fetchRole()} enCours={chargementRoles} />
-                                ) : (
-                                <form action={formAction}>
-                                    <input type="hidden" name="role" value={watchedRole ?? ''} />
-                                    <div className="grid gap-4 p-5">
-                                        <Controller
-                                            control={control}
-                                            name="username"
-                                            render={({ field }) => (
-                                                <Input
-                                                    {...field}
-                                                    isRequired
-                                                    aria-invalid={errors.username ? 'true' : 'false'}
-                                                    aria-label="username input"
-                                                    errorMessage={errors.username?.message ?? ''}
-                                                    isInvalid={!!errors.username}
-                                                    label="Nom d'utilisateur"
-                                                    labelPlacement="outside"
-                                                    placeholder="Entrez le nom d'utilisateur"
-                                                    name="username"
-                                                    type="text"
-                                                    variant="bordered"
-                                                    radius="sm"
-                                                    value={field.value ?? ''}
-                                                />
-                                            )}
-                                        />
-                                        <Controller
-                                            control={control}
-                                            name="name"
-                                            render={({ field }) => (
-                                                <Input
-                                                    {...field}
-                                                    isRequired
-                                                    aria-invalid={errors.name ? 'true' : 'false'}
-                                                    aria-label="name input"
-                                                    errorMessage={errors.name?.message ?? ''}
-                                                    isInvalid={!!errors.name}
-                                                    label="Nom"
-                                                    labelPlacement="outside"
-                                                    placeholder="Entrez le nom"
-                                                    name="name"
-                                                    type="text"
-                                                    variant="bordered"
-                                                    radius="sm"
-                                                    value={field.value ?? ''}
-                                                />
-                                            )}
-                                        />
-                                        <Controller
-                                            control={control}
-                                            name="prenoms"
-                                            render={({ field }) => (
-                                                <Input
-                                                    {...field}
-                                                    isRequired
-                                                    aria-invalid={errors.prenoms ? 'true' : 'false'}
-                                                    aria-label="prenoms input"
-                                                    errorMessage={errors.prenoms?.message ?? ''}
-                                                    isInvalid={!!errors.prenoms}
-                                                    label="Prénoms"
-                                                    labelPlacement="outside"
-                                                    placeholder="Entrez le prénom"
-                                                    name="prenoms"
-                                                    type="text"
-                                                    variant="bordered"
-                                                    radius="sm"
-                                                    value={field.value ?? ''}
-                                                />
-                                            )}
-                                        />
-                                        <Controller
-                                            control={control}
-                                            name="email"
-                                            render={({ field }) => (
-                                                <Input
-                                                    {...field}
-                                                    isRequired
-                                                    aria-invalid={errors.email ? 'true' : 'false'}
-                                                    aria-label="email input"
-                                                    errorMessage={errors.email?.message ?? ''}
-                                                    isInvalid={!!errors.email}
-                                                    label="Email"
-                                                    labelPlacement="outside"
-                                                    placeholder="Entrez l'email"
-                                                    name="email"
-                                                    type="email"
-                                                    variant="bordered"
-                                                    radius="sm"
-                                                    value={field.value ?? ''}
-                                                />
-                                            )}
-                                        />
-                                        <Controller
-                                            control={control}
-                                            name="role"
-                                            render={({ field }) => (
-                                                <Select
-                                                    isRequired
-                                                    label="Rôle"
-                                                    labelPlacement="outside"
-                                                    variant="bordered"
-                                                    radius="sm"
-                                                    className="w-full"
-                                                    selectedKeys={field.value ? [String(field.value)] : []}
-                                                    onSelectionChange={(keys) => {
-                                                        const value = Array.from(keys)[0];
-                                                        field.onChange(value);
-                                                    }}
-                                                    isInvalid={!!errors.role}
-                                                    errorMessage={errors.role?.message ?? ''}>
-                                                    {rolesSelections.map((role) => (
-                                                        <SelectItem
-                                                            key={String(role.value)}
-                                                            textValue={role.label}
-                                                        >
-                                                            {role.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </Select>
-                                            )}
-                                        />
+    const nom = [user.prenoms, user.nom].filter(Boolean).join(' ') || user.username;
 
-                                        <div className="mt-8 flex items-center justify-end">
-                                            <button type="button" className="btn btn-outline-danger" onClick={() => setOpen(false)}>
-                                                Annuler
-                                            </button>
-                                            <SubmitButton className="btn btn-primary ltr:ml-4 rtl:mr-4">Ajouter</SubmitButton>
-                                        </div>
-                                    </div>
-                                </form>
-                                )}
-                            </DialogPanel>
-                        </TransitionChild>
+    return (
+        <FenetreAction onFermer={() => setOpen(false)} ouvert={open} titre={`Modifier ${nom}`}>
+            {/*
+             * Le titre de cette fenetre disait « Ajouter un utilisateur » et son bouton
+             * « Ajouter » : un copier-coller depuis la fenetre de creation, reste tel quel.
+             * Elle MODIFIE un compte existant.
+             */}
+            {erreurRoles ? (
+                <EtatErreur enCours={chargementRoles} onReessayer={() => fetchRole()} quoi="les rôles" />
+            ) : (
+                <form action={formAction} className="flex flex-col gap-4">
+                    <input name="role" type="hidden" value={watchedRole ?? ''} />
+                    {/* Chaque champ portait un `aria-label` en ANGLAIS — « username input »,
+                        « prenoms input » — qui REMPLACE le libelle francais pour le lecteur
+                        d'ecran. */}
+                    <Controller
+                        control={control}
+                        name="username"
+                        render={({ field }) => (
+                            <>
+                                <input name="username" type="hidden" value={field.value ?? ''} />
+                                <ChampTexte
+                                    erreur={errors.username?.message}
+                                    label="Nom d'utilisateur"
+                                    onChange={field.onChange}
+                                    placeholder="Entrez le nom d'utilisateur"
+                                    valeur={field.value ?? ''}
+                                />
+                            </>
+                        )}
+                    />
+                    <Controller
+                        control={control}
+                        name="name"
+                        render={({ field }) => (
+                            <>
+                                <input name="name" type="hidden" value={field.value ?? ''} />
+                                <ChampTexte
+                                    erreur={errors.name?.message}
+                                    label="Nom"
+                                    onChange={field.onChange}
+                                    placeholder="Entrez le nom"
+                                    valeur={field.value ?? ''}
+                                />
+                            </>
+                        )}
+                    />
+                    <Controller
+                        control={control}
+                        name="prenoms"
+                        render={({ field }) => (
+                            <>
+                                <input name="prenoms" type="hidden" value={field.value ?? ''} />
+                                <ChampTexte
+                                    erreur={errors.prenoms?.message}
+                                    label="Prénoms"
+                                    onChange={field.onChange}
+                                    placeholder="Entrez les prénoms"
+                                    valeur={field.value ?? ''}
+                                />
+                            </>
+                        )}
+                    />
+                    <Controller
+                        control={control}
+                        name="email"
+                        render={({ field }) => (
+                            <>
+                                <input name="email" type="hidden" value={field.value ?? ''} />
+                                <ChampTexte
+                                    erreur={errors.email?.message}
+                                    label="Email"
+                                    onChange={field.onChange}
+                                    placeholder="Entrez l'email"
+                                    type="email"
+                                    valeur={field.value ?? ''}
+                                />
+                            </>
+                        )}
+                    />
+                    <Controller
+                        control={control}
+                        name="role"
+                        render={({ field }) => (
+                            <ChampListe
+                                erreur={errors.role?.message}
+                                label="Rôle"
+                                onChange={field.onChange}
+                                options={rolesSelections.map((r) => ({
+                                    label: r.label,
+                                    value: String(r.value),
+                                }))}
+                                placeholder="Rechercher un rôle"
+                                valeur={field.value ? String(field.value) : ''}
+                            />
+                        )}
+                    />
+
+                    <div className="flex items-center justify-end">
+                        <SubmitButton className="w-auto">Enregistrer</SubmitButton>
                     </div>
-                </div>
-            </Dialog>
-        </Transition>
+                </form>
+            )}
+        </FenetreAction>
     );
 };
 

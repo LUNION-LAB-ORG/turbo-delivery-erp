@@ -1,42 +1,40 @@
 'use client';
 
-import IconX from '@/components/icon/icon-x';
-import { DeliveryMan, LivreurStatutVM } from '@/types/models';
-import { Transition, Dialog, TransitionChild, DialogPanel } from '@headlessui/react';
-import { Button } from '@heroui-v3/react';
-import React, { Fragment } from 'react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
+import { toast } from 'sonner';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { validateDeliveryMan } from '@/src/actions/delivery-men.actions';
+import { LivreurStatutVM } from '@/types/models';
 
 const DeliveryMenStatusValidate = ({
   deliveryMan,
+  onSuccess,
   open,
   setOpen,
   validateBy = 'no-body',
-  onSuccess,
 }: {
   deliveryMan: LivreurStatutVM;
+  onSuccess?: () => void;
   open: boolean;
   setOpen: (open: boolean) => void;
-  validateBy: 'auth' | 'ops' | 'no-body';
-  onSuccess?: () => void;
+  validateBy: 'auth' | 'no-body' | 'ops';
 }) => {
-    /*
-     * `useFormStatus()` renvoyait toujours `pending: false` ici.
-     *
-     * Ce hook ne lit l'etat que d'un `<form>` ANCESTRAL, et depuis un composant
-     * ENFANT de ce formulaire. Appele dans le composant qui rend le formulaire — ou,
-     * pire, dans une modale qui n'en contient aucun — il ne peut rien observer.
-     * Consequence : le bouton restait actif pendant l'attente, sans indicateur, et
-     * rien n'empechait un second clic. Sur « desactiver un utilisateur » ou
-     * « valider un livreur », cela declenche l'action deux fois.
-     *
-     * L'etat est desormais tenu localement, autour de l'appel.
-     */
+  /*
+   * `useFormStatus()` renvoyait toujours `pending: false` ici.
+   *
+   * Ce hook ne lit l'etat que d'un `<form>` ANCESTRAL, et depuis un composant
+   * ENFANT de ce formulaire. Appele dans une modale qui n'en contient aucun, il ne
+   * peut rien observer : le bouton restait actif pendant l'attente, sans indicateur,
+   * et rien n'empechait un second clic — sur « valider un livreur », cela declenche
+   * l'action deux fois.
+   */
   const [pending, setPending] = useState(false);
   const router = useRouter();
+
+  const valide = validateBy === 'auth';
+
   const handleSubmit = async () => {
     const result = await validateDeliveryMan(deliveryMan.livreurId ?? '', validateBy);
     if (result.status === 'success') {
@@ -51,62 +49,24 @@ const DeliveryMenStatusValidate = ({
   };
 
   return (
-    <Transition appear show={open} as={Fragment}>
-      <Dialog as="div" open={open} onClose={() => setOpen(false)} className="relative z-50">
-        <TransitionChild as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <div className="fixed inset-0 bg-[black]/60" />
-        </TransitionChild>
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center px-4 py-8">
-            <TransitionChild
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <DialogPanel className="panel w-full max-w-lg overflow-hidden rounded-lg border-0 p-0 text-black dark:text-white-dark">
-                <button type="button" onClick={() => setOpen(false)} className="absolute top-4 text-muted outline-hidden hover:text-foreground ltr:right-4 rtl:left-4 dark:hover:text-muted">
-                  <IconX />
-                </button>
-                <div className="bg-surface-secondary py-3 text-lg font-medium text-foreground ltr:pl-5 ltr:pr-[50px] rtl:pl-[50px] rtl:pr-5">
-                  {validateBy == 'auth' ? 'Valider' : 'Activer'} le livreur
-                </div>
-                <div className="grid gap-4 p-5">
-                  <p className="text-muted">{validateBy == 'auth' ? 'Voulez-vous valider le livreur ?' : 'Voulez-vous activer le livreur ?'}</p>
-                  <div className="mt-8 flex items-center justify-end">
-                    {/*
-                     * « Annuler » etait un `<button className="btn btn-outline-danger">` :
-                     * la classe du DANGER sur le bouton qui ne fait rien. Et `onClick` sur
-                     * un Button v3 est ignore EN SILENCE — c'est `onPress`, sans quoi la
-                     * validation ne partait plus.
-                     */}
-                    <Button onPress={() => setOpen(false)} variant="ghost">
-                      Annuler
-                    </Button>
-                    <Button
-                      className="ltr:ml-4 rtl:mr-4"
-                      isDisabled={pending}
-                      isPending={pending}
-                      onPress={() => {
-                        if (pending) return;
-                        setPending(true);
-                        void handleSubmit().finally(() => setPending(false));
-                      }}
-                      variant="primary"
-                    >
-                      {validateBy == 'auth' ? 'Valider' : 'Activer'}
-                    </Button>
-                  </div>
-                </div>
-              </DialogPanel>
-            </TransitionChild>
-          </div>
-        </div>
-      </Dialog>
-    </Transition>
+    <FenetreAction
+      enAttente={pending}
+      libelleAction={valide ? 'Valider' : 'Activer'}
+      onAction={() => {
+        if (pending) return;
+        setPending(true);
+        void handleSubmit().finally(() => setPending(false));
+      }}
+      onFermer={() => setOpen(false)}
+      ouvert={open}
+      titre={`${valide ? 'Valider' : 'Activer'} ${deliveryMan.nomPrenom ?? 'le livreur'}`}
+    >
+      <p className="text-sm text-muted">
+        {valide
+          ? 'Le livreur passera au statut validé et pourra être assigné à un site partenaire.'
+          : 'Le livreur pourra de nouveau recevoir des courses.'}
+      </p>
+    </FenetreAction>
   );
 };
 

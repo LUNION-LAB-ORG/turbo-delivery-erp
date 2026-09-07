@@ -20,10 +20,7 @@ import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import React from 'react';
 import { toast } from 'sonner';
 
-import {
-    estVersionPerimee,
-    MESSAGE_VERSION_PERIMEE,
-} from '@/features/tickets/utils/version-perimee';
+import { estVersionPerimee, signalerVersionPerimee } from '@/features/tickets/utils/version-perimee';
 import { cn } from '@/lib/utils';
 import type { Ticket } from '@/types/bon-livraison.model';
 import type { Restaurant } from '@/types/models';
@@ -149,26 +146,10 @@ export function LignesPreparees({
         try {
             const { echoues, raisons, reussis } = await onEnregistrerLot(completes.map((t) => t.id));
             if (echoues > 0 && (raisons ?? []).some(estVersionPerimee)) {
-                /*
-                 * L'onglet est en retard sur le serveur, rien n'est refuse.
-                 *
-                 * <p>Les identifiants d'action serveur de Next sont des empreintes de
-                 * build : apres un deploiement, celui que cette page appelle n'existe
-                 * plus. Ce n'est ni un champ manquant ni un droit refuse, et le presenter
-                 * comme « 12 en echec » envoyait l'operateur chercher une faute qui
-                 * n'existe pas.</p>
-                 *
-                 * <p>Le rechargement est SANS RISQUE : les lignes en saisie sont gardees
-                 * dans le navigateur et reprises au retour.</p>
-                 */
-                toast.error(MESSAGE_VERSION_PERIMEE, {
-                    action: {
-                        label: 'Recharger',
-                        onClick: () => window.location.reload(),
-                    },
-                    description: 'Vos lignes sont conservées, vous les retrouverez après le rechargement.',
-                    duration: Infinity,
-                });
+                // Ni un champ manquant ni un droit refuse : la page est en retard sur le
+                // serveur. `signalerVersionPerimee` le dit et recharge, une seule fois,
+                // parce que les lignes en saisie sont gardees dans le navigateur.
+                signalerVersionPerimee();
             } else if (echoues > 0) {
                 toast.warning(
                     `${reussis} ticket${reussis > 1 ? 's' : ''} enregistré${reussis > 1 ? 's' : ''}, ${echoues} en échec.`,

@@ -5,6 +5,25 @@ import { restaurerArchivesRequest } from '@/features/tickets/request/tickets.req
 import { Ticket } from '@/types/bon-livraison.model';
 import { toast } from 'sonner';
 
+import { estVersionPerimee, signalerVersionPerimee } from '@/features/tickets/utils/version-perimee';
+
+/*
+ * Un echec d'action serveur n'est pas un echec de ticket.
+ *
+ * <p>Quand la page est en retard sur le serveur, Next repond 404 et « Server Action …
+ * was not found ». L'ecran affichait ce texte tel quel, precede de « Erreur lors de la
+ * creation du ticket » : l'operateur lisait que SON ticket etait refuse. Rien ne l'etait.
+ * Ce cas a son propre message, et l'ecran se recharge de lui-meme.</p>
+ */
+function signalerEchec(erreur: unknown, prefixe: string): void {
+  const message = erreur instanceof Error ? erreur.message : 'Erreur inconnue';
+  if (estVersionPerimee(message)) {
+    signalerVersionPerimee();
+    return;
+  }
+  toast.error(`${prefixe}: ${message}`);
+}
+
 export const useCreateBonLivraison = (handleSuccess?: () => void, handleError?: () => void) => {
   const invalidateTicketsQuery = useInvalidateTicketsQuery();
 
@@ -26,8 +45,7 @@ export const useCreateBonLivraison = (handleSuccess?: () => void, handleError?: 
     },
     onError: (error) => {
       console.error('Erreur création bon de livraison:', error);
-      const message = error instanceof Error ? error.message : 'Erreur inconnue';
-      toast.error(`Erreur lors de la création du ticket: ${message}`);
+      signalerEchec(error, 'Erreur lors de la création du ticket');
       if (handleError) handleError();
     },
   });
@@ -53,9 +71,8 @@ export const useUpdateBonLivraison = (handleSuccess?: () => void) => {
       }
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Erreur inconnue';
-      toast.error(`Erreur lors de la mise à jour du ticket: ${message}`);
       console.error(error);
+      signalerEchec(error, 'Erreur lors de la mise à jour du ticket');
     },
   });
 };

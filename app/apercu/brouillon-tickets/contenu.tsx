@@ -5,10 +5,7 @@ import React from 'react';
 import { toast } from 'sonner';
 
 import { useNewTickets } from '@/features/tickets/hooks/use-new-tickets';
-import {
-  estVersionPerimee,
-  MESSAGE_VERSION_PERIMEE,
-} from '@/features/tickets/utils/version-perimee';
+import { estVersionPerimee, signalerVersionPerimee } from '@/features/tickets/utils/version-perimee';
 import type { Restaurant } from '@/types/models';
 
 /**
@@ -48,11 +45,7 @@ export default function ApercuBrouillonTickets() {
       toast.warning('Non reconnu — le message serait affiché comme un échec métier.');
       return;
     }
-    toast.error(MESSAGE_VERSION_PERIMEE, {
-      action: { label: 'Recharger', onClick: () => window.location.reload() },
-      description: 'Vos lignes sont conservées, vous les retrouverez après le rechargement.',
-      duration: Infinity,
-    });
+    signalerVersionPerimee();
   };
 
   return (
@@ -79,6 +72,16 @@ export default function ApercuBrouillonTickets() {
           variant="ghost"
         >
           Tout vider
+        </Button>
+        <Button
+          onPress={() => {
+            window.sessionStorage.removeItem('turbo-erp:rechargement-version');
+            toast.success('Garde-fou remis à zéro : le prochain échec rechargera.');
+          }}
+          size="sm"
+          variant="ghost"
+        >
+          Réarmer le garde-fou
         </Button>
       </div>
 

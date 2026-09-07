@@ -20,7 +20,7 @@ import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import React from 'react';
 import { toast } from 'sonner';
 
-import { estVersionPerimee, signalerVersionPerimee } from '@/features/tickets/utils/version-perimee';
+import { estVersionPerimee, signalerVersionPerimee } from '@/lib/version-perimee';
 import { cn } from '@/lib/utils';
 import type { Ticket } from '@/types/bon-livraison.model';
 import type { Restaurant } from '@/types/models';

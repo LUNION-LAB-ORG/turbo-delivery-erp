@@ -1,11 +1,12 @@
 'use client';
 
 import { Button } from '@heroui-v3/react';
+import { useMutation } from '@tanstack/react-query';
 import React from 'react';
 import { toast } from 'sonner';
 
 import { useNewTickets } from '@/features/tickets/hooks/use-new-tickets';
-import { estVersionPerimee, signalerVersionPerimee } from '@/features/tickets/utils/version-perimee';
+import { estVersionPerimee, signalerVersionPerimee } from '@/lib/version-perimee';
 import type { Restaurant } from '@/types/models';
 
 /**
@@ -40,6 +41,19 @@ export default function ApercuBrouillonTickets() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /*
+   * Un ecran QUELCONQUE, avec son propre onError et son propre message metier.
+   *
+   * <p>Il ne connait pas `version-perimee`. Si le filet global fonctionne, sa
+   * notification brute est effacee et remplacee par la bonne.</p>
+   */
+  const lotQuiEchoue = useMutation({
+    mutationFn: async () => {
+      throw new Error(MESSAGE_REEL);
+    },
+    onError: () => toast.error('25 ticket(s) non validé(s)'),
+  });
+
   const simulerVersionPerimee = () => {
     if (!estVersionPerimee(MESSAGE_REEL)) {
       toast.warning('Non reconnu — le message serait affiché comme un échec métier.');
@@ -62,6 +76,9 @@ export default function ApercuBrouillonTickets() {
         </Button>
         <Button onPress={simulerVersionPerimee} size="sm" variant="ghost">
           Rejouer l&apos;échec de version périmée
+        </Button>
+        <Button onPress={() => lotQuiEchoue.mutate()} size="sm" variant="ghost">
+          Rejouer un LOT (filet global)
         </Button>
         <Button onPress={() => window.location.reload()} size="sm" variant="ghost">
           Recharger

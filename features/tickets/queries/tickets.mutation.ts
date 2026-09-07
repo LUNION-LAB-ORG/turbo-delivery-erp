@@ -5,7 +5,7 @@ import { restaurerArchivesRequest } from '@/features/tickets/request/tickets.req
 import { Ticket } from '@/types/bon-livraison.model';
 import { toast } from 'sonner';
 
-import { estVersionPerimee, signalerVersionPerimee } from '@/features/tickets/utils/version-perimee';
+import { estVersionPerimee, signalerVersionPerimee } from '@/lib/version-perimee';
 
 /*
  * Un echec d'action serveur n'est pas un echec de ticket.

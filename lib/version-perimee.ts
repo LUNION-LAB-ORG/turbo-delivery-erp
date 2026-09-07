@@ -9,9 +9,15 @@ import { toast } from 'sonner';
  * passe, l'identifiant qu'il appelle n'existe plus sur le serveur, qui répond 404 et
  * « Server Action … was not found on the server ».</p>
  *
- * <p>Rien n'est refusé, rien n'est invalide : c'est la page qui est en retard. L'écran
- * l'affichait pourtant comme un échec métier — « 0 ticket enregistré, 12 en échec » —
- * ce qui envoie l'opérateur chercher un champ manquant ou un droit qu'il n'a pas.</p>
+ * <p>Rien n'est refusé, rien n'est invalide : c'est la page qui est en retard. Les écrans
+ * l'affichaient pourtant comme un échec métier — « 0 ticket enregistré, 12 en échec »,
+ * « 25 ticket(s) non validé(s) » — ce qui envoie l'opérateur chercher un champ manquant
+ * ou un droit qu'il n'a pas.</p>
+ *
+ * <p>Ce module ne vit plus sous `features/tickets` : le cas frappe TOUT écran qui appelle
+ * une action serveur. Il est branché une fois pour toutes sur le `QueryClient`, dans
+ * `components/layouts/provider-component.tsx`, et couvre donc les 88 fichiers qui posent
+ * un `onError` sans qu'aucun d'eux n'ait à le savoir.</p>
  *
  * <h3>Pourquoi l'écran recharge lui-même</h3>
  * <p>Le seul remède est de recharger, et un opérateur qui saisit des tickets ne va pas
@@ -69,25 +75,45 @@ function noterLeRechargement(): void {
   }
 }
 
+/**
+ * Une seule notification, meme si vingt-cinq appels echouent.
+ *
+ * <p>Un lot de vingt-cinq validations produit vingt-cinq echecs, donc vingt-cinq passages
+ * ici. On n'agit qu'UNE fois par vie de page.</p>
+ *
+ * <p>Les notifications brutes des ecrans ne sont PAS effacees. Deux tentatives ont echoue
+ * et sont documentees pour qu'on ne les refasse pas : `toast.dismiss()` sans argument
+ * n'efface rien sur sonner 2.0.7 — verifie a l'ecran, l'attribut `data-removed` reste a
+ * `false`, alors que la croix d'une notification, elle, la retire bien ; et reafficher son
+ * propre message sous un identifiant fixe apres un effacement ne le reaffiche pas, sonner
+ * considere l'identifiant comme congedie.</p>
+ *
+ * <p>Ce n'est pas grave : sur le chemin normal la page recharge en moins de deux secondes
+ * et tout part avec elle. Sur l'autre chemin, les notifications des ecrans s'effacent
+ * d'elles-memes au bout de quatre secondes tandis que la notre reste, et le bouton
+ * « Tout fermer » de l'application couvre le reste.</p>
+ */
+let dejaSignale = false;
+
 /** À appeler à la place d'une notification d'erreur quand la version est périmée. */
 export function signalerVersionPerimee(): void {
-  const proposer = () =>
-    toast.error(MESSAGE_VERSION_PERIMEE, {
-      action: { label: 'Recharger', onClick: () => window.location.reload() },
-      description: 'Rien n’a été refusé : cette page est en retard sur le serveur.',
-      duration: Infinity,
-    });
+  if (dejaSignale) return;
+  dejaSignale = true;
 
   // Recharger detruirait la saisie si rien ne la garde : on propose, on n'impose pas.
   if (!stockageDisponible() || dejaRecharge()) {
-    proposer();
+    toast.error(MESSAGE_VERSION_PERIMEE, {
+      action: { label: 'Recharger', onClick: () => window.location.reload() },
+      description: 'Rien n\u2019a été refusé : cette page est en retard sur le serveur.',
+      duration: Infinity,
+    });
     return;
   }
 
   noterLeRechargement();
   toast.error(MESSAGE_VERSION_PERIMEE, {
     description: 'Rechargement en cours. Vos lignes en saisie sont conservées.',
-    duration: 4000,
+    duration: Infinity,
   });
   window.setTimeout(() => window.location.reload(), 1800);
 }

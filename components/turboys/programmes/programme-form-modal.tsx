@@ -234,8 +234,9 @@ export function ProgrammeFormModal({
                         : programme?.statut === 'REFUSE'
                           ? 'Il a été refusé. '
                           : ''}
-                      L&apos;enregistrer le renverra pour une nouvelle acceptation, et le
-                      livreur sera notifié.
+                      Modifier ses jours, ses horaires ou ses postes le renverra pour une
+                      nouvelle acceptation, et le livreur sera notifié. Le carburant seul ne
+                      le renvoie pas.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>

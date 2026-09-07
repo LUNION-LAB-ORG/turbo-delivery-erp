@@ -3,6 +3,7 @@
 import { Button } from '@heroui-v3/react';
 import React from 'react';
 
+import { CarburantRapideModal } from '@/components/turboys/programmes/carburant-rapide-modal';
 import { EngagementCarburant } from '@/components/turboys/programmes/engagement-carburant';
 import { ProgrammeApercuModal } from '@/components/turboys/programmes/programme-apercu-modal';
 import { WeeklyJoursEditor, defaultJours } from '@/components/turboys/programmes/weekly-jours-editor';
@@ -134,6 +135,20 @@ function BancEditeur() {
     );
 }
 
+/** La saisie rapide du carburant, sur un programme publié sans montant. */
+function BancCarburantRapide({ programme }: { programme: IProgramme }) {
+    const [ouvert, setOuvert] = React.useState(false);
+    return (
+        <section className="mt-6 rounded-lg border border-separator p-4">
+            <h2 className="mb-3 text-sm font-semibold">Le carburant en un geste</h2>
+            <Button onPress={() => setOuvert(true)} size="sm" variant="outline">
+                Carburant de {programme.livreurNom}
+            </Button>
+            <CarburantRapideModal isOpen={ouvert} onOpenChange={setOuvert} programme={programme} />
+        </section>
+    );
+}
+
 /** L'aperçu individuel, avec un numéro pour voir le partage WhatsApp. */
 function BancApercu({ programme }: { programme: IProgramme }) {
     const [ouvert, setOuvert] = React.useState(false);
@@ -244,6 +259,7 @@ export default function ApercuProgrammes() {
                         isError={etat === 'echec'}
                         isLoading={etat === 'chargement'}
                         onApercu={(p) => noter(`Aperçu de ${p.livreurNom}`)}
+                        onCarburant={(p) => noter(`Carburant de ${p.livreurNom}`)}
                         onCopierSemainePrecedente={() => noter('Copie de la semaine précédente')}
                         onEditer={(p) => noter(`Édition de ${p.livreurNom}`)}
                         onEnvoyer={(p) => noter(`Envoi au livreur ${p.livreurNom}`)}
@@ -275,6 +291,7 @@ export default function ApercuProgrammes() {
                     />
                     <BancEditeur />
                     <BancApercu programme={JEUX.ordinaire.lignes[1]} />
+                    <BancCarburantRapide programme={JEUX.ordinaire.lignes[5]} />
                 </main>
             </div>
         </div>

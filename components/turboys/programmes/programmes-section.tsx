@@ -5,6 +5,7 @@ import { parseAsInteger, useQueryStates } from 'nuqs';
 import React from 'react';
 import { toast } from 'sonner';
 
+import { CarburantRapideModal } from './carburant-rapide-modal';
 import { EngagementCarburantConnecte } from './engagement-carburant';
 import { ProgrammeApercuModal } from './programme-apercu-modal';
 import { ProgrammeFormModal } from './programme-form-modal';
@@ -85,6 +86,7 @@ export default function ProgrammesSection() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<IProgramme | null>(null);
   const [apercu, setApercu] = React.useState<IProgramme | null>(null);
+  const [carburantDe, setCarburantDe] = React.useState<IProgramme | null>(null);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const [lotEnCours, setLotEnCours] = React.useState(false);
 
@@ -292,6 +294,7 @@ export default function ProgrammesSection() {
           isLoading={isLoading}
           lotEnCours={lotEnCours}
           onApercu={setApercu}
+          onCarburant={setCarburantDe}
           onCopierSemainePrecedente={copierSemainePrecedente}
           onEditer={setEditing}
           onEnvoyer={(p) => runAction(p.id, envoyer.mutateAsync)}
@@ -348,6 +351,13 @@ export default function ProgrammesSection() {
         }}
         programme={editing}
         semaineInitiale={semaine}
+      />
+      <CarburantRapideModal
+        isOpen={!!carburantDe}
+        onOpenChange={(open) => {
+          if (!open) setCarburantDe(null);
+        }}
+        programme={carburantDe}
       />
       <ProgrammeApercuModal
         annee={annee}

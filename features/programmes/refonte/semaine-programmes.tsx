@@ -70,6 +70,8 @@ export interface SemaineProgrammesProps {
   partenairesEnCours?: boolean;
 
   onApercu: (p: IProgramme) => void;
+  /** Le carburant du programme, en un geste : un montant par jour travaillé. */
+  onCarburant: (p: IProgramme) => void;
   onEditer: (p: IProgramme) => void;
   onPlanifier: (p: IProgramme) => void;
   onPublier: (p: IProgramme) => void;
@@ -251,6 +253,7 @@ export function SemaineProgrammes({
   onPartenaireFiltre,
   partenairesEnCours = false,
   onApercu,
+  onCarburant,
   onEditer,
   onPlanifier,
   onPublier,
@@ -702,12 +705,14 @@ export function SemaineProgrammes({
                                   disabledKeys={estAPublier(p) || p.statut === 'REFUSE' ? [] : ['supprimer']}
                                   onAction={(k) => {
                                     if (k === 'apercu') onApercu(p);
+                                    if (k === 'carburant') onCarburant(p);
                                     if (k === 'editer') onEditer(p);
                                     if (k === 'envoyer') onEnvoyer(p);
                                     if (k === 'supprimer') onSupprimer(p);
                                   }}
                                 >
                                   <Dropdown.Item id="apercu">Aperçu</Dropdown.Item>
+                                  <Dropdown.Item id="carburant">Carburant…</Dropdown.Item>
                                   <Dropdown.Item id="editer">Éditer</Dropdown.Item>
                                   <Dropdown.Item id="envoyer">Envoyer au livreur</Dropdown.Item>
                                   <Dropdown.Item id="supprimer">Supprimer</Dropdown.Item>

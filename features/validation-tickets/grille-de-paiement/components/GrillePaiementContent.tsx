@@ -38,10 +38,10 @@ import {
   TextArea,
 } from '@heroui-v3/react';
 import EtatErreur from '@/components/commons/EtatErreur';
-// La pagination reste la primitive commune du projet : sa version V3 est composite
-// (Content / Item / Link / Ellipsis) et se decide pour les quinze ecrans a la fois,
-// pas ici. La recreer a la main perdrait les points de suspension sur les longs lots.
-import { Pagination } from '@/components/heroui';
+// La decision annoncee ici — « la pagination se decide pour les quinze ecrans a la
+// fois » — est prise : `PaginationTableau` est la primitive commune, et ses points de
+// suspension y ont ete ajoutes pour ce cas precis, les longs lots de paie.
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
 import CreneauSelectPicker from '@/features/validation-tickets/components/CreneauSelectPicker';
 import useGrillePaiement from '../hooks/use-grille-paiement';
 import { lotStatutLabel } from '../utils/lot-statut-label';
@@ -279,13 +279,7 @@ export default function GrillePaiementContent() {
 
       {totalPages > 1 && (
         <div className="flex justify-center">
-          <Pagination
-            total={totalPages}
-            page={page + 1}
-            onChange={(p) => setPage(p - 1)}
-            color="primary"
-            showControls
-          />
+          <PaginationTableau onPage={(p) => setPage(p - 1)} page={page + 1} total={totalPages} />
         </div>
       )}
 

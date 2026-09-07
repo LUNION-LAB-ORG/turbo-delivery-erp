@@ -1,13 +1,5 @@
-import { Chip, type ChipProps } from '@heroui-v3/react';
+import { Chip, type ChipProps, Table } from '@heroui-v3/react';
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
-} from '@/components/heroui';
 import type { ICreneauDetailLivreur, StatutLivreurDetail } from '../types/historique-creneaux.type';
 
 function fmt(n: number) {
@@ -67,61 +59,72 @@ export default function HistoriqueCreneauDetailLivreurs({ livreurs, totalLivreur
       </div>
 
       {/* Tableau — desktop uniquement (≥ md) */}
-      <Table
-        aria-label="Détail livreurs"
-        removeWrapper
-        classNames={{
-          base: 'hidden md:block',
-          th: 'bg-surface-secondary text-[10px] font-bold uppercase tracking-wide text-muted py-3 px-4',
-          td: 'py-3 px-4 border-b border-separator',
-          tr: 'hover:bg-surface-secondary/50 transition-colors',
-        }}
-      >
-        <TableHeader>
-          <TableColumn>Turboy</TableColumn>
-          {/*
-            Quatre colonnes de chiffres qui se comparent d'une ligne a l'autre : elles
-            s'alignent a droite en chasse tabulaire, sinon « 1 250 » et « 980 » ne se
-            lisent qu'en comptant les caracteres.
-          */}
-          <TableColumn align="end">Tickets</TableColumn>
-          <TableColumn align="end">Brut</TableColumn>
-          <TableColumn align="end">Taux</TableColumn>
-          <TableColumn align="end">Net</TableColumn>
-          <TableColumn>Statut</TableColumn>
-        </TableHeader>
-        <TableBody emptyContent="Aucun livreur">
-          {livreurs.map((l) => {
-            const chip = STATUT_CHIP[l.statut];
-            return (
-              <TableRow key={l.id}>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">{l.nom}</span>
-                    <span className="text-[11px] text-muted">{l.code}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm tabular-nums text-foreground">{l.tickets}</span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm tabular-nums text-foreground">{fmt(l.brut)}</span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm tabular-nums text-foreground">{l.taux}%</span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm font-semibold tabular-nums text-success-soft-foreground">{fmt(l.net)}</span>
-                </TableCell>
-                <TableCell>
-                  <Chip color={chip.couleur} size="sm" variant="soft">
-                    {chip.label}
-                  </Chip>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
+      <Table className="hidden md:block">
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Détail livreurs">
+            <Table.Header>
+              <Table.Column id="turboy" isRowHeader>
+                Turboy
+              </Table.Column>
+              {/*
+                Quatre colonnes de chiffres qui se comparent d'une ligne a l'autre : elles
+                s'alignent a droite en chasse tabulaire, sinon « 1 250 » et « 980 » ne se
+                lisent qu'en comptant les caracteres.
+              */}
+              <Table.Column className="text-right" id="tickets">
+                Tickets
+              </Table.Column>
+              <Table.Column className="text-right" id="brut">
+                Brut
+              </Table.Column>
+              <Table.Column className="text-right" id="taux">
+                Taux
+              </Table.Column>
+              <Table.Column className="text-right" id="net">
+                Net
+              </Table.Column>
+              <Table.Column id="statut">Statut</Table.Column>
+            </Table.Header>
+            <Table.Body
+              renderEmptyState={() => (
+                <p className="py-8 text-center text-sm text-muted">Aucun livreur</p>
+              )}
+            >
+              {livreurs.map((l) => {
+                const chip = STATUT_CHIP[l.statut];
+                return (
+                  <Table.Row id={l.id} key={l.id}>
+                    <Table.Cell>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground">{l.nom}</span>
+                        <span className="text-[11px] text-muted">{l.code}</span>
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      <span className="text-sm tabular-nums text-foreground">{l.tickets}</span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      <span className="text-sm tabular-nums text-foreground">{fmt(l.brut)}</span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      <span className="text-sm tabular-nums text-foreground">{l.taux}%</span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      <span className="text-sm font-semibold tabular-nums text-foreground">
+                        {fmt(l.net)}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Chip color={chip.couleur} size="sm" variant="soft">
+                        <Chip.Label>{chip.label}</Chip.Label>
+                      </Chip>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
       </Table>
 
       {/* Mobile — cartes tactiles (remplace le tableau < md) */}

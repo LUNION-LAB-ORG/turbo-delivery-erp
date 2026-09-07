@@ -1,34 +1,32 @@
 'use client';
 
 import { CheckCircle2, CircleAlert, FileText, HelpCircle, Phone, ReceiptText, ShieldAlert, X } from 'lucide-react';
-import { Drawer, DrawerBody, DrawerContent } from '@/components/heroui';
+import { Button, Chip, Drawer } from '@heroui-v3/react';
+
 import CarteStat, { GrilleStats } from '@/components/commons/CarteStat';
+import { getTurboyTypeDisplay } from '@/features/turboys/utils/type-livreur-display';
 import { IGrillePaiementLigne, TypeLivreur } from '../types/grille-paiement.type';
 import { formatMontant } from '@/utils/format.utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 /**
- * V54 + V57 (2026-05) — Badge + libellé du type de livreur pour le pavé
- * "Inclusion paie" affiché juste avant les tickets. Aligné sur la note de
- * cadrage DGA du 28/05/2026 : INDEPENDANT vert, JOURNALIER bleu,
- * SUPERVISEUR_LIVREUR violet, null/à catégoriser orange.
+ * V54 + V57 (2026-05) — Libellé du type de livreur et son inclusion par défaut.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>La note de cadrage DGA du 28/05/2026 avait fixé un code couleur — indépendant vert,
+ * journalier bleu, superviseur violet, à catégoriser orange — et ce fichier le portait en
+ * quatre jeux de six classes Tailwind. C'était la TROISIÈME transcription du même code
+ * couleur dans l'ERP, chacune écrite à la main, et aucune ne s'accordait avec les deux
+ * autres.</p>
+ *
+ * <p>La couleur y répétait de surcroît ce que le pavé « Inclusion dans la paie » dit
+ * juste en dessous, en toutes lettres : inclus, exclu, et par quelle règle. Le référentiel
+ * `getTurboyTypeDisplay` tranche pour tout l'ERP.</p>
  */
-function typeLivreurDisplay(type: TypeLivreur | null | undefined): {
-  label: string;
-  className: string;
-  defaultIncluded: boolean;
-} {
-  switch (type) {
-    case 'INDEPENDANT':
-      return { label: 'Indépendant', className: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300', defaultIncluded: true };
-    case 'JOURNALIER':
-      return { label: 'Journalier', className: 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300', defaultIncluded: false };
-    case 'SUPERVISEUR_LIVREUR':
-      return { label: 'Superviseur-livreur', className: 'border-purple-200 bg-purple-50 text-purple-800 dark:border-purple-400/25 dark:bg-purple-400/10 dark:text-purple-300', defaultIncluded: false };
-    default:
-      return { label: 'À catégoriser', className: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300', defaultIncluded: false };
-  }
+function typeLivreurDisplay(type: null | TypeLivreur | undefined) {
+  const { chipColor, label } = getTurboyTypeDisplay(type);
+  return { chipColor, defaultIncluded: type === 'INDEPENDANT', label };
 }
 
 function formatNumber(n: number | undefined | null) {
@@ -80,8 +78,10 @@ export default function GrillePaiementDetailModal({ ligne, creneauCode, open, on
   const isOverride = inclusDansPaie !== null && inclusDansPaie !== undefined;
 
   return (
-    <Drawer isOpen={open} onOpenChange={(v) => !v && onClose()} placement="right" size="xl">
-      <DrawerContent className="bg-background flex flex-col overflow-hidden">
+    <Drawer isOpen={open} onOpenChange={(v) => !v && onClose()}>
+      <Drawer.Backdrop>
+        <Drawer.Content placement="right">
+          <Drawer.Dialog className="flex w-full max-w-xl flex-col overflow-hidden bg-background">
         {/* Header fixe */}
         <div className="shrink-0 bg-background px-5 pt-5 pb-4 z-10">
           <div className="flex items-start justify-between">
@@ -92,9 +92,17 @@ export default function GrillePaiementDetailModal({ ligne, creneauCode, open, on
                 <p className="mt-1 text-[11px] text-muted tracking-wide">{turboy.code}</p>
               </div>
             </div>
-            <button onClick={onClose} className="mt-1 text-muted transition hover:text-foreground">
-              <X size={16} strokeWidth={2.2} />
-            </button>
+            {/* C'etait un `<button>` nu, sans nom accessible : au lecteur d'ecran, la
+                seule sortie du tiroir etait un bouton muet. */}
+            <Button
+              aria-label="Fermer le détail"
+              isIconOnly
+              onPress={onClose}
+              size="sm"
+              variant="ghost"
+            >
+              <X aria-hidden="true" className="size-4" />
+            </Button>
           </div>
           <div className="mt-4 border-t border-dashed border-separator" />
           <p className="mt-3 text-[12px] text-muted">
@@ -102,7 +110,7 @@ export default function GrillePaiementDetailModal({ ligne, creneauCode, open, on
           </p>
         </div>
 
-        <DrawerBody className="p-0 overflow-y-auto flex-1">
+        <Drawer.Body className="flex-1 overflow-y-auto p-0">
           <div className="px-5 pb-6 flex flex-col gap-5">
             {/* Deux colonnes meme sur un tiroir etroit : quatre cartes empilees
                 repousseraient le detail des tickets sous la ligne de flottaison. */}
@@ -138,19 +146,17 @@ export default function GrillePaiementDetailModal({ ligne, creneauCode, open, on
                   </div>
                   <h3 className="text-[14px] font-semibold text-foreground">Inclusion dans la paie</h3>
                 </div>
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${typeInfo.className}`}
-                >
-                  {!typeLivreur && <HelpCircle className="h-3 w-3" />}
-                  {typeInfo.label}
-                </span>
+                <Chip color={typeInfo.chipColor} size="sm" variant="soft">
+                  {!typeLivreur && <HelpCircle aria-hidden="true" className="size-3" />}
+                  <Chip.Label>{typeInfo.label}</Chip.Label>
+                </Chip>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-separator bg-surface-secondary/60 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-wider text-muted mb-1">État effectif</p>
                   <p className={`text-sm font-semibold ${effectiveIncluded ? 'text-success-soft-foreground' : 'text-warning-soft-foreground'}`}>
-                    {effectiveIncluded ? '✓ Inclus dans le Total à payer' : '✕ Exclu du Total à payer'}
+                    {effectiveIncluded ? 'Inclus dans le Total à payer' : 'Exclu du Total à payer'}
                   </p>
                 </div>
                 <div className="rounded-xl border border-separator bg-surface-secondary/60 px-3 py-2">
@@ -253,7 +259,7 @@ export default function GrillePaiementDetailModal({ ligne, creneauCode, open, on
               </div>
             )}
           </div>
-        </DrawerBody>
+        </Drawer.Body>
 
         {/* Footer fixe — Wave */}
         <div className="shrink-0 bg-background px-5 pb-5 pt-0">
@@ -270,7 +276,9 @@ export default function GrillePaiementDetailModal({ ligne, creneauCode, open, on
             </div>
           </div>
         </div>
-      </DrawerContent>
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
     </Drawer>
   );
 }

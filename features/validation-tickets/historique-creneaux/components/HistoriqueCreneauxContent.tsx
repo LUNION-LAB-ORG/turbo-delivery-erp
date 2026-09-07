@@ -15,16 +15,8 @@ import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-tabl
  * comme une alerte. Le composant V3 se peint sur la surface du theme, en clair comme en
  * sombre.</p>
  */
-import { Button, Skeleton, ToggleButton, ToggleButtonGroup } from '@heroui-v3/react';
+import { Button, Skeleton, Table, ToggleButton, ToggleButtonGroup } from '@heroui-v3/react';
 import { buttonVariants } from '@heroui-v3/styles';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
-} from '@/components/heroui';
 import Link from 'next/link';
 import EtatErreur from '@/components/commons/EtatErreur';
 import { formatCFA } from '@/src/actions/bonLivraison.mapper';
@@ -133,55 +125,60 @@ export default function HistoriqueCreneauxContent() {
       </div>
 
       {/* Table — desktop uniquement (≥ md) */}
-      <div className="hidden md:block rounded-xl border border-separator bg-surface overflow-hidden">
-        <Table
-          aria-label="Historique des créneaux"
-          removeWrapper
-          classNames={{
-            th: 'bg-surface-secondary text-[10px] font-bold uppercase tracking-wide text-muted py-3 px-4',
-            td: 'py-4 px-4 border-b border-separator',
-            tr: 'hover:bg-surface-secondary/60 transition-colors',
-          }}
-        >
-          <TableHeader>
-            {table.getFlatHeaders().map((header) => (
-              <TableColumn key={header.id}>
-                {flexRender(header.column.columnDef.header, header.getContext())}
-              </TableColumn>
-            ))}
-          </TableHeader>
-          <TableBody
-            emptyContent={
-              /* Un echec de chargement ne doit pas se lire comme « Aucun creneau trouve ». */
-              isError ? (
-                <EtatErreur quoi="les créneaux" onReessayer={() => refetch()} enCours={isFetching} />
-              ) : isLoading ? (
-                ' '
-              ) : (
-                <span className="text-sm text-muted">Aucun créneau trouvé</span>
-              )
-            }
-          >
-            {isLoading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={`skel-${i}`}>
-                    {historiqueCreneauxColumns.map((col) => (
-                      <TableCell key={String(col.id ?? i)}>
-                        <Skeleton className="h-4 rounded" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              : table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
+      <div className="hidden overflow-hidden rounded-xl border border-separator bg-surface md:block">
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Historique des créneaux">
+              <Table.Header>
+                {table.getFlatHeaders().map((header, i) => (
+                  <Table.Column
+                    className="text-[10px] font-bold tracking-wide uppercase"
+                    id={header.id}
+                    isRowHeader={i === 0}
+                    key={header.id}
+                  >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </Table.Column>
                 ))}
-          </TableBody>
+              </Table.Header>
+              <Table.Body
+                renderEmptyState={() =>
+                  /* Un echec de chargement ne doit pas se lire comme « Aucun creneau trouve ». */
+                  isError ? (
+                    <div className="py-6">
+                      <EtatErreur
+                        enCours={isFetching}
+                        onReessayer={() => refetch()}
+                        quoi="les créneaux"
+                      />
+                    </div>
+                  ) : isLoading ? null : (
+                    <p className="py-8 text-center text-sm text-muted">Aucun créneau trouvé</p>
+                  )
+                }
+              >
+                {isLoading
+                  ? Array.from({ length: 5 }).map((_, i) => (
+                      <Table.Row id={`skel-${i}`} key={`skel-${i}`}>
+                        {historiqueCreneauxColumns.map((col, j) => (
+                          <Table.Cell key={String(col.id ?? j)}>
+                            <Skeleton className="h-4 rounded" />
+                          </Table.Cell>
+                        ))}
+                      </Table.Row>
+                    ))
+                  : table.getRowModel().rows.map((row) => (
+                      <Table.Row id={row.id} key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                          <Table.Cell className="px-4 py-4" key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </Table.Cell>
+                        ))}
+                      </Table.Row>
+                    ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
         </Table>
       </div>
 

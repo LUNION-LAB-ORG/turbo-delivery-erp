@@ -2,16 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { ColumnDef, getCoreRowModel, flexRender, useReactTable } from '@tanstack/react-table';
-import { Alert, Button, Card, Chip, Input, Switch, TextField, Tooltip } from '@heroui-v3/react';
-import {
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-} from '@/components/heroui';
+import { Alert, Button, Card, Chip, Input, Switch, Table, TextField, Tooltip } from '@heroui-v3/react';
 import { AlertTriangle, CheckCircle2, HelpCircle, Pencil, ShieldCheck } from 'lucide-react';
+
+import { getTurboyTypeDisplay } from '@/features/turboys/utils/type-livreur-display';
 import { cn } from '@/lib/utils';
 import { IGrillePaiementLigne, StatutLignePaiement, TypeLivreur } from '../types/grille-paiement.type';
 import FichePaieButton from './FichePaieButton';
@@ -53,49 +47,28 @@ function effectiveInclusion(ligne: IGrillePaiementLigne): boolean {
   return ligne.typeLivreur === 'INDEPENDANT';
 }
 
-/*
- * Pourquoi une teinte ecrite ici plutot qu'un `color` de `Chip` : la bibliotheque
- * n'expose que accent / success / warning / danger / default. Le type de
- * collaborateur a QUATRE valeurs qui doivent se distinguer d'un coup d'oeil dans un
- * tableau de paie, et deux des crans disponibles (accent, danger) diraient autre chose
- * que ce qu'ils valent ici. La teinte reste donc du Tailwind, mais chaque couple a
- * desormais sa variante sombre : sans elle, ces pastilles s'affichaient en pastel clair
- * sur fond fonce depuis que la bascule de theme est dans l'en-tete.
- */
-function typeLivreurBadge(type: TypeLivreur | null | undefined) {
-  switch (type) {
-    case 'INDEPENDANT':
-      return {
-        label: 'Indépendant',
-        teinte: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-300',
-      };
-    case 'JOURNALIER':
-      return {
-        label: 'Journalier',
-        teinte: 'bg-blue-100 text-blue-900 dark:bg-blue-400/15 dark:text-blue-300',
-      };
-    case 'SUPERVISEUR_LIVREUR':
-      return {
-        label: 'Superviseur-livreur',
-        teinte: 'bg-purple-100 text-purple-900 dark:bg-purple-400/15 dark:text-purple-300',
-      };
-    default:
-      return {
-        label: 'À catégoriser',
-        teinte: 'bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-300',
-      };
-  }
-}
-
 /**
- * Pastille du type de collaborateur — partagée colonne + carte mobile. Les deux rendus
- * etaient recopies a l'identique : une teinte corrigee d'un cote seulement passait
- * inapercue jusqu'a ce qu'un operateur ouvre l'ecran sur telephone.
+ * Pastille du type de collaborateur — partagée colonne + carte mobile.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Cet écran peignait les quatre types en vert, bleu, violet et ambre, avec ce
+ * raisonnement écrit dans le fichier : « quatre valeurs qui doivent se distinguer d'un
+ * coup d'œil dans un tableau de paie ». Sauf que ce qu'elles décident — être incluses ou
+ * non dans le « Total à payer » — a sa PROPRE colonne juste à côté, avec un interrupteur
+ * qui le dit, son état, son infobulle et sa dérogation Comptable. La couleur du type
+ * répétait donc, en moins précis, ce que la colonne voisine énonçait.</p>
+ *
+ * <p>Surtout, les mêmes quatre valeurs étaient neutres dans la liste des livreurs et
+ * colorées ici : l'ERP se contredisait d'un écran à l'autre sur le sens de la couleur.
+ * Le référentiel `getTurboyTypeDisplay` tranche pour tout le monde — neutre pour les
+ * trois types réels, et une teinte pour le seul « À catégoriser », qui n'est pas une
+ * catégorie mais une LACUNE : un contrat que la RH n'a pas qualifié, et qui tombe donc
+ * hors du circuit de paie sans que personne l'ait décidé.</p>
  */
-function TypeLivreurChip({ type }: { type: TypeLivreur | null | undefined }) {
-  const { label, teinte } = typeLivreurBadge(type);
+function TypeLivreurChip({ type }: { type: null | TypeLivreur | undefined }) {
+  const { chipColor, label } = getTurboyTypeDisplay(type);
   return (
-    <Chip className={cn('whitespace-nowrap', teinte)} size="sm" variant="soft">
+    <Chip className="whitespace-nowrap" color={chipColor} size="sm" variant="soft">
       {!type && <HelpCircle aria-hidden="true" className="size-3" />}
       <Chip.Label>{label}</Chip.Label>
     </Chip>
@@ -484,63 +457,73 @@ export default function GrillePaiementTable({
       )}
 
       {/* Tableau — desktop uniquement (≥ md) */}
-      <Table
-        removeWrapper
-        aria-label="Grille de paiement"
-        classNames={{
-          base: 'hidden md:block text-sm',
-          th: 'text-[10px] font-semibold uppercase tracking-wider text-muted bg-surface-tertiary border-b border-separator px-4 py-3',
-          td: 'px-4 py-3 border-b border-separator',
-          tr: 'transition-colors',
-        }}
-      >
-        <TableHeader>
-          {table.getFlatHeaders().map((header) => (
-            <TableColumn key={header.id}>
-              {header.isPlaceholder
-                ? null
-                : flexRender(header.column.columnDef.header, header.getContext())}
-            </TableColumn>
-          ))}
-        </TableHeader>
-        <TableBody emptyContent="Aucune ligne de paiement">
-          {table.getRowModel().rows.map((row) => (
-            <TableRow
-              key={row.id}
-              onClick={() => onRowClick(row.original)}
-              className={cn(
-                'cursor-pointer hover:bg-surface-secondary',
-                // Le surlignage des lignes en attente n'avait pas de cran sombre : elles se
-                // confondaient avec les autres, alors que ce sont justement celles qui
-                // reclament une validation.
-                row.original.flagAttente &&
-                  'bg-amber-50 hover:bg-amber-100 dark:bg-amber-400/10 dark:hover:bg-amber-400/20',
+      {/*
+       * Tableau — poste de travail (≥ md).
+       *
+       * <p>`onRowAction` et non un `onClick` sur la rangee : la v3 rend un
+       * `<table role="grid">` de react-aria, ou la selection et le clavier passent par la
+       * collection. Un `onClick` pose sur `Table.Row` n'y ouvrait le detail qu'a la
+       * souris — la rangee restait muette a la touche Entree.</p>
+       */}
+      <Table className="hidden md:block">
+        <Table.ScrollContainer>
+          <Table.Content
+            aria-label="Grille de paiement"
+            className="text-sm"
+            onRowAction={(cle) => {
+              const ligne = table.getRowModel().rows.find((r) => r.id === String(cle));
+              if (ligne) onRowClick(ligne.original);
+            }}
+          >
+            <Table.Header>
+              {table.getFlatHeaders().map((header, i) => (
+                <Table.Column
+                  className="text-[10px] font-semibold tracking-wider uppercase"
+                  id={header.id}
+                  isRowHeader={i === 0}
+                  key={header.id}
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext())}
+                </Table.Column>
+              ))}
+            </Table.Header>
+            <Table.Body
+              renderEmptyState={() => (
+                <p className="py-8 text-center text-sm text-muted">Aucune ligne de paiement</p>
               )}
             >
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
+              {table.getRowModel().rows.map((row) => (
+                <Table.Row
+                  className={cn(
+                    'cursor-pointer',
+                    // Le surlignage des lignes en attente n'avait pas de cran sombre : elles se
+                    // confondaient avec les autres, alors que ce sont justement celles qui
+                    // reclament une validation.
+                    row.original.flagAttente && 'bg-warning-soft',
+                  )}
+                  id={row.id}
+                  key={row.id}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <Table.Cell className="px-4 py-3" key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </Table.Cell>
+                  ))}
+                </Table.Row>
               ))}
-            </TableRow>
-          ))}
-        </TableBody>
-        {/* Total row — désactivé temporairement
-        <tfoot>
-          <tr className="font-bold text-sm [&>td]:bg-red-600 [&>td]:text-white">
-            <td className="px-4 py-3" />
-            <td className="px-4 py-3 uppercase tracking-wide">Total</td>
-            <td className="px-4 py-3 text-right">{totaux.tickets}</td>
-            <td className="px-4 py-3 text-right">{formatNumber(totaux.brut)}</td>
-            <td className="px-4 py-3" />
-            <td className="px-4 py-3 text-right">
-              {totaux.deductions !== 0 ? `−${formatNumber(Math.abs(totaux.deductions))}` : '–'}
-            </td>
-            <td className="px-4 py-3 text-right">{formatNumber(totaux.net)}</td>
-            <td colSpan={3} />
-          </tr>
-        </tfoot>
-        */}
+            </Table.Body>
+            {/*
+             * La rangee de TOTAUX etait ici, en commentaire, avec la mention « desactive
+             * temporairement ». Elle peignait ses cellules en `[&>td]:bg-red-600
+             * [&>td]:text-white` : une bande rouge pleine largeur pour le total d'une
+             * paie ordinaire. Elle est retiree plutot que laissee dormante — la remettre
+             * en l'etat reintroduirait ce rouge, et les totaux ont leur place dans
+             * `GrillePaiementStats`, au-dessus du tableau, ou ils sont deja rendus.
+             */}
+          </Table.Content>
+        </Table.ScrollContainer>
       </Table>
 
       {/* Mobile — cartes tactiles (remplace le tableau < md) */}

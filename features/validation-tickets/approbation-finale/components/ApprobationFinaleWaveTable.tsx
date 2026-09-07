@@ -2,8 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { flexRender, Table } from '@tanstack/react-table';
-import { Card, Spinner } from '@heroui-v3/react';
-import { Table as HeroTable, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@/components/heroui';
+// `Table` est deja pris par TanStack ci-dessus : celui de la bibliotheque est aliase.
+import { Card, Spinner, Table as TableauV3 } from '@heroui-v3/react';
 import { IGrillePaiementLigne } from '@/features/validation-tickets/grille-de-paiement/types/grille-paiement.type';
 
 interface Props {
@@ -39,39 +39,50 @@ export default function ApprobationFinaleWaveTable({ waveTable, isFetchingNextPa
         </p>
       </div>
       {/* Tableau — desktop uniquement (≥ md) */}
-      <HeroTable
-        isStriped
-        removeWrapper
-        aria-label="Récapitulatif des virements Wave"
-        classNames={{ base: 'hidden md:block' }}
-        bottomContent={
-          /* Le rond de chargement etait dessine a la main (`Loader2` + `animate-spin`) :
-             sa couleur etait figee et ne suivait pas la bascule de theme. `Spinner` en
-             `color="current"` herite du `text-muted` porte par la sentinelle. */
-          <div ref={bottomRef} className="flex items-center justify-center py-2 text-muted">
-            {isFetchingNextPage && <Spinner color="current" size="sm" />}
-          </div>
-        }
-      >
-        <TableHeader>
-          {waveTable.getFlatHeaders().map((header) => (
-            <TableColumn key={header.id} className="text-[10px] uppercase tracking-widest">
-              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-            </TableColumn>
-          ))}
-        </TableHeader>
-        <TableBody emptyContent="Aucun livreur trouvé">
-          {waveTable.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
+      <TableauV3 className="hidden md:block">
+        <TableauV3.ScrollContainer>
+          <TableauV3.Content aria-label="Récapitulatif des virements Wave">
+            <TableauV3.Header>
+              {waveTable.getFlatHeaders().map((header, i) => (
+                <TableauV3.Column
+                  className="text-[10px] tracking-widest uppercase"
+                  id={header.id}
+                  isRowHeader={i === 0}
+                  key={header.id}
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext())}
+                </TableauV3.Column>
               ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </HeroTable>
+            </TableauV3.Header>
+            <TableauV3.Body
+              renderEmptyState={() => (
+                <p className="py-8 text-center text-sm text-muted">Aucun livreur trouvé</p>
+              )}
+            >
+              {waveTable.getRowModel().rows.map((row) => (
+                <TableauV3.Row id={row.id} key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableauV3.Cell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableauV3.Cell>
+                  ))}
+                </TableauV3.Row>
+              ))}
+            </TableauV3.Body>
+          </TableauV3.Content>
+        </TableauV3.ScrollContainer>
+      </TableauV3>
+      {/* Le rond de chargement etait dessine a la main (`Loader2` + `animate-spin`) :
+          sa couleur etait figee et ne suivait pas la bascule de theme. `Spinner` en
+          `color="current"` herite du `text-muted` porte par la sentinelle.
+          Il sort du `bottomContent` de la v2, qui n'existe plus : le pied d'un tableau v3
+          est un `Table.Footer`, frere du conteneur de defilement — et la sentinelle de
+          defilement infini n'y a pas sa place, elle doit rester dans le flux. */}
+      <div className="hidden items-center justify-center py-2 text-muted md:flex" ref={bottomRef}>
+        {isFetchingNextPage && <Spinner color="current" size="sm" />}
+      </div>
 
       {/* Mobile — cartes tactiles (remplace le tableau < md) */}
       <div className="md:hidden space-y-3 p-4">

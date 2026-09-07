@@ -27,16 +27,19 @@
  */
 
 import { flexRender } from '@tanstack/react-table';
-import { Button, Card, Chip, ComboBox, Input, ListBox, Skeleton, Tooltip } from '@heroui-v3/react';
 import {
-  Pagination,
+  Button,
+  Card,
+  Chip,
+  ComboBox,
+  Input,
+  ListBox,
+  Skeleton,
   Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
-} from '@/components/heroui';
+  Tooltip,
+} from '@heroui-v3/react';
+
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
 import { Ticket as TicketIcon, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import CreneauSelectPicker from '@/features/validation-tickets/components/CreneauSelectPicker';
@@ -188,74 +191,73 @@ export default function RegularisationTicketsTable() {
       </div>
 
       {/* Tableau, desktop uniquement (a partir de md) */}
-      <div className="hidden md:block overflow-x-auto">
-        <Table
-          removeWrapper
-          aria-label="Tickets par statut et créneau"
-          classNames={{
-            base: 'text-sm',
-            th: 'text-[10px] font-semibold uppercase tracking-wider text-muted bg-surface-secondary border-b border-separator px-4 py-3',
-            td: 'px-4 py-3 border-b border-separator',
-          }}
-          bottomContent={
-            totalPages > 1 ? (
-              <div className="flex w-full justify-center py-2">
-                <Pagination
-                  showControls
-                  size="sm"
-                  page={page + 1}
-                  total={totalPages}
-                  onChange={(p) => setPage(p - 1)}
-                />
-              </div>
-            ) : null
-          }
-        >
-          <TableHeader>
-            {table.getFlatHeaders().map((header) => (
-              <TableColumn key={header.id}>
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(header.column.columnDef.header, header.getContext())}
-              </TableColumn>
-            ))}
-          </TableHeader>
-          <TableBody
-            emptyContent={
-              /* Un echec de chargement ne doit pas se lire comme un filtre trop etroit. */
-              isError ? (
-                <EtatErreur
-                  quoi="les tickets"
-                  onReessayer={() => refetch()}
-                  enCours={isFetching}
-                />
-              ) : isLoading ? (
-                ' '
-              ) : (
-                'Aucun ticket ne correspond à ces filtres'
-              )
-            }
-          >
-            {isLoading
-              ? Array.from({ length: 6 }).map((_, i) => (
-                  <TableRow key={`skeleton-${i}`}>
-                    {Array.from({ length: columnsCount }).map((_, j) => (
-                      <TableCell key={`skeleton-${i}-${j}`}>
-                        <Skeleton className="h-4 w-full" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              : table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} className={isFetching ? 'opacity-60' : ''}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
+      <div className="hidden md:block">
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Tickets par statut et créneau" className="text-sm">
+              <Table.Header>
+                {table.getFlatHeaders().map((header, i) => (
+                  <Table.Column
+                    className="text-[10px] font-semibold tracking-wider uppercase"
+                    id={header.id}
+                    isRowHeader={i === 0}
+                    key={header.id}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </Table.Column>
                 ))}
-          </TableBody>
+              </Table.Header>
+              <Table.Body
+                renderEmptyState={() =>
+                  /* Un echec de chargement ne doit pas se lire comme un filtre trop etroit. */
+                  isError ? (
+                    <div className="py-6">
+                      <EtatErreur
+                        enCours={isFetching}
+                        onReessayer={() => refetch()}
+                        quoi="les tickets"
+                      />
+                    </div>
+                  ) : isLoading ? null : (
+                    <p className="py-8 text-center text-sm text-muted">
+                      Aucun ticket ne correspond à ces filtres
+                    </p>
+                  )
+                }
+              >
+                {isLoading
+                  ? Array.from({ length: 6 }).map((_, i) => (
+                      <Table.Row id={`skeleton-${i}`} key={`skeleton-${i}`}>
+                        {Array.from({ length: columnsCount }).map((_, j) => (
+                          <Table.Cell key={`skeleton-${i}-${j}`}>
+                            <Skeleton className="h-4 w-full" />
+                          </Table.Cell>
+                        ))}
+                      </Table.Row>
+                    ))
+                  : table.getRowModel().rows.map((row) => (
+                      <Table.Row
+                        className={isFetching ? 'opacity-60' : undefined}
+                        id={row.id}
+                        key={row.id}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <Table.Cell className="px-4 py-3" key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </Table.Cell>
+                        ))}
+                      </Table.Row>
+                    ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+          {totalPages > 1 && (
+            <Table.Footer>
+              <PaginationTableau onPage={(p) => setPage(p - 1)} page={page + 1} total={totalPages} />
+            </Table.Footer>
+          )}
         </Table>
       </div>
 
@@ -322,13 +324,7 @@ export default function RegularisationTicketsTable() {
         )}
         {totalPages > 1 && (
           <div className="flex justify-center pt-1">
-            <Pagination
-              showControls
-              size="sm"
-              page={page + 1}
-              total={totalPages}
-              onChange={(p) => setPage(p - 1)}
-            />
+            <PaginationTableau onPage={(p) => setPage(p - 1)} page={page + 1} total={totalPages} />
           </div>
         )}
       </div>

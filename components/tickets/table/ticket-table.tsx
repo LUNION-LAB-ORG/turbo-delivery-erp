@@ -357,15 +357,26 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
                           ))}
                     </Table.Body>
                   </Table.Content>
+                  {/*
+                   * La sentinelle de defilement infini vit DANS la zone qui defile.
+                   *
+                   * <p>Posee juste apres `</Table>`, elle se retrouvait sous une zone de
+                   * hauteur fixe, donc EN PERMANENCE dans la fenetre. L'observateur
+                   * d'intersection la voyait des le premier rendu, appelait
+                   * `fetchNextPage`, et l'arrivee de la page suivante relancait l'effet,
+                   * qui la revoyait aussitot : toutes les pages se chargeaient a la
+                   * chaine, sans que personne ait defile, jusqu'a ce que l'onglet manque
+                   * de memoire et tombe.</p>
+                   */}
+                  <div className="h-0.5" ref={observerTarget}>
+                    {infiniteState.isFetchingNextPage && (
+                      <p className="w-full py-2 text-center text-xs text-muted">
+                        Chargement des données...
+                      </p>
+                    )}
+                  </div>
                 </Table.ScrollContainer>
               </Table>
-              <div className="h-0.5" ref={observerTarget}>
-                {infiniteState.isFetchingNextPage && (
-                  <p className="w-full py-2 text-center text-xs text-muted">
-                    Chargement des données...
-                  </p>
-                )}
-              </div>
             </div>
 
             {/* Mobile — cartes tactiles (remplace le tableau < md).

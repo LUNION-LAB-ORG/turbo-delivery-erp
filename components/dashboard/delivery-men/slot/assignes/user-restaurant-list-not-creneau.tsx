@@ -1,6 +1,6 @@
 import { Restaurant } from "@/types/creneau-turbo";
 import EmptyDataTable from "@/components/commons/EmptyDataTable";
-import { Avatar } from "@/components/heroui";
+import { Avatar } from '@heroui-v3/react';
 import { createUrlFile } from "@/utils/createUrlFile";
 
 
@@ -26,13 +26,17 @@ export default function UserRestaurantListeNotCreneau({turboysCreneau} : {turboy
                                 <div key={index} className="w-full bg-surface flex gap-4 border-2 rounded-md">
                                     <div className="relative w-[230px]">
                                         <div className="flex items-center px-2 py-3">
-                                            <Avatar
-                                                isBordered
-                                                radius="full"
-                                                className="w-10 h-10 mr-3"
-                                                size="md"
-                                                src={restaurant?.logo ? createUrlFile(restaurant?.logo ?? '', "restaurant") : 'assets/images/logo.png'}
-                                            />
+                                            <Avatar className="mr-3 size-10 shrink-0">
+                                                {restaurant?.logo && (
+                                                    <Avatar.Image
+                                                        alt={restaurant?.nomRestaurant ?? ''}
+                                                        src={createUrlFile(restaurant.logo, 'restaurant')}
+                                                    />
+                                                )}
+                                                <Avatar.Fallback>
+                                                    {restaurant?.nomRestaurant?.[0]?.toUpperCase() ?? '?'}
+                                                </Avatar.Fallback>
+                                            </Avatar>
                                             {restaurant.nomRestaurant}
                                         </div>
                                     </div>

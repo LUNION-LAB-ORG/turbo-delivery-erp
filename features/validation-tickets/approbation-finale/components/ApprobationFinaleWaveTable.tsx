@@ -72,18 +72,13 @@ export default function ApprobationFinaleWaveTable({ waveTable, isFetchingNextPa
               ))}
             </TableauV3.Body>
           </TableauV3.Content>
+          {/* La sentinelle vit DANS la zone qui defile : posee dessous, elle restait en
+              permanence dans la fenetre et enchainait le chargement de toutes les pages. */}
+          <div className="flex items-center justify-center py-2 text-muted" ref={bottomRef}>
+            {isFetchingNextPage && <Spinner color="current" size="sm" />}
+          </div>
         </TableauV3.ScrollContainer>
       </TableauV3>
-      {/* Le rond de chargement etait dessine a la main (`Loader2` + `animate-spin`) :
-          sa couleur etait figee et ne suivait pas la bascule de theme. `Spinner` en
-          `color="current"` herite du `text-muted` porte par la sentinelle.
-          Il sort du `bottomContent` de la v2, qui n'existe plus : le pied d'un tableau v3
-          est un `Table.Footer`, frere du conteneur de defilement — et la sentinelle de
-          defilement infini n'y a pas sa place, elle doit rester dans le flux. */}
-      <div className="hidden items-center justify-center py-2 text-muted md:flex" ref={bottomRef}>
-        {isFetchingNextPage && <Spinner color="current" size="sm" />}
-      </div>
-
       {/* Mobile — cartes tactiles (remplace le tableau < md) */}
       <div className="md:hidden space-y-3 p-4">
         {waveTable.getRowModel().rows.length === 0 ? (

@@ -2,17 +2,7 @@
 'use client'
 
 import React, {useCallback, useEffect, useState } from "react";
-import {
-    Table,
-    TableHeader,
-    TableColumn,
-    TableBody,
-    TableRow,
-    TableCell,
-    getKeyValue,
-    Button,
-  } from "@/components/heroui";
-import EmptyDataTable from "@/components/commons/EmptyDataTable";
+import { TableauProgression } from './tableau-progression';
 import EtatErreur from "@/components/commons/EtatErreur";
 import progresseBarePerformance from "@/components/dashboard/delivery-men/performance-creneau/progression-bare-performance";
 import DropDownPerformanceCrenea from "@/components/dashboard/delivery-men/performance-creneau/drop-down-performance-creneau";
@@ -139,36 +129,6 @@ const performanceApercuGlobalGain: PerformanceApercuGlobalGain|null = {
 
     const emploiId= initialData.creneau.emploiId
         
-    const renderCell = React.useCallback((data:Progression, columnKey:any) => {
-      // const cellValue = rows[columnKey];
-
-      switch (columnKey) {
-        case "jour":
-          return (
-          <div>
-            {data.jour||'non definie'}
-          </div>
-          );
-        case "progression":
-          return (
-            <div className="flex gap-2">
-              {progresseBarePerformance(data)}
-              <span>{data.progression} %</span>
-              <span>{data.heure}h de travail</span>
-            </div>
-          );
-        case "commission":
-          return (
-            <div>
-            {formatMontant(data.commission)}
-            </div>
-          );
-        default:
-          return null;
-      }
-    }, []);
-
-
     // Echec de lecture de la fiche de paie du creneau. Sans cet etat, le detail du
     // jour s'ouvrait vide et se lisait comme « aucun gain » alors que la lecture
     // avait echoue.
@@ -203,65 +163,31 @@ const performanceApercuGlobalGain: PerformanceApercuGlobalGain|null = {
     };
 
     return (
-      <div>
-          {/* Table — desktop uniquement (≥ md) */}
-          <div className="hidden md:block">
-            <Table aria-label="Example table with custom cells"  selectionMode="single">
-      <TableHeader columns={columns}>
-        {(column) => (
-          <TableColumn key={column.key}>
-            {column.label}
-          </TableColumn>
+      <div className="flex flex-col gap-4">
+        {/*
+         * Le tableau et la liste de cartes etaient recopies ici comme dans les trois
+         * fichiers voisins, avec la meme fonction `renderCell` a `switch` et le meme
+         * `aria-label="Example table with custom cells"` — la legende de l'exemple de la
+         * documentation HeroUI, annoncee aux lecteurs d'ecran des quatre ecrans.
+         */}
+        <TableauProgression jours={initialData.progressions ?? []} onJour={(j) => openJour(j.jour)} />
+
+        {/* L'echec prend la place du detail des gains : ouvrir un panneau vide se
+            lirait comme une journee sans gain. */}
+        {erreurGains ? (
+          <EtatErreur
+            enCours={chargementGains}
+            onReessayer={chargerGains}
+            quoi="le détail des gains du créneau"
+          />
+        ) : (
+          <DropDownPerformanceCrenea
+            gainsData={dataGains || null}
+            jour={jour}
+            open={open}
+            setOpen={setOpen}
+          />
         )}
-      </TableHeader>
-      <TableBody items={initialData.progressions} emptyContent={<EmptyDataTable title="Aucun livreur" />}>
-        {(item) => (
-          <TableRow key={item.jour} onClick={() => openJour(item.jour)}>
-            {(columnKey) => <TableCell >{renderCell(item, columnKey)}</TableCell>}
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
-          </div>
-
-          {/* Mobile — cartes tactiles (mêmes données / handler que le tableau) */}
-          <div className="md:hidden space-y-3">
-            {(initialData.progressions ?? []).length === 0 ? (
-              <EmptyDataTable title="Aucun livreur" />
-            ) : (
-              (initialData.progressions ?? []).map((item: Progression) => (
-                <div
-                  key={item.jour}
-                  className="bg-surface border border-separator rounded-xl p-4 shadow-xs space-y-2 cursor-pointer active:bg-surface-secondary"
-                  onClick={() => openJour(item.jour)}
-                >
-                  <p className="text-sm font-semibold text-foreground">{item.jour || 'non definie'}</p>
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted">Progression du jour</span>
-                    {renderCell(item, 'progression')}
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs text-muted shrink-0">Commission du jour</span>
-                    <span className="text-sm text-foreground text-right">{renderCell(item, 'commission')}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-    {/* L'echec prend la place du detail des gains : ouvrir un panneau vide se
-        lirait comme une journee sans gain. */}
-    {erreurGains ? (
-      <EtatErreur
-        quoi="le détail des gains du créneau"
-        onReessayer={chargerGains}
-        enCours={chargementGains}
-      />
-    ) : (
-      <DropDownPerformanceCrenea open={open} setOpen={setOpen} gainsData={dataGains||null} jour={jour}/>
-    )}
-
       </div>
-
     );
   }

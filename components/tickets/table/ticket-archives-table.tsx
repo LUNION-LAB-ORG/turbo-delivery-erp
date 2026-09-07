@@ -297,13 +297,18 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
                     ))}
               </Table.Body>
             </Table.Content>
+            {/* La sentinelle vit DANS la zone qui defile : posee dessous, elle restait en
+                permanence dans la fenetre et enchainait le chargement de toutes les pages
+                jusqu'a faire tomber l'onglet. */}
+            <div className="h-0.5" ref={observerTarget}>
+              {archivesQuery.isFetchingNextPage && (
+                <p className="w-full py-2 text-center text-xs text-muted">
+                  Chargement des données...
+                </p>
+              )}
+            </div>
           </Table.ScrollContainer>
         </Table>
-        <div className="h-0.5" ref={observerTarget}>
-          {archivesQuery.isFetchingNextPage && (
-            <p className="w-full py-2 text-center text-xs text-muted">Chargement des données...</p>
-          )}
-        </div>
       </div>
 
       {/* Mobile — cartes tactiles (remplace le tableau < md) */}

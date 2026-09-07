@@ -113,6 +113,7 @@ export function TicketPageClient({ restaurants }: TicketPageClientProps) {
         onPatch={handleNewTicketPatch}
         onRetirer={handleCancelNewTicket}
         restaurantOptions={restaurantOptions}
+        restaurants={restaurants}
         tickets={newTickets}
       />
 

@@ -20,8 +20,10 @@ import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import React from 'react';
 import { toast } from 'sonner';
 
+import { commissionAffichee } from '@/features/tickets/utils/commission.utils';
 import { cn } from '@/lib/utils';
 import type { Ticket } from '@/types/bon-livraison.model';
+import type { Restaurant } from '@/types/models';
 
 import { SelecteurZone } from './selecteur-zone';
 
@@ -58,6 +60,14 @@ interface LignesPrepareesProps {
     tickets: Ticket[];
     livreurOptions: Option[];
     restaurantOptions: Option[];
+    /**
+     * Les partenaires COMPLETS, avec leur type de commission et leur taux.
+     *
+     * <p>Le composant ne recevait que des couples valeur/libelle : il ne pouvait pas
+     * calculer la commission lui-meme, et se contentait donc d'afficher un champ ecrit
+     * ailleurs. C'est cette indirection qui laissait l'ecran et le serveur diverger.</p>
+     */
+    restaurants: Restaurant[];
     onChange: (id: string, champ: keyof Ticket, valeur: string) => void;
     onPatch: (id: string, patch: Partial<Ticket>) => void;
     onRetirer: (id: string) => void;
@@ -109,6 +119,7 @@ export function LignesPreparees({
     tickets,
     livreurOptions,
     restaurantOptions,
+    restaurants,
     onChange,
     onPatch,
     onRetirer,
@@ -354,13 +365,21 @@ export function LignesPreparees({
                                  * La commission se CALCULE — taux ou montant fixe du partenaire,
                                  * applique au montant de commande — elle ne se saisit pas.
                                  *
-                                 * Le champ d'origine la lisait sur `commission`, que rien ne
-                                 * renseigne pendant la saisie : `applyTicketPatch` et la grille
-                                 * tarifaire ecrivent tous deux `coutLivraison`. La case restait
-                                 * donc vide du debut a la fin de la saisie. Elle lit desormais
-                                 * la valeur reellement calculee.
+                                 * <p>Le champ la lisait sur `coutLivraison`, ou `applyTicketPatch`
+                                 * l'ecrivait au fil de la saisie. Or `coutLivraison` porte le COUT
+                                 * DE LIVRAISON partout ailleurs, et le serveur RECALCULE sa propre
+                                 * commission au moment de l'envoi : les deux ne pouvaient
+                                 * s'accorder que par chance. C'est ainsi qu'une ligne annoncait
+                                 * 2 000 F a la saisie et s'enregistrait a 200 F.</p>
+                                 *
+                                 * <p>Elle se calcule maintenant a l'affichage, avec la formule qui
+                                 * sert aussi a l'envoi. Une seule source, aucun ecart possible.</p>
                                  */}
-                                <TextField className="lg:col-span-2" isReadOnly value={String(t.coutLivraison ?? '')}>
+                                <TextField
+                                    className="lg:col-span-2"
+                                    isReadOnly
+                                    value={commissionAffichee(t, restaurants)}
+                                >
                                     <Label>Commission</Label>
                                     <Input placeholder="Calculée" />
                                 </TextField>

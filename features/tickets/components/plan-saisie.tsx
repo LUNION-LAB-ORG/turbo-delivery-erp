@@ -226,7 +226,14 @@ export function PlanSaisie({
                         </DatePicker.Popover>
                     </DatePicker>
 
+                    {/*
+                     * Largeur bornee : le champ vit dans une colonne `auto` de la grille,
+                     * mais son entree s'etale sur toute la place restante. Un nombre de
+                     * lignes tient sur deux chiffres — il occupait la largeur d'un champ de
+                     * recherche.
+                     */}
                     <NumberField
+                        className="w-32"
                         minValue={1}
                         onChange={(v) => etat.setNombreLignes(Number.isFinite(v) ? v : 1)}
                         value={etat.nombreLignes}
@@ -234,7 +241,7 @@ export function PlanSaisie({
                         <Label>Lignes</Label>
                         <NumberField.Group>
                             <NumberField.DecrementButton />
-                            <NumberField.Input />
+                            <NumberField.Input className="w-full text-center" />
                             <NumberField.IncrementButton />
                         </NumberField.Group>
                     </NumberField>

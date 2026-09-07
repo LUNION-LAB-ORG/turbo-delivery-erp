@@ -3,7 +3,7 @@
 import React from 'react';
 import IconCalendar from '@/components/icon/icon-calendar';
 import { User } from '@/types/models';
-import { Avatar } from "@/components/heroui";
+import { Avatar } from '@heroui-v3/react';
 import { IconMail, IconShield, IconUser } from '@tabler/icons-react';
 
 import { CodeSecuriteCard } from './code-securite-card';
@@ -37,7 +37,15 @@ const UserProfile = ({ user }: { user: User }) => {
                     <div className="mb-5">
                         <div className="flex flex-col items-center justify-center sm:flex-row sm:justify-start">
                             <div className="mb-5 h-20 w-20 flex-none">
-                                <Avatar src={user.image} alt="img" className="mx-auto h-20 w-20 rounded-full object-cover" />
+                                {/* Le texte alternatif etait « img ». */}
+                                <Avatar className="mx-auto size-20">
+                                    {user.image && (
+                                        <Avatar.Image alt={[user.prenoms, user.nom].filter(Boolean).join(' ') || 'Photo de profil'} src={user.image} />
+                                    )}
+                                    <Avatar.Fallback>
+                                        {(user.prenoms ?? user.nom)?.[0]?.toUpperCase() ?? '?'}
+                                    </Avatar.Fallback>
+                                </Avatar>
                             </div>
                             <div className="flex flex-col items-center text-center sm:items-start sm:px-4 sm:text-left">
                                 <p className="text-xl font-semibold text-primary">{`${user.username}`}</p>

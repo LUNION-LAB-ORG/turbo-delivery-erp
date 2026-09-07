@@ -308,6 +308,12 @@ export default function ApercuContenu() {
                             { value: 'r1', label: 'CAFE FNEICH' },
                             { value: 'r2', label: 'TAYBA ZONE 4' },
                         ]}
+                        /* Le banc porte les DEUX types de commission : au pourcentage et
+                           au montant fixe, pour voir les deux calculs a l'ecran. */
+                        restaurants={[
+                            { commission: 4, id: 'r1', nomEtablissement: 'CAFE FNEICH', typeCommission: 'POURCENTAGE' },
+                            { commission: 300, id: 'r2', nomEtablissement: 'TAYBA ZONE 4', typeCommission: 'FIXE' },
+                        ] as never}
                         tickets={lignesSaisie}
                     />
 

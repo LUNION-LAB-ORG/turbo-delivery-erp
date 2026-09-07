@@ -3,8 +3,7 @@ import { usePathname } from 'next/navigation'; // Pour obtenir l'URL actuelle
 import { PerformanceCreneauId } from "@/types/performance-creneauId"
 import TableCreneau from "./table-creneau"
 import FakeTableCreneau from "./fake-table-creneau"
-import { Button } from "@/components/heroui"
-import Link from "next/link"
+import { LienBouton } from '@/components/commons/LienBouton'
 import EmptyDataTable from '@/components/commons/EmptyDataTable';
 import { LivreurDetail } from '@/types/livreur';
 
@@ -97,14 +96,20 @@ export default function ListPerformanceApercu({data, infoUser}:Props){
             </div>
        <TableCreneau initialData={creneaux}/>
         <div className="flex justify-end">
-        <Button >
-            {
-                creneaux?  <Link href={newUrl}>
-                Planing hebdomadaire
-                </Link>:'Planing hebdomadaire non definie'
-            }
-    
-        </Button>
+        {/*
+         * C'etait un `<Button>` contenant un `<Link>` : un `<button>` avec un `<a>`
+         * dedans, du HTML invalide, annonce par les lecteurs d'ecran comme un bouton dont
+         * le nom est un lien. Et quand il n'y a pas de creneau, le bouton restait
+         * pleinement actif en affichant « Planing hebdomadaire non definie » — un bouton
+         * cliquable qui ne menait nulle part, avec deux fautes.
+         */}
+        {creneaux ? (
+            <LienBouton href={newUrl} variante="outline">
+                Planning hebdomadaire
+            </LienBouton>
+        ) : (
+            <span className="text-sm text-muted">Planning hebdomadaire non défini</span>
+        )}
 
         </div>
        <div className="grid gap-2 lg:grid-cols-2">

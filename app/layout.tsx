@@ -133,7 +133,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         * et le demontage suivant echoue sur
         * « removeChild: The node to be removed is not a child of this node ».</p>
         */}
-      <html lang="fr" className="light">
+      {/*
+        * `suppressHydrationWarning` : le script inline de next-themes pose
+        * `style="color-scheme: light"` sur <html> AVANT l'hydratation, attribut que
+        * l'arbre React ne rend pas. Sans cette option, React signalait un ecart
+        * d'hydratation sur chaque page (la seule « Issue » du badge Next en dev).
+        * L'option ne porte que sur les attributs de cet element, pas sur ses enfants.
+        */}
+      <html lang="fr" className="light" suppressHydrationWarning>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           {/*

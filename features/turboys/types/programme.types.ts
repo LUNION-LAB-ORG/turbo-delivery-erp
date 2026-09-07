@@ -29,6 +29,16 @@ export interface IJourProgramme {
    * `IProgramme.montantCarburantHebdo`, figé par le serveur à la publication.</p>
    */
   montantCarburant?: number | null;
+  /**
+   * Ce que la clôture nocturne a CONSTATÉ : PRESENT, RETARD, ABSENT, JUSTIFIE, NON_INSCRIT.
+   *
+   * <p>Posé par le serveur, jamais par l'éditeur. La clôture repasse aussi `actif` à false
+   * quand elle conclut à une absence : sans ce champ, l'écran affichait une absence comme
+   * un repos.</p>
+   */
+  statutJour?: string | null;
+  absenceJustifiee?: boolean | null;
+  absenceMotif?: string | null;
 }
 
 export interface IProgramme {

@@ -3,6 +3,7 @@
 import { Button } from '@heroui-v3/react';
 import React from 'react';
 
+import { ProgrammeApercuModal } from '@/components/turboys/programmes/programme-apercu-modal';
 import { WeeklyJoursEditor, defaultJours } from '@/components/turboys/programmes/weekly-jours-editor';
 import { SemaineProgrammes } from '@/features/programmes/refonte/semaine-programmes';
 import type {
@@ -39,8 +40,11 @@ function fabriquer(graine: number, nb: number, statuts: StatutProgramme[]): IPro
         const type = TYPES[i % TYPES.length];
         const montantJour = i % 6 === 5 ? null : JOURNALIER_PAR_TYPE[type];
         const jours: IJourProgramme[] = JOURS.map((j, k) => {
-            const actif = suivant() > 0.22;
+            const absence = i % 4 === 1 && k === 2;
+            const actif = !absence && suivant() > 0.22;
             return {
+                absenceJustifiee: absence ? false : null,
+                statutJour: absence ? 'ABSENT' : null,
                 actif,
                 date: `2026-08-${String(24 + k).padStart(2, '0')}`,
                 debut: actif ? `0${6 + (k % 3)}:00:00` : null,
@@ -129,6 +133,27 @@ function BancEditeur() {
     );
 }
 
+/** L'aperçu individuel, avec un numéro pour voir le partage WhatsApp. */
+function BancApercu({ programme }: { programme: IProgramme }) {
+    const [ouvert, setOuvert] = React.useState(false);
+    return (
+        <section className="mt-6 rounded-lg border border-separator p-4">
+            <h2 className="mb-3 text-sm font-semibold">L&apos;aperçu individuel</h2>
+            <Button onPress={() => setOuvert(true)} size="sm" variant="outline">
+                Ouvrir l&apos;aperçu de {programme.livreurNom}
+            </Button>
+            <ProgrammeApercuModal
+                annee={2026}
+                isOpen={ouvert}
+                onOpenChange={setOuvert}
+                programme={programme}
+                semaine={35}
+                telephone="07 00 00 00 00"
+            />
+        </section>
+    );
+}
+
 export default function ApercuProgrammes() {
     const [jeu, setJeu] = React.useState<keyof typeof JEUX>('ordinaire');
     const [etat, setEtat] = React.useState<'normal' | 'chargement' | 'echec'>('normal');
@@ -209,6 +234,7 @@ export default function ApercuProgrammes() {
                         ]}
                     />
                     <BancEditeur />
+                    <BancApercu programme={JEUX.ordinaire.lignes[1]} />
                 </main>
             </div>
         </div>

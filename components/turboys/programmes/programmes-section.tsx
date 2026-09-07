@@ -378,6 +378,7 @@ export default function ProgrammesSection() {
         }}
         programme={apercu}
         semaine={semaine}
+        telephone={(livreursQuery.data ?? []).find((l) => l.id === apercu?.livreurId)?.telephone ?? null}
       />
     </>
   );

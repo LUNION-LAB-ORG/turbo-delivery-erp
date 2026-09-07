@@ -6,6 +6,7 @@ import React from 'react';
 
 import type { IAutosuffisanceJour, IJourProgramme, IProgramme, StatutProgramme } from '@/features/turboys/types/programme.types';
 import { carburantAffiche, totauxCarburant } from '@/features/turboys/utils/carburant.utils';
+import { libelleJourInactif } from '@/features/turboys/utils/jour.utils';
 import { getTurboyTypeDisplay } from '@/features/turboys/utils/type-livreur-display';
 import { cn } from '@/lib/utils';
 import { formatMontant } from '@/utils/format.utils';
@@ -166,6 +167,14 @@ function postesSemaine(p: IProgramme): string[] {
  */
 function CelluleJour({ jour }: { jour?: IJourProgramme }) {
   if (!jour?.actif) {
+    /*
+     * La cloture nocturne repasse aussi `actif` a false quand elle conclut a une
+     * absence. Le tiret du repos mentait alors : l'absence s'ecrit.
+     */
+    const libelle = libelleJourInactif(jour);
+    if (libelle !== 'Repos') {
+      return <span className="block text-center text-[11px] leading-tight text-foreground">{libelle}</span>;
+    }
     return (
       <span aria-label="Repos" className="block text-center text-muted" role="img">
         —

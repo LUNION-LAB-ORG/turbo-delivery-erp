@@ -1,11 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Button, Modal } from '@heroui-v3/react';
-import { Download, Send } from 'lucide-react';
+import { Button, Modal, Tooltip } from '@heroui-v3/react';
+import { Download, MessageCircle, Send } from 'lucide-react';
 
 import { IProgramme } from '@/features/turboys/types/programme.types';
 import { useEnvoyerProgrammeMutation } from '@/features/turboys/queries/programme.query';
+import { libelleJourInactif } from '@/features/turboys/utils/jour.utils';
+import { lienWhatsApp, texteProgramme } from '@/features/turboys/utils/partage-whatsapp.utils';
 import { exporterProgrammeIndividuelPdf } from '@/features/turboys/utils/programmes-export.utils';
 import { getTurboyTypeDisplay } from '@/features/turboys/utils/type-livreur-display';
 
@@ -27,15 +29,24 @@ interface Props {
   semaine: number;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Le numéro du livreur, pour ouvrir la conversation WhatsApp. Absent : pas de bouton actif. */
+  telephone?: string | null;
 }
 
 /**
  * Aperçu « Programme individuel » (maquette M2) : la semaine d'un livreur en
  * lecture, avec export PDF mono-livreur.
+ *
+ * <h3>Partager sur WhatsApp</h3>
+ * <p>« Envoyer au livreur » notifie l'application, que personne n'a encore installée,
+ * et aucun SMS ne part. Le programme se transmet donc à la main, et c'est sur WhatsApp
+ * que ça se fait. Le bouton ouvre la conversation avec le message écrit ; l'envoi reste
+ * un geste humain. Le message ne dit rien du carburant.</p>
  */
-export function ProgrammeApercuModal({ programme, annee, semaine, isOpen, onOpenChange }: Props) {
+export function ProgrammeApercuModal({ programme, annee, semaine, isOpen, onOpenChange, telephone = null }: Props) {
   const prenom = (programme?.livreurNom ?? '').split(' ')[0] || 'Bonjour';
   const envoyer = useEnvoyerProgrammeMutation();
+  const lien = programme ? lienWhatsApp(telephone, texteProgramme(programme, annee, semaine)) : null;
   return (
     <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
       <Modal.Backdrop>
@@ -82,7 +93,7 @@ export function ProgrammeApercuModal({ programme, annee, semaine, isOpen, onOpen
                            * lignes rouges comme si quelque chose n'allait pas.
                            */}
                           {repos ? (
-                            <span className="text-muted">Repos</span>
+                            <span className="text-muted">{libelleJourInactif(j)}</span>
                           ) : (
                             <span className="font-medium tabular-nums text-foreground">
                               {hhmm(j!.debut)} – {hhmm(j!.fin)}
@@ -110,6 +121,21 @@ export function ProgrammeApercuModal({ programme, annee, semaine, isOpen, onOpen
                 <Download aria-hidden="true" className="size-4" />
                 Exporter PDF
               </Button>
+              <Tooltip>
+                <Button
+                  isDisabled={!lien}
+                  onPress={() => lien && window.open(lien, '_blank', 'noopener,noreferrer')}
+                  variant="outline"
+                >
+                  <MessageCircle aria-hidden="true" className="size-4" />
+                  Partager sur WhatsApp
+                </Button>
+                <Tooltip.Content>
+                  {lien
+                    ? 'Ouvre la conversation avec le message écrit ; rien ne part sans votre envoi'
+                    : 'Aucun numéro à dix chiffres pour ce livreur'}
+                </Tooltip.Content>
+              </Tooltip>
               <Button
                 isDisabled={!programme}
                 isPending={envoyer.isPending}

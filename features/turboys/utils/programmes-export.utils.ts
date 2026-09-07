@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 
 import { IProgramme } from '../types/programme.types';
 import { carburantAffiche, totauxCarburant } from './carburant.utils';
+import { libelleJourInactif } from './jour.utils';
 import { getTurboyTypeDisplay } from './type-livreur-display';
 
 const JOURS: Array<{ key: string; court: string }> = [
@@ -37,10 +38,10 @@ function libelleStatut(p: IProgramme): string {
   return STATUT_LABEL[p.statut ?? ''] ?? p.statut ?? '';
 }
 
-/** Cellule d'un jour : "10:00-22:00" si travaillé, sinon "Repos". */
+/** Cellule d'un jour : "10:00-22:00" si travaillé, sinon Repos, Absent ou Absence justifiée. */
 function celluleJour(p: IProgramme, jourKey: string): string {
   const j = p.jours?.find((x) => (x.jour ?? '').toUpperCase() === jourKey);
-  if (!j || !j.actif) return 'Repos';
+  if (!j || !j.actif) return libelleJourInactif(j);
   return `${hhmm(j.debut)}-${hhmm(j.fin)}`;
 }
 
@@ -283,8 +284,10 @@ export function exporterProgrammeIndividuelPdf(programme: IProgramme, annee: num
     doc.text(jr.label, 16, y + 5.5);
     doc.setFont('helvetica', 'normal');
     if (repos) {
-      doc.setTextColor(...RED);
-      doc.text('Repos', pageW - 16, y + 5.5, { align: 'right' });
+      // Le repos etait peint en ROUGE : un jour sans service n'est pas une alerte, et
+      // sur une semaine a deux repos le document en montrait deux. Gris, comme a l'ecran.
+      doc.setTextColor(...GRAY);
+      doc.text(libelleJourInactif(j), pageW - 16, y + 5.5, { align: 'right' });
     } else {
       doc.setTextColor(...DARK);
       doc.text(`${hhmm(j!.debut)} – ${hhmm(j!.fin)}`, pageW - 16, y + 5.5, { align: 'right' });

@@ -23,10 +23,20 @@ export function ContestationsTabsContent({ restoOpts, isOptionsLoading }: Contes
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(12);
 
-  // Réinitialiser la page quand les filtres changent
+  /*
+   * Reinitialiser la page quand les filtres changent.
+   *
+   * <p>Les bornes de periode sont des objets `Date` : nuqs en rend une NOUVELLE instance
+   * a chaque rendu. Deposees telles quelles en dependance, elles se comparent par
+   * reference et l'effet repart a chaque fois — la page revenait a 1 aussitot demandee,
+   * la pagination etait inutilisable. On compare leur VALEUR.</p>
+   */
+  const debutMs = filters.debut instanceof Date ? filters.debut.getTime() : filters.debut;
+  const finMs = filters.fin instanceof Date ? filters.fin.getTime() : filters.fin;
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.restaurantId, filters.debut, filters.fin, filters.status]);
+  }, [filters.restaurantId, debutMs, finMs, filters.status]);
 
   const { data: contestationsData, isLoading, isError, isFetching, refetch } = useContestationsQuery(
     {

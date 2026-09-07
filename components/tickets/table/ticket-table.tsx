@@ -38,6 +38,10 @@ interface TicketTableProps {
   onNewTicketPatch: (id: string, patch: Partial<Ticket>) => void;
 }
 
+// Reference stable : `?? []` fabriquerait un tableau neuf a chaque rendu, ce qui
+// invaliderait la memo en aval et redonnerait a la table une identite differente.
+const AUCUNE_LIGNE: Ticket[] = [];
+
 export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOptions, restaurantOptions, isCreatingBonLivraison, onSaveNewTicket, onCancelNewTicket, onNewTicketChange, onNewTicketPatch }: TicketTableProps) {
   const {
     filters,
@@ -98,26 +102,54 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
    */
   const [pageAffichee, setPageAffichee] = useState(0);
 
+  /*
+   * Les bornes de periode sont des objets `Date`.
+   *
+   * <p>`parseAsIsoDate` de nuqs relit l'URL et rend une NOUVELLE instance a chaque
+   * rendu. Une dependance d'effet posee sur l'objet se compare donc par reference et se
+   * declenche a chaque fois. C'est ce qui figeait la page : l'effet de remise a zero
+   * repartait en boucle, annulait le changement de page a peine demande, et le va-et-vient
+   * entre les deux etats bloquait le fil principal — « Page ne repondant pas ».</p>
+   *
+   * <p>On compare leur VALEUR, pas leur identite.</p>
+   */
+  const debutMs = filters.debut instanceof Date ? filters.debut.getTime() : filters.debut;
+  const finMs = filters.fin instanceof Date ? filters.fin.getTime() : filters.fin;
+
   // Un changement de filtre repart de la premiere page : rester sur la page 7 d'un
   // resultat qui n'en a plus que deux afficherait un tableau vide.
   useEffect(() => {
     setPageAffichee(0);
-  }, [filters.search, filters.livreurId, filters.restaurantId, filters.debut, filters.fin]);
+  }, [filters.search, filters.livreurId, filters.restaurantId, debutMs, finMs]);
 
-  const lignesDeLaPage = infiniteState.pagesTickets[pageAffichee] ?? [];
+  const { fetchNextPage, hasNextPage, isFetchingNextPage, pagesTickets, totalPages } = infiniteState;
+  const nbPagesChargees = pagesTickets.length;
+  const lignesDeLaPage = pagesTickets[pageAffichee] ?? AUCUNE_LIGNE;
 
-  const allerALaPage = useCallback(
-    (p: number) => {
-      const cible = p - 1;
-      // La page n'est pas encore chargee : on la demande, et on s'y place des qu'elle
-      // arrive — `pagesTickets` grandit, le rendu suit.
-      if (cible >= infiniteState.pagesTickets.length && infiniteState.hasNextPage) {
-        infiniteState.fetchNextPage();
-      }
-      setPageAffichee(cible);
-    },
-    [infiniteState],
-  );
+  /*
+   * Aller a une page non encore chargee.
+   *
+   * <p>La requete est INFINIE : elle ne sait avancer que d'une page a la fois. Demander
+   * la page 15 revient donc a charger les pages 2 a 15 l'une apres l'autre. L'effet s'en
+   * charge, une par rendu, et `isFetchingNextPage` empeche d'en demander deux a la fois.
+   * Le premier appel vivait dans le gestionnaire de clic et ne se declenchait qu'UNE
+   * fois : sauter a la page 15 laissait un tableau vide pour toujours.</p>
+   */
+  useEffect(() => {
+    if (pageAffichee < nbPagesChargees) return;
+    if (hasNextPage) {
+      if (!isFetchingNextPage) fetchNextPage();
+      return;
+    }
+    // Plus rien a charger et la page visee n'existe pas : on retombe sur la derniere
+    // page reelle, sinon l'ecran resterait en squelette indefiniment.
+    if (nbPagesChargees > 0) setPageAffichee(nbPagesChargees - 1);
+  }, [pageAffichee, nbPagesChargees, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const allerALaPage = useCallback((p: number) => setPageAffichee(p - 1), []);
+
+  // La page demandee n'est pas encore arrivee : on le dit, plutot que « Aucun ticket ».
+  const pageEnAttente = pageAffichee >= nbPagesChargees;
 
   const allTickets = useMemo(
     () => [...newTickets, ...lignesDeLaPage],
@@ -365,7 +397,7 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
                                 />
                               </div>
                             )
-                          : isLoading
+                          : isLoading || pageEnAttente
                             ? () => null
                             : () => (
                                 <p className="py-8 text-center text-sm text-muted">
@@ -374,7 +406,7 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
                               )
                       }
                     >
-                      {isLoading
+                      {isLoading || pageEnAttente
                         ? Array.from({ length: 10 }).map((_, i) => (
                             <Table.Row id={`skeleton-${i}`} key={`skeleton-${i}`}>
                               {Array.from({ length: colsCount }).map((_, j) => (
@@ -407,7 +439,7 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
                   <PaginationTableau
                     onPage={allerALaPage}
                     page={pageAffichee + 1}
-                    total={infiniteState.totalPages}
+                    total={totalPages}
                   />
                 </Table.Footer>
               </Table>
@@ -442,12 +474,12 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
               )}
               {/* Les cartes suivent la meme pagination que le tableau : le defilement
                   infini y chargeait des pages que l'ecran n'affichait plus. */}
-              {infiniteState.totalPages > 1 && (
+              {totalPages > 1 && (
                 <div className="flex justify-center pt-2">
                   <PaginationTableau
                     onPage={allerALaPage}
                     page={pageAffichee + 1}
-                    total={infiniteState.totalPages}
+                    total={totalPages}
                   />
                 </div>
               )}

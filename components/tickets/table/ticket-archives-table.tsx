@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Spinner,
@@ -68,16 +68,28 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
   );
   const totalPages = archivesQuery.data?.pages[0]?.totalPages ?? 1;
 
-  const allerALaPage = useCallback(
-    (p: number) => {
-      const cible = p - 1;
-      if (cible >= pagesArchives.length && archivesQuery.hasNextPage) {
-        archivesQuery.fetchNextPage();
-      }
-      setPageAffichee(cible);
-    },
-    [pagesArchives.length, archivesQuery],
-  );
+  /*
+   * La requete est INFINIE : elle ne sait avancer que d'une page a la fois. Demander une
+   * page lointaine revient donc a charger celles d'avant, l'une apres l'autre. L'effet
+   * s'en charge, une par rendu, et `isFetchingNextPage` empeche d'en demander deux a la
+   * fois. Poser cet appel dans le gestionnaire de clic ne le declenchait qu'UNE fois :
+   * sauter a la derniere page laissait un tableau vide pour toujours.
+   */
+  const { fetchNextPage, hasNextPage, isFetchingNextPage } = archivesQuery;
+
+  useEffect(() => {
+    if (pageAffichee < pagesArchives.length) return;
+    if (hasNextPage) {
+      if (!isFetchingNextPage) fetchNextPage();
+      return;
+    }
+    // Plus rien a charger et la page visee n'existe pas : on retombe sur la derniere
+    // page reelle, sinon l'ecran resterait en squelette indefiniment.
+    if (pagesArchives.length > 0) setPageAffichee(pagesArchives.length - 1);
+  }, [pageAffichee, pagesArchives.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const allerALaPage = useCallback((p: number) => setPageAffichee(p - 1), []);
+  const pageEnAttente = pageAffichee >= pagesArchives.length;
 
   const archives = useMemo<IArchiveBonLivraisonVm[]>(
     () => pagesArchives[pageAffichee] ?? [],
@@ -289,12 +301,12 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
               </Table.Header>
               <Table.Body
                 renderEmptyState={() =>
-                  archivesQuery.isLoading ? null : (
+                  archivesQuery.isLoading || pageEnAttente ? null : (
                     <p className="py-8 text-center text-sm text-muted">Aucun ticket archivé</p>
                   )
                 }
               >
-                {archivesQuery.isLoading
+                {archivesQuery.isLoading || pageEnAttente
                   ? Array.from({ length: 10 }).map((_, i) => (
                       <Table.Row id={`skeleton-${i}`} key={`skeleton-${i}`}>
                         {Array.from({ length: colsCount }).map((_, j) => (

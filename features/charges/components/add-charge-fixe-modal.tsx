@@ -1,18 +1,14 @@
 ﻿'use client';
 
 import { useEffect } from 'react';
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-  Input,
-  Select,
-  SelectItem,
-} from '@/components/heroui';
+import { Button, Modal } from '@heroui-v3/react';
 import { Plus, Save } from 'lucide-react';
+
+import {
+  ChampListe,
+  ChampMontant,
+  ChampTexte,
+} from '@/components/commons/champs-formulaire';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import {
@@ -63,7 +59,6 @@ export default function AddChargeFixeModal({
   const {
     handleSubmit,
     reset,
-    register,
     setValue,
     watch,
     formState: { errors, isValid },
@@ -123,119 +118,120 @@ export default function AddChargeFixeModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="2xl" scrollBehavior="inside">
-      <ModalContent>
-        <ModalHeader className="text-blue-600 text-xl font-semibold">
-          {isEditMode ? 'Modifier la charge fixe' : 'Ajouter une charge fixe'}
-        </ModalHeader>
+    <Modal isOpen={isOpen} onOpenChange={(o) => !o && handleClose()}>
+      <Modal.Backdrop>
+        <Modal.Container>
+          <Modal.Dialog className="max-w-3xl">
+            <Modal.Header>
+              {/* Le titre etait peint en BLEU — comme celui de la depense variable etait
+                  peint en violet. Deux fenetres soeurs du meme module, deux couleurs
+                  d'en-tete qui n'appartiennent a aucune palette de l'ERP. */}
+              <Modal.Heading>
+                {isEditMode ? 'Modifier la charge fixe' : 'Ajouter une charge fixe'}
+              </Modal.Heading>
+              <Modal.CloseTrigger />
+            </Modal.Header>
 
-        <ModalBody>
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Designation"
-                placeholder="Ex: Loyer Bureau, Internet..."
-                {...register('designation')}
-                variant="bordered"
-                isInvalid={!!errors.designation}
-                errorMessage={errors.designation?.message}
-              />
-
-              <Select
-                label="Categorie"
-                selectedKeys={formValues.categorieId ? [formValues.categorieId] : []}
-                onSelectionChange={(keys) =>
-                  setValue('categorieId', Array.from(keys)[0] as string, { shouldValidate: true })
-                }
-                variant="bordered"
-                isLoading={isLoadingCategories}
-                isInvalid={!!errors.categorieId}
-                errorMessage={errors.categorieId?.message}
+            <Modal.Body>
+              <form
+                className="flex flex-col gap-6"
+                id="form-charge-fixe"
+                onSubmit={handleSubmit(onSubmit)}
               >
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id}>{cat.nomCategorie}</SelectItem>
-                ))}
-              </Select>
-            </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {/* « Designation », « Categorie », « Date d'echeance » : les libelles
+                      etaient ecrits sans accents. */}
+                  <ChampTexte
+                    erreur={errors.designation?.message}
+                    label="Désignation"
+                    onChange={(v) => setValue('designation', v, { shouldValidate: true })}
+                    placeholder="Loyer du bureau, internet…"
+                    valeur={formValues.designation ?? ''}
+                  />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Select
-                label="Cycle de paiement"
-                selectedKeys={formValues.cyclePaiement ? [formValues.cyclePaiement] : []}
-                onSelectionChange={(keys) =>
-                  setValue('cyclePaiement', Array.from(keys)[0] as ChargeFixeCreateDTO['cyclePaiement'], {
-                    shouldValidate: true,
-                  })
-                }
-                variant="bordered"
-                isInvalid={!!errors.cyclePaiement}
-                errorMessage={errors.cyclePaiement?.message}
-              >
-                {cycles.map((cycle) => (
-                  <SelectItem key={cycle.value}>{cycle.label}</SelectItem>
-                ))}
-              </Select>
+                  <ChampListe
+                    erreur={errors.categorieId?.message}
+                    label="Catégorie"
+                    onChange={(v) => setValue('categorieId', v, { shouldValidate: true })}
+                    options={categories.map((cat) => ({
+                      label: cat.nomCategorie,
+                      value: cat.id,
+                    }))}
+                    placeholder={isLoadingCategories ? 'Chargement…' : 'Rechercher une catégorie'}
+                    valeur={formValues.categorieId ?? ''}
+                  />
+                </div>
 
-              <Input
-                label="Montant FCFA"
-                type="number"
-                value={String(formValues.montant ?? 0)}
-                onChange={(e) =>
-                  setValue('montant', Number(e.target.value), {
-                    shouldValidate: true,
-                  })
-                }
-                variant="bordered"
-                isInvalid={!!errors.montant}
-                errorMessage={errors.montant?.message}
-              />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <ChampListe
+                    erreur={errors.cyclePaiement?.message}
+                    label="Cycle de paiement"
+                    onChange={(v) =>
+                      setValue('cyclePaiement', v as ChargeFixeCreateDTO['cyclePaiement'], {
+                        shouldValidate: true,
+                      })
+                    }
+                    options={cycles.map((c) => ({ label: c.label, value: String(c.value) }))}
+                    placeholder="Choisir un cycle"
+                    valeur={formValues.cyclePaiement ?? ''}
+                  />
 
-              <Select
-                label="Date d'echeance"
-                selectedKeys={formValues.echeanceJour ? [String(formValues.echeanceJour)] : []}
-                onSelectionChange={(keys) =>
-                  setValue('echeanceJour', Number(Array.from(keys)[0] as string), { shouldValidate: true })
-                }
-                variant="bordered"
-                isInvalid={!!errors.echeanceJour}
-                errorMessage={errors.echeanceJour?.message}
-              >
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                  <SelectItem key={day.toString()}>
-                    {day.toString()}
-                  </SelectItem>
-                ))}
-              </Select>
-            </div>
+                  <ChampMontant
+                    aide="En francs CFA"
+                    erreur={errors.montant?.message}
+                    label="Montant"
+                    onChange={(v) => setValue('montant', v, { shouldValidate: true })}
+                    valeur={formValues.montant}
+                  />
 
-            <ModalFooter className="px-0">
-              <Button variant="bordered" onPress={handleClose}>
+                  {/*
+                   * Trente-et-une entrees dans une liste deroulante NON cherchable : pour
+                   * le 28, il fallait faire defiler jusqu'en bas. Et l'intitule
+                   * « Date d'echeance » annoncait une date la ou l'on choisit un JOUR DU
+                   * MOIS — ce que la valeur, un nombre de 1 a 31, dit bien.
+                   */}
+                  <ChampListe
+                    erreur={errors.echeanceJour?.message}
+                    label="Jour d'échéance dans le mois"
+                    onChange={(v) => setValue('echeanceJour', Number(v), { shouldValidate: true })}
+                    options={Array.from({ length: 31 }, (_, i) => ({
+                      label: `Le ${i + 1}`,
+                      value: String(i + 1),
+                    }))}
+                    placeholder="Choisir un jour"
+                    valeur={formValues.echeanceJour ? String(formValues.echeanceJour) : ''}
+                  />
+                </div>
+              </form>
+            </Modal.Body>
+
+            <Modal.Footer>
+              <Button onPress={handleClose} variant="ghost">
                 Annuler
               </Button>
-
               <Button
-                color="primary"
-                type="submit"
+                form="form-charge-fixe"
                 isDisabled={!isValid || isPending}
-                isLoading={isPending}
+                isPending={isPending}
+                type="submit"
+                variant="primary"
               >
                 {isEditMode ? (
                   <>
-                    <Save className="mr-2 h-4 w-4" />
+                    <Save aria-hidden="true" className="size-4" />
                     Enregistrer les modifications
                   </>
                 ) : (
                   <>
-                    <Plus className="mr-2 h-4 w-4" />
+                    <Plus aria-hidden="true" className="size-4" />
                     Enregistrer
                   </>
                 )}
               </Button>
-            </ModalFooter>
-          </form>
-        </ModalBody>
-      </ModalContent>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </Modal>
   );
 }
-

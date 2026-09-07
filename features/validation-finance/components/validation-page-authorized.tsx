@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import { Spinner } from '@/components/heroui';
+import { Spinner } from '@heroui-v3/react';
 import { useValidationData, useHistoryData } from '../hooks/use-validation-data';
 import { getPendingCount, useValidationStats } from '../hooks/use-validation-stats';
 import { useValidationActions } from '../hooks/use-validation-actions';

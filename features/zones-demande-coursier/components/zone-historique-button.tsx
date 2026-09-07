@@ -1,22 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Button,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
-  Tooltip,
-} from '@/components/heroui';
+import { Button, Modal, Table, Tooltip } from '@heroui-v3/react';
 import { History } from 'lucide-react';
 import EtatErreur from '@/components/commons/EtatErreur';
 import { useZoneHistoriqueQuery } from '../queries/zones-demande-coursier.query';
@@ -44,60 +29,101 @@ export default function ZoneHistoriqueButton({ fraisId, zoneLabel }: ZoneHistori
 
   return (
     <>
-      <Tooltip content="Historique des tarifs">
-        <button
-          type="button"
-          className="text-lg text-default-400 cursor-pointer active:opacity-50"
-          onClick={() => setOpen(true)}
+      <Tooltip>
+        {/* C'etait un `<button>` nu, sans nom accessible, dont l'apparence tenait a
+            `text-default-400 active:opacity-50` — donc aucun etat de focus visible. */}
+        <Button
+          aria-label={`Historique des tarifs${zoneLabel ? ` de ${zoneLabel}` : ''}`}
+          isIconOnly
+          onPress={() => setOpen(true)}
+          size="sm"
+          variant="ghost"
         >
-          <History size={20} />
-        </button>
+          <History aria-hidden="true" className="size-5" />
+        </Button>
+        <Tooltip.Content>Historique des tarifs</Tooltip.Content>
       </Tooltip>
 
-      <Modal isOpen={open} onClose={() => setOpen(false)} size="lg" scrollBehavior="inside">
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">
-            Historique des tarifs
-            {zoneLabel && <span className="text-sm font-normal text-default-500">{zoneLabel}</span>}
-          </ModalHeader>
-          <ModalBody>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Spinner size="sm" />
-              </div>
-            ) : isError || data === null ? (
-              <EtatErreur
-                quoi="l’historique des tarifs"
-                onReessayer={() => void refetch()}
-                enCours={isFetching}
-              />
-            ) : (
-              <Table aria-label="Historique des tarifs de la zone" removeWrapper>
-                <TableHeader>
-                  <TableColumn>Période</TableColumn>
-                  <TableColumn>Tarif FCFA</TableColumn>
-                </TableHeader>
-                <TableBody emptyContent="Aucun historique">
-                  {historique.map((item, index) => (
-                    <TableRow key={`${item.debut}-${index}`}>
-                      <TableCell>
-                        {item.fin
-                          ? `Du ${formatDate(item.debut)} au ${formatDate(item.fin)}`
-                          : `Du ${formatDate(item.debut)} — en cours`}
-                      </TableCell>
-                      <TableCell>{formatMontant(item.prixFcfa)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="light" onPress={() => setOpen(false)}>
-              Fermer
-            </Button>
-          </ModalFooter>
-        </ModalContent>
+      <Modal isOpen={open} onOpenChange={(o) => !o && setOpen(false)}>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog>
+              <Modal.Header>
+                <div className="flex flex-col gap-0.5">
+                  <Modal.Heading>Historique des tarifs</Modal.Heading>
+                  {zoneLabel && <span className="text-sm text-muted">{zoneLabel}</span>}
+                </div>
+                <Modal.CloseTrigger />
+              </Modal.Header>
+
+              <Modal.Body>
+                {isLoading ? (
+                  <div className="flex flex-col gap-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div
+                        className="h-10 animate-pulse rounded-lg bg-surface-secondary"
+                        key={i}
+                      />
+                    ))}
+                  </div>
+                ) : isError || data === null ? (
+                  <EtatErreur
+                    enCours={isFetching}
+                    onReessayer={() => void refetch()}
+                    quoi="l’historique des tarifs"
+                  />
+                ) : (
+                  <Table>
+                    <Table.ScrollContainer>
+                      <Table.Content aria-label="Historique des tarifs de la zone">
+                        <Table.Header>
+                          <Table.Column id="periode" isRowHeader>
+                            Période
+                          </Table.Column>
+                          {/* Une colonne de montants : elle s'aligne a droite en chasse
+                              tabulaire, sinon deux tarifs ne se comparent qu'en comptant
+                              les chiffres. */}
+                          <Table.Column className="text-right" id="tarif">
+                            Tarif FCFA
+                          </Table.Column>
+                        </Table.Header>
+                        <Table.Body
+                          renderEmptyState={() => (
+                            <p className="py-8 text-center text-sm text-muted">
+                              Aucun historique
+                            </p>
+                          )}
+                        >
+                          {historique.map((item, index) => (
+                            <Table.Row
+                              id={`${item.debut}-${index}`}
+                              key={`${item.debut}-${index}`}
+                            >
+                              <Table.Cell>
+                                {item.fin
+                                  ? `Du ${formatDate(item.debut)} au ${formatDate(item.fin)}`
+                                  : `Du ${formatDate(item.debut)}, en cours`}
+                              </Table.Cell>
+                              <Table.Cell className="text-right tabular-nums">
+                                {formatMontant(item.prixFcfa)}
+                              </Table.Cell>
+                            </Table.Row>
+                          ))}
+                        </Table.Body>
+                      </Table.Content>
+                    </Table.ScrollContainer>
+                  </Table>
+                )}
+              </Modal.Body>
+
+              <Modal.Footer>
+                <Button onPress={() => setOpen(false)} variant="ghost">
+                  Fermer
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
       </Modal>
     </>
   );

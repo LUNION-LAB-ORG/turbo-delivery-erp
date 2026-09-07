@@ -1,19 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Button, Chip, Modal } from '@heroui-v3/react';
+import { Check, Paperclip, Plus, Save, X } from 'lucide-react';
+
 import {
-  Button,
-  Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  Textarea,
-  Badge,
-} from '@/components/heroui';
-import ReactSelect from 'react-select';
-import { Check, Plus, Save, Paperclip, X } from 'lucide-react';
+  ChampListe,
+  ChampMontant,
+  ChampTexte,
+  ChampZoneTexte,
+} from '@/components/commons/champs-formulaire';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import {
@@ -46,20 +42,29 @@ const EMPTY_FORM: ChargeVariableFormDTO = {
   dateDepense: getTodayDateInput(),
 };
 
-function Step({ label, sub, active }: { label: string; sub: string; active?: boolean }) {
+/**
+ * Une etape de la chaine Comptable → DGA → DG → Decaissement.
+ *
+ * <p>L'etape franchie etait un rond `bg-green-500 border-green-500 text-white` : du vert
+ * de palette brute, sans variante sombre, pour dire « fait ». Elle prend le jeton de
+ * succes du theme, et son etat est annonce — un rond coche muet ne disait rien au lecteur
+ * d'ecran, qui n'entendait que « Comptable Saisie » sans savoir ou en etait le dossier.</p>
+ */
+function Step({ active, label, sub }: { active?: boolean; label: string; sub: string }) {
   return (
-    <div className="flex flex-col items-center text-center flex-1">
+    <div className="flex flex-1 flex-col items-center text-center">
       <div
-        className={`w-10 h-10 flex items-center justify-center rounded-full border-2 ${
+        className={`flex size-10 items-center justify-center rounded-full border-2 ${
           active
-            ? 'bg-green-500 border-green-500 text-white'
-            : 'bg-surface-tertiary border-separator text-muted'
+            ? 'border-success bg-success text-success-foreground'
+            : 'border-separator bg-surface-secondary text-muted'
         }`}
       >
-        {active ? <Check size={18} /> : null}
+        {active ? <Check aria-hidden="true" className="size-4" /> : null}
       </div>
-      <p className="text-sm mt-2 font-medium">{label}</p>
+      <p className="mt-2 text-sm font-medium text-foreground">{label}</p>
       <p className="text-xs text-muted">{sub}</p>
+      <span className="sr-only">{active ? 'Étape franchie' : 'Étape à venir'}</span>
     </div>
   );
 }
@@ -85,7 +90,6 @@ export default function AddDepenseVariableModal({
   const {
     handleSubmit,
     reset,
-    register,
     setValue,
     watch,
     formState: { errors, isValid },
@@ -170,94 +174,84 @@ export default function AddDepenseVariableModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="2xl" scrollBehavior="inside">
-      <ModalContent>
-        <ModalHeader className="text-purple-600 text-xl font-semibold">
-          {isEditMode ? 'Modifier la dépense variable' : 'Ajouter une Dépense Variable'}
-        </ModalHeader>
+    <Modal isOpen={isOpen} onOpenChange={(o) => !o && handleClose()}>
+      <Modal.Backdrop>
+        <Modal.Container>
+          <Modal.Dialog className="max-w-3xl">
+            <Modal.Header>
+              {/* Le titre etait peint en VIOLET, une couleur qui n'existe nulle part
+                  ailleurs dans l'ERP — comme le bouton d'enregistrement, la pastille de
+                  categorie, le montant de l'apercu et le cadre du justificatif. */}
+              <Modal.Heading>
+                {isEditMode ? 'Modifier la dépense variable' : 'Ajouter une dépense variable'}
+              </Modal.Heading>
+              <Modal.CloseTrigger />
+            </Modal.Header>
 
-        <ModalBody>
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
+            <Modal.Body>
+          {/* Le bouton d'envoi vit maintenant dans le pied de la fenetre, hors du
+              formulaire : il le vise par son `id`. */}
+          <form
+            className="flex flex-col gap-6"
+            id="form-depense-variable"
+            onSubmit={handleSubmit(onSubmit)}
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <ChampTexte
+                erreur={errors.designation?.message}
                 label="Désignation"
-                placeholder="Ex: Carburant, Maintenance..."
-                {...register('designation')}
-                variant="bordered"
-                isInvalid={!!errors.designation}
-                errorMessage={errors.designation?.message}
+                onChange={(v) => setValue('designation', v, { shouldValidate: true })}
+                placeholder="Carburant, maintenance…"
+                valeur={formValues.designation ?? ''}
               />
 
-              <div className="flex flex-col gap-1">
-                <ReactSelect
-                  options={categories.map((cat) => ({ label: cat.nomCategorie, value: cat.id }))}
-                  value={
-                    formValues.categorieId
-                      ? { label: categories.find((c) => c.id === formValues.categorieId)?.nomCategorie ?? '', value: formValues.categorieId }
-                      : null
-                  }
-                  onChange={(opt) =>
-                    setValue('categorieId', opt?.value ?? '', { shouldValidate: true })
-                  }
-                  placeholder="Rechercher une catégorie..."
-                  isClearable
-                  isLoading={isLoadingCategories}
-                  isDisabled={isLoadingCategories}
-                  classNamePrefix="react-select"
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      borderColor: errors.categorieId ? '#f31260' : state.isFocused ? '#7828c8' : '#d4d4d8',
-                      boxShadow: state.isFocused ? '0 0 0 2px rgba(120,40,200,0.2)' : 'none',
-                      '&:hover': { borderColor: errors.categorieId ? '#f31260' : '#7828c8' },
-                    }),
-                  }}
-                />
-                {errors.categorieId && (
-                  <p className="text-xs text-red-500">{errors.categorieId.message}</p>
-                )}
-              </div>
+              {/*
+               * C'etait un `react-select`, la seule bibliotheque de listes du projet a ne
+               * pas suivre le theme, et son apparence etait ecrite en HEXADECIMAUX dans un
+               * objet `styles` : `#f31260` pour l'erreur, `#7828c8` pour le focus,
+               * `#d4d4d8` pour la bordure. Trois couleurs qui n'existent dans aucun jeton,
+               * et pas une seule variante sombre — le champ restait blanc a bordure claire
+               * sur un fond noir.
+               */}
+              <ChampListe
+                erreur={errors.categorieId?.message}
+                label="Catégorie"
+                onChange={(v) => setValue('categorieId', v, { shouldValidate: true })}
+                options={categories.map((cat) => ({ label: cat.nomCategorie, value: cat.id }))}
+                placeholder={isLoadingCategories ? 'Chargement…' : 'Rechercher une catégorie'}
+                valeur={formValues.categorieId ?? ''}
+              />
             </div>
 
-            <Input
-              label="Montant FCFA"
-              type="number"
-              placeholder="0"
-              value={String(formValues.montant ?? 0)}
-              onChange={(e) =>
-                setValue('montant', Number(e.target.value), { shouldValidate: true })
-              }
-              variant="bordered"
-              startContent={<span className="text-muted text-sm">FCFA</span>}
-              isInvalid={!!errors.montant}
-              errorMessage={errors.montant?.message}
-            />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <ChampMontant
+                aide="En francs CFA"
+                erreur={errors.montant?.message}
+                label="Montant"
+                onChange={(v) => setValue('montant', v, { shouldValidate: true })}
+                valeur={formValues.montant}
+              />
 
-            <Input
-              label="Date de dépense"
-              type="date"
-              value={formValues.dateDepense ?? ''}
-              onChange={(e) =>
-                setValue('dateDepense', e.target.value, { shouldValidate: true })
-              }
-              variant="bordered"
-              isInvalid={!!errors.dateDepense}
-              errorMessage={errors.dateDepense?.message}
-            />
+              <ChampTexte
+                erreur={errors.dateDepense?.message}
+                label="Date de dépense"
+                onChange={(v) => setValue('dateDepense', v, { shouldValidate: true })}
+                type="date"
+                valeur={formValues.dateDepense ?? ''}
+              />
+            </div>
 
-            <Textarea
-              label="Description (optionnel)"
-              placeholder="Ajouter une description..."
-              {...register('description')}
-              variant="bordered"
-              minRows={2}
-              maxRows={4}
+            <ChampZoneTexte
+              label="Description (facultative)"
+              onChange={(v) => setValue('description', v)}
+              placeholder="Préciser le contexte de la dépense"
+              valeur={formValues.description ?? ''}
             />
 
             {/* Justificatif (fichier) */}
             <div>
-              <p className="text-sm font-medium text-foreground mb-2">
-                Justificatif <span className="text-red-500">*</span>
+              <p className="mb-2 text-sm font-medium text-foreground">
+                Justificatif <span className="text-danger">*</span>
               </p>
               <input
                 ref={fileInputRef}
@@ -267,24 +261,33 @@ export default function AddDepenseVariableModal({
                 onChange={(e) => setJustificatifFile(e.target.files?.[0] ?? null)}
               />
               {justificatifFile ? (
-                <div className="flex items-center gap-2 rounded-lg border border-purple-300 bg-purple-50 px-4 py-3">
-                  <Paperclip size={16} className="text-purple-600 shrink-0" />
-                  <span className="text-sm text-foreground truncate flex-1">{justificatifFile.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => { setJustificatifFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-                    className="text-muted hover:text-red-500 transition-colors shrink-0"
+                <div className="flex items-center gap-2 rounded-lg border border-separator bg-surface-secondary px-4 py-3">
+                  <Paperclip aria-hidden="true" className="size-4 shrink-0 text-muted" />
+                  <span className="flex-1 truncate text-sm text-foreground">
+                    {justificatifFile.name}
+                  </span>
+                  {/* C'etait un `<button>` nu, sans nom accessible, sur le seul geste qui
+                      retire la piece obligatoire du formulaire. */}
+                  <Button
+                    aria-label="Retirer le justificatif"
+                    isIconOnly
+                    onPress={() => {
+                      setJustificatifFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    size="sm"
+                    variant="ghost"
                   >
-                    <X size={16} />
-                  </button>
+                    <X aria-hidden="true" className="size-4" />
+                  </Button>
                 </div>
               ) : (
                 <button
-                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg border-2 border-dashed border-separator px-4 py-3 text-sm text-muted transition-colors hover:border-foreground/40 hover:text-foreground focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 w-full rounded-lg border-2 border-dashed border-separator px-4 py-3 text-sm text-muted hover:border-purple-400 hover:text-purple-600 transition-colors"
+                  type="button"
                 >
-                  <Paperclip size={16} />
+                  <Paperclip aria-hidden="true" className="size-4" />
                   Joindre un fichier (image ou PDF)
                 </button>
               )}
@@ -319,61 +322,66 @@ export default function AddDepenseVariableModal({
                 </div>
               )}
               {!hasJustificatif && (
-                <p className="text-xs text-red-500 mt-1">Le justificatif est obligatoire</p>
+                <p className="mt-1 text-xs text-danger">Le justificatif est obligatoire</p>
               )}
             </div>
 
             {/* Workflow */}
             <div className="flex items-center justify-between pt-4">
               <Step label="Comptable" sub="Saisie" active />
-              <div className="flex-1 h-[2px] bg-surface-tertiary mx-2" />
+              <div className="mx-2 h-px flex-1 bg-separator" />
               <Step label="DGA" sub="Visa" />
-              <div className="flex-1 h-[2px] bg-surface-tertiary mx-2" />
+              <div className="mx-2 h-px flex-1 bg-separator" />
               <Step label="DG" sub="Approbation" />
-              <div className="flex-1 h-[2px] bg-surface-tertiary mx-2" />
+              <div className="mx-2 h-px flex-1 bg-separator" />
               <Step label="Paiement" sub="Décaissement" />
             </div>
 
             {/* Aperçu */}
             {isValid && hasJustificatif && (
-              <div className="bg-surface-secondary p-4 rounded-lg">
-                <p className="font-semibold">{formValues.designation}</p>
-                <Badge color="secondary" variant="flat">
-                  {categories.find((c) => c.id === formValues.categorieId)?.nomCategorie}
-                </Badge>
-                <p className="text-purple-600 font-bold mt-2">
+              <div className="flex flex-col items-start gap-2 rounded-lg bg-surface-secondary p-4">
+                <p className="font-semibold text-foreground">{formValues.designation}</p>
+                <Chip size="sm" variant="soft">
+                  <Chip.Label>
+                    {categories.find((c) => c.id === formValues.categorieId)?.nomCategorie}
+                  </Chip.Label>
+                </Chip>
+                <p className="text-lg font-bold tabular-nums text-foreground">
                   {formatMontant(formValues.montant)}
                 </p>
               </div>
             )}
 
-            <ModalFooter className="px-0">
-              <Button variant="bordered" onPress={handleClose}>
+          </form>
+            </Modal.Body>
+
+            <Modal.Footer>
+              <Button onPress={handleClose} variant="ghost">
                 Annuler
               </Button>
               <Button
-                color="primary"
-                type="submit"
+                form="form-depense-variable"
                 isDisabled={!isValid || !hasJustificatif || isPending}
-                isLoading={isPending}
-                className="bg-purple-600"
+                isPending={isPending}
+                type="submit"
+                variant="primary"
               >
                 {isEditMode ? (
                   <>
-                    <Save className="w-4 h-4 mr-2" />
+                    <Save aria-hidden="true" className="size-4" />
                     Enregistrer les modifications
                   </>
                 ) : (
                   <>
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus aria-hidden="true" className="size-4" />
                     Enregistrer
                   </>
                 )}
               </Button>
-            </ModalFooter>
-          </form>
-        </ModalBody>
-      </ModalContent>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </Modal>
   );
 }

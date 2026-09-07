@@ -8,7 +8,7 @@ import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Button as HButton, Checkbox } from '@/components/heroui';
+import { Button as HButton, Checkbox, Chip } from '@heroui-v3/react';
 import { GitMerge, MoreHorizontal } from 'lucide-react';
 import { CategorieDetailModal } from '@/features/depenses/components/depense-list/detail/categorie-detail';
 import { ModifierCategorieModal } from '@/features/depenses/components/modifier/modifier-categorie-modal';
@@ -27,14 +27,15 @@ export function CategorieDepenseList() {
     setSel((p) => { const n = new Set(p); v ? n.add(id) : n.delete(id); return n; });
   const selectedIds = Array.from(sel);
 
-  // Couleur des résultats
-  const getCategoriesStyle = (nomCategorie: string) => {
-    const colors = ['bg-red-500 text-white', 'bg-green-500 text-white', 'bg-blue-500 text-white', 'bg-yellow-500 text-white', 'bg-pink-500 text-white', 'bg-purple-500 text-white'];
-    // Générer une couleur cohérente basée sur le nom de la catégorie
-    const hash = nomCategorie.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const randomIndex = hash % colors.length;
-    return colors[randomIndex];
-  };
+  /*
+   * Le nom d'une categorie etait peint parmi SIX couleurs de la palette Tailwind brute,
+   * choisies par la somme des codes de ses lettres : rouge, vert, bleu, jaune, rose,
+   * violet — toutes avec `text-white`, y compris le jaune, ou le contraste tombe sous
+   * 2:1 et le libelle devient illisible. Un rouge et un vert y apparaissaient au hasard
+   * sur des lignes ou rien ne va bien ni mal.
+   *
+   * Une categorie de depense est une CATEGORIE : elle se lit, elle ne se signale pas.
+   */
 
   // fonction pour formater la createdAt
   const formatDate = (dateString: string) => {
@@ -61,15 +62,17 @@ export function CategorieDepenseList() {
                   <>
                     <span className="text-sm text-muted">{sel.size} sélectionnée{sel.size > 1 ? 's' : ''}</span>
                     <HButton
-                      size="sm"
-                      color="primary"
-                      startContent={<GitMerge className="h-4 w-4" />}
                       isDisabled={sel.size < 2}
                       onPress={() => setFusionOpen(true)}
+                      size="sm"
+                      variant="primary"
                     >
+                      <GitMerge aria-hidden="true" className="size-4" />
                       Fusionner{sel.size >= 2 ? ` (${sel.size})` : ''}
                     </HButton>
-                    <HButton size="sm" variant="light" onPress={() => setSel(new Set())}>Effacer</HButton>
+                    <HButton onPress={() => setSel(new Set())} size="sm" variant="ghost">
+                      Effacer
+                    </HButton>
                   </>
                 )}
                 <CreerCategorieModal />
@@ -87,7 +90,8 @@ export function CategorieDepenseList() {
           {/* Tableau — desktop uniquement (≥ md) */}
           <Table className="hidden md:table">
             <TableHeader className="">
-              <TableRow className="bg-red-500 hover:bg-red-600">
+              {/* L'en-tete du tableau etait un aplat ROUGE PLEIN, survol compris. */}
+              <TableRow className="bg-surface-secondary">
                 <TableHead className="w-10"></TableHead>
                 <TableHead className="font-semibold">Date</TableHead>
                 <TableHead className="font-semibold">Nom </TableHead>
@@ -100,15 +104,22 @@ export function CategorieDepenseList() {
                 <TableRow key={categorie_depense.id} className="transition-colors">
                   <TableCell className="border-b-2">
                     <Checkbox
-                      size="sm"
-                      isSelected={sel.has(categorie_depense.id)}
-                      onValueChange={(v) => toggle(categorie_depense.id, v)}
                       aria-label={`Sélectionner ${categorie_depense.nomCategorie}`}
-                    />
+                      isSelected={sel.has(categorie_depense.id)}
+                      onChange={(v) => toggle(categorie_depense.id, v)}
+                    >
+                      <Checkbox.Content>
+                        <Checkbox.Control>
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                      </Checkbox.Content>
+                    </Checkbox>
                   </TableCell>
                   <TableCell className="font-medium border-b-2">{formatDate(categorie_depense.createdAt)}</TableCell>
                   <TableCell className="border-b-2">
-                    <span className={`font-semibold rounded-full px-2 py-1 ${getCategoriesStyle(categorie_depense.nomCategorie)}`}>{categorie_depense.nomCategorie}</span>
+                    <Chip size="sm" variant="soft">
+                      <Chip.Label>{categorie_depense.nomCategorie}</Chip.Label>
+                    </Chip>
                   </TableCell>
                   <TableCell className="border-b-2">{Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(categorie_depense.totalDepense)}</TableCell>
                   <TableCell className="border-b-2">
@@ -146,12 +157,19 @@ export function CategorieDepenseList() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <Checkbox
-                        size="sm"
-                        isSelected={sel.has(categorie_depense.id)}
-                        onValueChange={(v) => toggle(categorie_depense.id, v)}
                         aria-label={`Sélectionner ${categorie_depense.nomCategorie}`}
-                      />
-                      <span className={`font-semibold rounded-full px-2 py-1 text-sm ${getCategoriesStyle(categorie_depense.nomCategorie)}`}>{categorie_depense.nomCategorie}</span>
+                        isSelected={sel.has(categorie_depense.id)}
+                        onChange={(v) => toggle(categorie_depense.id, v)}
+                      >
+                        <Checkbox.Content>
+                          <Checkbox.Control>
+                            <Checkbox.Indicator />
+                          </Checkbox.Control>
+                        </Checkbox.Content>
+                      </Checkbox>
+                      <Chip size="sm" variant="soft">
+                        <Chip.Label>{categorie_depense.nomCategorie}</Chip.Label>
+                      </Chip>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

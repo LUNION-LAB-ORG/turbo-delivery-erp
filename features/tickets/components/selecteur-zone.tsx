@@ -24,13 +24,29 @@ import type { DeliveryFee } from '@/types/delivery-fee.model';
 interface SelecteurZoneProps {
     /** Placement dans la grille du parent : un enfant de grille porte son propre span. */
     className?: string;
-    ticketId: string;
-    restaurantId: string;
-    zoneId?: string;
+    /**
+     * Afficher « Zone » au-dessus du champ.
+     *
+     * <p>Vrai dans les formulaires — carte mobile, plan de saisie — ou tous les champs
+     * voisins portent le leur. FAUX dans le tableau : l'en-tete de colonne dit deja
+     * « Zone », et le libelle en double ajoutait une ligne a cette seule cellule, qui
+     * poussait son champ vers le bas et desalignait toute la rangee.</p>
+     */
+    libelleVisible?: boolean;
     onPatch: (id: string, patch: Partial<Ticket>) => void;
+    restaurantId: string;
+    ticketId: string;
+    zoneId?: string;
 }
 
-export function SelecteurZone({ className, ticketId, restaurantId, zoneId, onPatch }: SelecteurZoneProps) {
+export function SelecteurZone({
+    className,
+    libelleVisible = true,
+    onPatch,
+    restaurantId,
+    ticketId,
+    zoneId,
+}: SelecteurZoneProps) {
     const { data, isPending, isError } = useDeliveryFeesByRestaurantQuery(restaurantId || null, 0, 100);
 
     const zones: DeliveryFee[] = useMemo(() => data?.content ?? [], [data]);
@@ -85,12 +101,15 @@ export function SelecteurZone({ className, ticketId, restaurantId, zoneId, onPat
 
     return (
         <ComboBox
+            // Le libelle cache reste un NOM : sans lui le champ n'est plus annonce du
+            // tout, et l'en-tete de colonne ne suffit pas a un lecteur d'ecran.
+            aria-label={libelleVisible ? undefined : 'Zone'}
             className={className}
             isDisabled={indisponible}
             onSelectionChange={(c) => choisir(String(c ?? ''))}
             selectedKey={zoneId || null}
         >
-            <Label>Zone</Label>
+            {libelleVisible ? <Label>Zone</Label> : null}
             <ComboBox.InputGroup>
                 <Input placeholder={invite} />
                 <ComboBox.Trigger />

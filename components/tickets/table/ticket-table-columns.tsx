@@ -184,6 +184,7 @@ export const createTicketColumns = (): ColumnDef<Ticket>[] => [
       if (isEditing(ticket, meta)) {
         return (
           <SelecteurZone
+            libelleVisible={false}
             onPatch={meta.onTicketPatch}
             restaurantId={ticket.restaurantId}
             ticketId={ticket.id}

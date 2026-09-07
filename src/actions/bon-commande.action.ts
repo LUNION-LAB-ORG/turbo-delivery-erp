@@ -151,6 +151,28 @@ export async function reportingBonLivraisonTerminers(parametre: ParametreBonLivr
 }
 
 /**
+ * Un montant, tel que le serveur l'accepte.
+ *
+ * <h3>Pourquoi</h3>
+ * <p>Une ligne neuve part avec `montantCommande: ''`. Le champ, lui, AFFICHE
+ * `Number('') || 0`, donc un zero : l'operateur voit 0 et croit le montant renseigne.
+ * S'il ne touche jamais au champ, `onChange` ne part pas et la chaine vide reste.</p>
+ *
+ * <p>Jackson convertit `""` en `null` pour un `BigDecimal`. Le `@NotNull` du
+ * `BonLivraisonDto` refuse alors la ligne avec « Le montant de la commande est
+ * obligatoire ». L'ecran affichait donc 0 et refusait d'enregistrer 0.</p>
+ *
+ * <p>Et il y a bien des tickets sans montant de commande. Le backend le sait deja :
+ * `hydrateCommande` fait `setPrix(Optional.ofNullable(montantCommande).orElse(ZERO))`.
+ * Envoyer 0 aboutit donc exactement au meme enregistrement que si le champ avait ete
+ * facultatif — sans toucher au contrat de l'API ni redeployer le backend.</p>
+ */
+function montantEnvoye(valeur: unknown): number {
+  const nombre = Number(valeur);
+  return Number.isFinite(nombre) ? nombre : 0;
+}
+
+/**
  * Calculer la commission correctement avant l'envoi
  */
 function calculateFinalCommission(ticket: Ticket, restaurant?: { typeCommission: string; commission: number }): number {
@@ -188,6 +210,9 @@ export async function createBonLivraison(ticket: Ticket, restaurant?: { typeComm
     const payload = {
       ...rest,
       reference: code,
+      // Un champ laisse vide vaut ZERO, pas « rien » : voir `montantEnvoye`.
+      montantCommande: montantEnvoye(ticket.montantCommande),
+      montantLivraison: montantEnvoye(ticket.montantLivraison),
       commission: finalCommission,
       coutLivraison: finalCommission,
     };
@@ -223,6 +248,9 @@ export async function updateBonLivraison(ticketId: string, ticket: Ticket, resta
     const payload = {
       ...rest,
       reference: code,
+      // Un champ laisse vide vaut ZERO, pas « rien » : voir `montantEnvoye`.
+      montantCommande: montantEnvoye(ticket.montantCommande),
+      montantLivraison: montantEnvoye(ticket.montantLivraison),
       commission: finalCommission,
       coutLivraison: finalCommission,
     };

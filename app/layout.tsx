@@ -122,7 +122,18 @@ const nunito = Inter({
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <NextAuthSessionProvider>
-      <html lang="en" className="light">
+      {/*
+        * `lang` etait « en » sur une interface ENTIEREMENT francaise.
+        *
+        * <p>Ce n'est pas qu'une etiquette. Un lecteur d'ecran lisait le francais avec
+        * une voix anglaise, et surtout Chrome, voyant une page declaree anglaise remplie
+        * de francais, propose de la traduire — et la traduit a chaque visite si
+        * l'utilisateur a accepte une fois. Or la traduction FUSIONNE les noeuds de texte
+        * voisins dans un `<font>` : les noeuds que React possede disparaissent sous lui,
+        * et le demontage suivant echoue sur
+        * « removeChild: The node to be removed is not a child of this node ».</p>
+        */}
+      <html lang="fr" className="light">
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           {/*

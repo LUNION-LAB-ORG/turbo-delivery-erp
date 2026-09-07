@@ -1,15 +1,6 @@
 import React from "react";
-import {
-    Modal,
-    ModalContent,
-    ModalHeader,
-    ModalBody,
-    ModalFooter,
-    Button,
-    Card,
-    Chip,
-} from "@/components/heroui";
-import { MoveDownLeft, MoveDownRight, MoveUpRight } from "lucide-react";
+import { Button, Card, Chip, Modal } from '@heroui-v3/react';
+import { MoveUpRight } from 'lucide-react';
 import { useInitierPaiementController } from "./controller";
 import { CreneauDePaieModal } from "../creneau-de-paie/creneau-de-paie-modal";
 import { GainHebdomadaireVm, GainParJour, PaieParLivreur } from "@/types/gestion-de-paie.model";
@@ -28,11 +19,17 @@ export function DetailFichePaieModal({ isOpen, onClose, details, periode, nonEli
     const ctrl = useInitierPaiementController(details, isOpen);
     return (
         <>
-            <Modal isOpen={isOpen} size={"2xl"} onClose={onClose}>
-                <ModalContent>
-                    <>
-                        <ModalHeader className="flex flex-col gap-1 text-center text-primary font-bold">Détail de la fiche de paie</ModalHeader>
-                        <ModalBody>
+            <Modal isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
+                <Modal.Backdrop>
+                    <Modal.Container>
+                        <Modal.Dialog className="max-w-3xl">
+                            <Modal.Header>
+                                {/* Le titre etait centre et peint en ROUGE DE MARQUE. */}
+                                <Modal.Heading>Détail de la fiche de paie</Modal.Heading>
+                                <Modal.CloseTrigger />
+                            </Modal.Header>
+
+                            <Modal.Body>
                             {
                                 // l'echec passe AVANT la donnee : un detail deja charge pour un
                                 // autre livreur resterait sinon affiche sous le nouveau nom
@@ -44,72 +41,126 @@ export function DetailFichePaieModal({ isOpen, onClose, details, periode, nonEli
                                     />
                                     :
                                     ctrl.detailFichePaie ?
-                                    <div className="pl-4 pr-4">
-                                        <div className="flex justify-between mb-5">
+                                    <div className="flex flex-col gap-5">
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-muted font-bold text-xl">{ctrl.detailFichePaie?.nomPrenom}</span>
-                                                <span className="text-sm">Lieur de travail <span className="text-muted font-bold">{ctrl.detailFichePaie?.lieuTravail ?? ""}</span></span>
+                                                <span className="text-xl font-bold text-foreground">{ctrl.detailFichePaie?.nomPrenom}</span>
+                                                {/* « Lieur de travail » : la faute etait a l'ecran. */}
+                                                <span className="text-sm text-muted">
+                                                    Lieu de travail :{' '}
+                                                    <span className="font-semibold text-foreground">
+                                                        {ctrl.detailFichePaie?.lieuTravail ?? '—'}
+                                                    </span>
+                                                </span>
                                             </div>
-                                            {
-                                                nonEligible ?
-                                                    <Chip className="bg-purple-100 text-purple-800 ml-2 mr-2"><span className="font-black">A encaissé</span></Chip>
-                                                    :
-                                                    <Chip className="bg-yellow-50 text-orange-500 font-bold">Paie en attente</Chip>
-                                            }
+                                            {/*
+                                             * « A encaisse » etait peint en `bg-purple-100
+                                             * text-purple-800` et « Paie en attente » en
+                                             * `bg-yellow-50 text-orange-500` — du violet et
+                                             * de l'orange, deux couleurs etrangeres a la
+                                             * palette, et l'orange sur jaune tres pale.
+                                             * Une paie en attente est le deroulement
+                                             * NORMAL : elle ne s'alarme pas.
+                                             */}
+                                            {nonEligible ? (
+                                                <Chip color="success" variant="soft">
+                                                    <Chip.Label>À encaisser</Chip.Label>
+                                                </Chip>
+                                            ) : (
+                                                <Chip variant="soft">
+                                                    <Chip.Label>Paie en attente</Chip.Label>
+                                                </Chip>
+                                            )}
                                         </div>
-                                        <div className="flex gap-20 mb-4">
+
+                                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                                             <div className="flex flex-col gap-1">
-                                                <div className="text-muted">Commssion</div>
-                                                <div className="text-md text-muted font-bold">{ctrl.detailFichePaie?.commission ?? 0}&nbsp;&nbsp; FCFA</div>
+                                                {/* « Commssion » : la faute etait a l'ecran. */}
+                                                <span className="text-xs tracking-wide text-muted uppercase">Commission</span>
+                                                <span className="font-bold tabular-nums text-foreground">
+                                                    {formatMontant(ctrl.detailFichePaie?.commission ?? 0)}
+                                                </span>
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <div className="text-muted">Prime</div>
-                                                {ctrl.detailFichePaie?.prime && ctrl.detailFichePaie?.prime > 0 ? <span className="ml-1 flex gap-1 text-green-500"><MoveUpRight className="text-green-500" size={16} /> + {ctrl.detailFichePaie?.prime}&nbsp;&nbsp; FCFA</span>
-                                                    : <span className="ml-1 flex gap-1 text-red-500"> <MoveDownRight className="text-red-500" size={16} /> + {ctrl.detailFichePaie?.prime ?? 0}&nbsp;&nbsp;  FCFA</span>}
-
+                                                <span className="text-xs tracking-wide text-muted uppercase">Prime</span>
+                                                {/*
+                                                 * Une prime nulle s'affichait « + 0 FCFA » en
+                                                 * ROUGE avec une fleche vers le BAS, comme une
+                                                 * perte. Une prime est la, ou elle n'est pas.
+                                                 */}
+                                                {(ctrl.detailFichePaie?.prime ?? 0) > 0 ? (
+                                                    <span className="flex items-center gap-1 font-bold tabular-nums text-success-soft-foreground">
+                                                        <MoveUpRight aria-hidden="true" size={16} />
+                                                        {formatMontant(ctrl.detailFichePaie?.prime ?? 0)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted">Aucune prime</span>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs tracking-wide text-muted uppercase">Total réalisé</span>
+                                                <span className="font-bold tabular-nums text-foreground">
+                                                    {formatMontant(ctrl.detailFichePaie?.totalRealise ?? 0)}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs tracking-wide text-muted uppercase">Gain initial</span>
+                                                <span className="font-bold tabular-nums text-foreground">
+                                                    {formatMontant(ctrl.detailFichePaie?.gainInitial ?? 0)}
+                                                </span>
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-20 mb-4">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="text-muted">Total réalisé</div>
-                                                <div className="text-md text-muted">{ctrl.detailFichePaie?.totalRealise ?? 0}&nbsp;&nbsp; FCFA</div>
-                                            </div>
-                                            <div className="flex flex-col gap-1">
-                                                <div className="text-muted">Gain initial</div>
-                                                <span className="text-md text-muted">{ctrl.detailFichePaie?.gainInitial ?? 0}&nbsp;&nbsp;  FCFA</span>
-
-                                            </div>
-                                        </div>
-                                        <Card className="p-4">
-                                            <div className="flex items-center justify-between mb-4" >
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="text-muted">Total a payer</div>
-                                                    <div className="text-md font-bold text-muted">{formatMontant(ctrl.detailFichePaie?.gainInitial ?? 0)}</div>
-                                                </div>
-                                                <div className="flex flex-col gap-1">
-                                                    <div>Date de récupéreration</div>
-                                                    <div className="flex justify-end">
-                                                        <div className="text-sm font-bold text-muted">...</div>
+                                        <Card>
+                                            <Card.Content className="gap-3 p-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs tracking-wide text-muted uppercase">Total à payer</span>
+                                                        <span className="text-lg font-bold tabular-nums text-foreground">
+                                                            {formatMontant(ctrl.detailFichePaie?.gainInitial ?? 0)}
+                                                        </span>
+                                                    </div>
+                                                    {/* ⚠ « Date de recupereration » (deux fautes) affichait
+                                                        « ... » : la valeur n'a jamais ete branchee. */}
+                                                    <div className="flex flex-col gap-1 text-right">
+                                                        <span className="text-xs tracking-wide text-muted uppercase">Date de récupération</span>
+                                                        <span className="text-sm text-muted">Non renseignée</span>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            {
-                                                (ctrl.detailFichePaie?.gainFicheVM && ctrl.detailFichePaie?.gainFicheVM?.gains) &&
-                                                ctrl.detailFichePaie?.gainFicheVM?.gains.map((item: GainParJour, index: number) => (
-                                                    <div key={index} onClick={() => ctrl.onpenCrennauxDialog(ctrl.detailFichePaie?.gainFicheVM)} className="cursor-pointer">
-                                                        <div className="flex justify-between mt-2 border-b-2 pb-2 text-md hover:bg-primary/10" >
-                                                            <div className="text-sm">{item.jour + " " + (index + 1)}</div>
-                                                            <div className="text-sm font-bold text-muted">{item.gain?.frais}&nbsp;&nbsp;  FCFA</div>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            }
+
+                                                <div className="flex flex-col">
+                                                    {(ctrl.detailFichePaie?.gainFicheVM?.gains ?? []).map(
+                                                        (item: GainParJour, index: number) => (
+                                                            <button
+                                                                className="flex items-center justify-between border-b border-separator py-2 text-left transition-colors last:border-b-0 hover:bg-surface-secondary"
+                                                                key={index}
+                                                                onClick={() =>
+                                                                    ctrl.onpenCrennauxDialog(ctrl.detailFichePaie?.gainFicheVM)
+                                                                }
+                                                                type="button"
+                                                            >
+                                                                <span className="text-sm text-foreground">
+                                                                    {item.jour} {index + 1}
+                                                                </span>
+                                                                <span className="text-sm font-bold tabular-nums text-foreground">
+                                                                    {formatMontant(item.gain?.frais ?? 0)}
+                                                                </span>
+                                                            </button>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            </Card.Content>
                                         </Card>
                                     </div>
-                                    : <span className="text-center text-primry font-bold">Aucun details pour cette fiche de paie</span>
+                                    : (
+                                        /* La classe etait `text-primry` — une faute de frappe,
+                                           donc aucune couleur appliquee. */
+                                        <p className="py-8 text-center text-sm text-muted">
+                                            Aucun détail pour cette fiche de paie
+                                        </p>
+                                    )
                             }
-                        </ModalBody>
+                            </Modal.Body>
                         {/*
                           * Pied VIDE de ses deux actions, et c'est voulu.
                           *
@@ -132,15 +183,23 @@ export function DetailFichePaieModal({ isOpen, onClose, details, periode, nonEli
                           * passer. Il reste utile en LECTURE — le detail de la fiche est reel — donc on
                           * retire les leurres sans supprimer l'ecran.
                           */}
-                        <ModalFooter>
-                            <Button color="danger" variant="light" className="text-sm" size="sm" onPress={onClose}>
-                                Fermer
-                            </Button>
-                        </ModalFooter>
-                    </>
-                    <CreneauDePaieModal onClose={ctrl.creneauDePaieClosure.onClose} isOpen={ctrl.creneauDePaieClosure.isOpen} gainsHedomadaires={ctrl.gainsHedomadaires} periode={periode} />
-                </ModalContent>
+                            <Modal.Footer>
+                                {/* « Fermer » etait peint en DANGER. */}
+                                <Button onPress={onClose} variant="ghost">
+                                    Fermer
+                                </Button>
+                            </Modal.Footer>
+                        </Modal.Dialog>
+                    </Modal.Container>
+                </Modal.Backdrop>
             </Modal>
+
+            <CreneauDePaieModal
+                gainsHedomadaires={ctrl.gainsHedomadaires}
+                isOpen={ctrl.creneauDePaieClosure.isOpen}
+                onClose={ctrl.creneauDePaieClosure.onClose}
+                periode={periode}
+            />
         </>
     );
 }

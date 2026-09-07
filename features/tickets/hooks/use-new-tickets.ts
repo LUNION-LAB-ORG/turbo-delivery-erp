@@ -1,5 +1,5 @@
 // features/tickets/hooks/use-new-tickets.ts
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Ticket } from '@/types/bon-livraison.model';
 import { Restaurant } from '@/types/models';
@@ -25,6 +25,16 @@ interface UseNewTicketsParams {
   ) => Promise<unknown>;
 }
 
+/**
+ * Ou l'on garde les lignes en cours de saisie, le temps d'un rechargement.
+ *
+ * <p>Elles ne vivaient que dans l'etat React. Or le seul remede a une version perimee
+ * est de RECHARGER la page : conseiller le rechargement revenait donc a faire retaper
+ * douze lignes. Elles sont desormais gardees dans le navigateur — sur ce poste, pour cet
+ * operateur, et nulle part ailleurs — et reprises au retour.</p>
+ */
+const CLE_BROUILLON = 'turbo-erp:tickets-en-saisie';
+
 export function useNewTickets({
   restaurants,
   livreurOptions,
@@ -33,6 +43,35 @@ export function useNewTickets({
   createBonLivraisonAsync,
 }: UseNewTicketsParams) {
   const [newTickets, setNewTickets] = useState<Ticket[]>([]);
+  // Ne pas ecrire avant d'avoir lu : le premier rendu a la liste vide, et il ecraserait
+  // le brouillon qu'on s'apprete justement a reprendre.
+  const brouillonLu = useRef(false);
+
+  useEffect(() => {
+    try {
+      const garde = window.localStorage.getItem(CLE_BROUILLON);
+      if (garde) {
+        const lignes = JSON.parse(garde);
+        if (Array.isArray(lignes) && lignes.length > 0) setNewTickets(lignes);
+      }
+    } catch {
+      // Navigation privee, stockage bloque : on repart d'une liste vide, sans bruit.
+    }
+    brouillonLu.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!brouillonLu.current) return;
+    try {
+      if (newTickets.length > 0) {
+        window.localStorage.setItem(CLE_BROUILLON, JSON.stringify(newTickets));
+      } else {
+        window.localStorage.removeItem(CLE_BROUILLON);
+      }
+    } catch {
+      // Le brouillon est un confort, jamais une condition : son echec ne doit rien casser.
+    }
+  }, [newTickets]);
 
   // Insert bar state
   const [insertCount, setInsertCount] = useState<number>(1);

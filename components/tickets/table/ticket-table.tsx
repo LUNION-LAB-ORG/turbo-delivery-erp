@@ -74,9 +74,17 @@ export function TicketTable({ restaurants, newTickets, newTicketIds, livreurOpti
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
   const activeTab = filters.tab;
-  const observerTarget = useInfiniteScroll(infiniteState.fetchNextPage, infiniteState.hasNextPage);
+  const observerTarget = useInfiniteScroll(
+    infiniteState.fetchNextPage,
+    infiniteState.hasNextPage,
+    infiniteState.isFetchingNextPage,
+  );
   // Sentinelle dédiée aux cartes mobile (le sentinel desktop est masqué < md et n'intersecte jamais)
-  const observerTargetMobile = useInfiniteScroll(infiniteState.fetchNextPage, infiniteState.hasNextPage);
+  const observerTargetMobile = useInfiniteScroll(
+    infiniteState.fetchNextPage,
+    infiniteState.hasNextPage,
+    infiniteState.isFetchingNextPage,
+  );
   const allTickets = useMemo(() => [...newTickets, ...ticketsData], [newTickets, ticketsData]);
   const columns = useMemo(() => createTicketColumns(), []);
 

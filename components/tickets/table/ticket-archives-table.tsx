@@ -62,9 +62,17 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
   );
   const totalItems = archivesQuery.data?.pages[0]?.totalElements ?? 0;
 
-  const observerTarget = useInfiniteScroll(archivesQuery.fetchNextPage, archivesQuery.hasNextPage ?? false);
+  const observerTarget = useInfiniteScroll(
+    archivesQuery.fetchNextPage,
+    archivesQuery.hasNextPage ?? false,
+    archivesQuery.isFetchingNextPage,
+  );
   // Sentinelle dédiée aux cartes mobile (le sentinel desktop est masqué < md et n'intersecte jamais)
-  const observerTargetMobile = useInfiniteScroll(archivesQuery.fetchNextPage, archivesQuery.hasNextPage ?? false);
+  const observerTargetMobile = useInfiniteScroll(
+    archivesQuery.fetchNextPage,
+    archivesQuery.hasNextPage ?? false,
+    archivesQuery.isFetchingNextPage,
+  );
 
   const restaurerMutation = useRestaurerArchives(
     // Sur succes seulement : la selection se vide et la modale se ferme.

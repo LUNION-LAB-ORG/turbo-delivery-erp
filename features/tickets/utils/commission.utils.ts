@@ -1,42 +1,37 @@
 import { Ticket } from '@/types/bon-livraison.model';
 import { Restaurant } from '@/types/models';
 
-/**
- * La commission due au partenaire sur une commande.
+/*
+ * LA COMMISSION NE SE CALCULE PAS ICI. Elle ne peut pas.
  *
- * <h3>Une seule formule, partagée</h3>
- * <p>Cette règle existait en DEUX exemplaires : ici, et dans
- * `src/actions/bon-commande.action.ts` sous le nom `calculateFinalCommission`. Les deux
- * étaient écrites à la main, et c'est celle du serveur qui décide de ce qui est
- * enregistré. Deux copies d'un calcul d'argent, c'est une divergence en attente.</p>
+ * <p>Deux formules vivaient cote ERP : une pour l'affichage, une pour l'envoi. Je les
+ * avais unifiees en une seule, en ecrivant « une seule source, aucun ecart possible ».
+ * C'etait faux, et l'ecran a continue d'annoncer 2 000 F pour une ligne enregistree a
+ * 200 F. Les deux copies etaient d'accord entre elles ; aucune des deux n'etait
+ * l'autorite.</p>
  *
- * <p>Le taux vient du partenaire : `POURCENTAGE` l'applique au montant de la commande,
- * tout autre type est un montant fixe, indépendant de la commande.</p>
+ * <p>L'autorite est le backend, dans `GestionTicketService.hydrateCommande`. Il IGNORE
+ * la commission que l'ERP lui envoie et la resout lui-meme :</p>
+ * <ul>
+ *   <li>depuis la VERSION de commission active a la DATE de la course, pas depuis le
+ *       taux courant du partenaire — c'est de l'historisation, le taux d'hier n'est pas
+ *       celui d'aujourd'hui ;</li>
+ *   <li>en fonction de la ZONE (`zoneId`) et de sa grille tarifaire, pas seulement du
+ *       partenaire — c'est pourquoi deux commandes de meme montant chez le meme
+ *       partenaire n'ont pas la meme commission ;</li>
+ *   <li>en la separant en deux compartiments, part variable et part fixe, dont la somme
+ *       fait la commission totale ;</li>
+ *   <li>avec un cas particulier pour un restaurant nomme.</li>
+ * </ul>
+ *
+ * <p>Rien de tout cela n'est dans `restaurants[].commission`, le seul taux dont l'ecran
+ * dispose. Toute valeur calculee ici serait une DEVINETTE, et l'enregistrement la
+ * dementirait. L'ecran ne devine plus : il montre ce que le serveur a rendu, et rien
+ * tant qu'il n'a rien rendu.</p>
+ *
+ * <p>Pour afficher la commission AVANT l'enregistrement il faudrait la demander au
+ * backend, qui n'expose pas de route pour cela aujourd'hui.</p>
  */
-export function calculerCommission(
-  restaurant: { commission: number; typeCommission: string } | undefined,
-  montantCommande: number,
-): number {
-  if (!restaurant || !montantCommande) return 0;
-
-  const taux = Number(restaurant.commission ?? 0);
-
-  if (restaurant.typeCommission === 'POURCENTAGE') {
-    return Number((montantCommande * (taux / 100)).toFixed(2));
-  }
-
-  // Montant fixe (FIXE) : la commission est le montant fixe du partenaire,
-  // indépendant du montant de la commande.
-  return Number(taux.toFixed(2));
-}
-
-export function calculateCommission(
-  restaurant: Restaurant,
-  montantCommande: number,
-): null | number {
-  if (!montantCommande) return null;
-  return calculerCommission(restaurant, montantCommande);
-}
 
 /**
  * Applique une modification à une ligne en cours de saisie.
@@ -84,15 +79,13 @@ export function getRestaurantInfo(
 }
 
 /**
- * La commission d'une ligne en cours de saisie, telle qu'elle sera enregistrée.
+ * La commission d'une ligne, telle que le SERVEUR l'a arrêtée.
  *
- * <p>Rend la chaîne vide tant qu'il manque de quoi calculer : un champ vide dit « on ne
- * sait pas encore », là où un « 0 » affirmerait une commission nulle.</p>
+ * <p>Vide tant qu'il n'a rien rendu : un champ vide dit « pas encore connue », là où un
+ * nombre affirmerait une commission que l'écran n'a aucun moyen de connaître.</p>
  */
-export function commissionAffichee(ticket: Ticket, restaurants: Restaurant[]): string {
-  const montant = Number(ticket.montantCommande || 0);
-  if (!montant) return '';
-  const info = getRestaurantInfo(ticket.restaurantId, restaurants);
-  if (!info) return '';
-  return String(calculerCommission(info, montant));
+export function commissionAffichee(ticket: Ticket): string {
+  const commission = ticket.commission;
+  if (commission === null || commission === undefined || commission === '') return '';
+  return String(commission);
 }

@@ -23,6 +23,7 @@ import { CalendarDate, Time } from '@internationalized/date';
 import type { DateValue } from '@internationalized/date';
 import { Check, ChevronLeft, ChevronRight, Pen, ShieldCheck, Trash2, X } from 'lucide-react';
 import { SelecteurZone } from '@/features/tickets/components/selecteur-zone';
+import { commissionAffichee } from '@/features/tickets/utils/commission.utils';
 import { StatutTicket } from './statut-ticket';
 import { Checkbox } from '@/components/ui/checkbox';
 import { StatutControle } from '@/types/statut-controle.enum';
@@ -258,22 +259,35 @@ export const createTicketColumns = (): ColumnDef<Ticket>[] => [
     },
   },
   {
-    accessorKey: 'coutLivraison',
+    /*
+     * La colonne « Commission » etait clefee sur `coutLivraison`, le cout de LIVRAISON.
+     * La colonne « Montant de Livraison » juste avant lit deja ce champ : deux colonnes
+     * sur la meme donnee, dont une intitulee autrement. Aucun autre ecran ne faisait
+     * cette confusion — les ecrans de validation ont bien deux colonnes distinctes.
+     */
+    accessorKey: 'commission',
     header: 'Commission',
     cell: ({ row, table }) => {
       const meta = table.options.meta as TicketColumnMeta;
       const ticket = meta.getDisplayTicket(row.original);
       if (isEditing(ticket, meta)) {
         /*
-         * La commission se CALCULE, elle ne se saisit pas. Le champ lisait `commission`,
-         * que rien ne renseigne pendant l'edition : `applyTicketPatch` et la grille
-         * tarifaire ecrivent tous deux `coutLivraison`. La case restait donc vide du debut
-         * a la fin. Elle lit desormais la valeur reellement calculee, en se repliant sur
-         * `commission` pour les tickets deja enregistres, qui la portent.
+         * La commission vient du SERVEUR, et de nulle part ailleurs.
+         *
+         * <p>Le champ lisait `coutLivraison ?? commission`. Or `coutLivraison` porte le
+         * COUT DE LIVRAISON : sur un ticket enregistre, ce champ affichait donc le prix
+         * de la livraison sous le libelle « Commission » — 6 000 F la ou la commission
+         * etait de 200 F. Le repli avait ete ajoute parce que la case restait vide en
+         * saisie ; elle restait vide parce qu'a ce moment-la personne ne connait encore
+         * la commission.</p>
+         *
+         * <p>Elle lit `commission`, la valeur rendue par le serveur, et rien tant qu'il
+         * n'a rien rendu. Le serveur la resout depuis la version active a la DATE de la
+         * course et depuis la ZONE : l'ecran n'a aucun moyen de la deviner.</p>
          */
         return (
-          <TextField isReadOnly value={String(ticket.coutLivraison ?? ticket.commission ?? '')}>
-            <Input placeholder="Calculée" />
+          <TextField isReadOnly value={commissionAffichee(ticket)}>
+            <Input placeholder="À l'enregistrement" />
           </TextField>
         );
       }

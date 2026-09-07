@@ -20,7 +20,6 @@ import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import React from 'react';
 import { toast } from 'sonner';
 
-import { commissionAffichee } from '@/features/tickets/utils/commission.utils';
 import { cn } from '@/lib/utils';
 import type { Ticket } from '@/types/bon-livraison.model';
 import type { Restaurant } from '@/types/models';
@@ -380,26 +379,22 @@ export function LignesPreparees({
                                 </NumberField>
 
                                 {/*
-                                 * La commission se CALCULE — taux ou montant fixe du partenaire,
-                                 * applique au montant de commande — elle ne se saisit pas.
+                                 * La commission n'est pas connue de l'ecran.
                                  *
-                                 * <p>Le champ la lisait sur `coutLivraison`, ou `applyTicketPatch`
-                                 * l'ecrivait au fil de la saisie. Or `coutLivraison` porte le COUT
-                                 * DE LIVRAISON partout ailleurs, et le serveur RECALCULE sa propre
-                                 * commission au moment de l'envoi : les deux ne pouvaient
-                                 * s'accorder que par chance. C'est ainsi qu'une ligne annoncait
-                                 * 2 000 F a la saisie et s'enregistrait a 200 F.</p>
+                                 * <p>Le champ a affiche successivement `coutLivraison`, puis une
+                                 * valeur calculee ici. Les deux annonçaient 2 000 F pour une ligne
+                                 * qui s'enregistrait a 200 F. Le serveur ne se sert pas de ce que
+                                 * l'ERP lui envoie : il resout la commission depuis la version
+                                 * active a la DATE de la course et depuis la ZONE, deux choses que
+                                 * cet ecran n'a pas.</p>
                                  *
-                                 * <p>Elle se calcule maintenant a l'affichage, avec la formule qui
-                                 * sert aussi a l'envoi. Une seule source, aucun ecart possible.</p>
+                                 * <p>Il ne devine donc plus. Le champ reste, pour dire que la
+                                 * commission existe et qu'elle n'est pas a saisir, et il l'annonce
+                                 * en toutes lettres.</p>
                                  */}
-                                <TextField
-                                    className="lg:col-span-2"
-                                    isReadOnly
-                                    value={commissionAffichee(t, restaurants)}
-                                >
+                                <TextField className="lg:col-span-2" isReadOnly value="">
                                     <Label>Commission</Label>
-                                    <Input placeholder="Calculée" />
+                                    <Input placeholder="À l'enregistrement" />
                                 </TextField>
 
                                 <DatePicker

@@ -22,6 +22,7 @@ import React from 'react';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { SelecteurZone } from '@/features/tickets/components/selecteur-zone';
+import { commissionAffichee } from '@/features/tickets/utils/commission.utils';
 import { cn } from '@/lib/utils';
 import { formatCFA, formatDateFR, formatHoursMinutes } from '@/src/actions/bonLivraison.mapper';
 import { Ticket } from '@/types/bon-livraison.model';
@@ -248,14 +249,15 @@ export function TicketMobileCard({
             )}
 
             {/*
-             * La commission se CALCULE. Le champ lisait `commission`, que rien ne renseigne
-             * pendant l'edition : la grille tarifaire et `applyTicketPatch` ecrivent tous
-             * deux `coutLivraison`. Il restait donc vide de bout en bout.
+             * La commission vient du SERVEUR. Le champ lisait `coutLivraison ?? commission`,
+             * donc le COUT DE LIVRAISON sous le libelle « Commission » sur un ticket
+             * enregistre. Le serveur la resout depuis la version active a la DATE de la
+             * course et depuis la ZONE : l'ecran ne peut pas la deviner.
              */}
             {enEdition ? (
-                <TextField isReadOnly value={String(ticket.coutLivraison ?? ticket.commission ?? '')}>
+                <TextField isReadOnly value={commissionAffichee(ticket)}>
                     <Label>Commission</Label>
-                    <Input placeholder="Calculée" />
+                    <Input placeholder="À l'enregistrement" />
                 </TextField>
             ) : (
                 <Champ libelle="Commission">{formatCFA(ticket?.commission ?? 0)}</Champ>

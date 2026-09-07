@@ -40,6 +40,16 @@ function numerosVisibles(page: number, total: number): (null | number)[] {
  * raison pour laquelle la grille de paiement avait gardé la pagination de la v2, avec ce
  * commentaire dans le code : « la recréer à la main perdrait les points de suspension sur
  * les longs lots ». Ils sont là.</p>
+ *
+ * <h3>La page où l'on est</h3>
+ * <p>Le style d'origine de la bibliothèque posait sur elle un gris à peine plus soutenu
+ * que le fond de la barre : à un mètre de l'écran, on ne voyait plus sur quelle page on
+ * se trouvait, et il fallait relire les numéros pour le déduire. C'est une pastille
+ * pleine.</p>
+ *
+ * <p>Elle est NEUTRE, pas rouge : le rouge de marque dit « ceci appelle un geste », et la
+ * page courante n'appelle rien, elle situe. Même choix que les onglets de route, qui
+ * marquent leur position sans dépenser l'accent en aplat.</p>
  */
 export function PaginationTableau({
   onPage,
@@ -72,7 +82,15 @@ export function PaginationTableau({
             </Pagination.Item>
           ) : (
             <Pagination.Item key={p}>
-              <Pagination.Link isActive={p === page} onPress={() => onPage(p)}>
+              <Pagination.Link
+                className={
+                  p === page
+                    ? 'bg-foreground font-semibold text-background hover:bg-foreground'
+                    : undefined
+                }
+                isActive={p === page}
+                onPress={() => onPage(p)}
+              >
                 {p}
               </Pagination.Link>
             </Pagination.Item>

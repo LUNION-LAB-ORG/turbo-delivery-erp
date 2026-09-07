@@ -3,6 +3,8 @@
 import { Button } from '@heroui-v3/react';
 import React from 'react';
 
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
+
 /**
  * Banc de pagination : pourquoi cliquer « page 2 » figeait l'onglet.
  *
@@ -187,6 +189,20 @@ function Colonne({
   );
 }
 
+/** La barre réelle, dans la situation de la capture : page 14 sur 15. */
+function BarreReelle() {
+  const [page, setPage] = React.useState(14);
+
+  return (
+    <div className="mb-8 rounded-lg border border-default-200 p-4">
+      <h2 className="mb-3 text-sm font-semibold">
+        La barre, telle qu&apos;elle s&apos;affiche
+      </h2>
+      <PaginationTableau onPage={setPage} page={page} total={15} />
+    </div>
+  );
+}
+
 export default function ApercuPaginationTickets() {
   return (
     <div className="p-6">
@@ -196,6 +212,8 @@ export default function ApercuPaginationTickets() {
         demandée est annulée à chaque rendu et le compteur s&apos;emballe. À droite, elle tient, et
         les pages manquantes se chargent l&apos;une après l&apos;autre jusqu&apos;à la cible.
       </p>
+      <BarreReelle />
+
       <div className="flex gap-4">
         <VersionAvant />
         <VersionApres />

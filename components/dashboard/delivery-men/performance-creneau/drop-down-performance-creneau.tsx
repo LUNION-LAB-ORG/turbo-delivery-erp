@@ -1,131 +1,96 @@
-import {Transition, Dialog, DialogPanel, TransitionChild } from "@headlessui/react";
-import { Button, Card, CardHeader, CardBody, CardFooter} from "@/components/heroui";
-import { IconChevronLeft, IconChevronRight, IconX } from "@tabler/icons-react";
-import React, { Fragment, useEffect, useState } from 'react';
-import TableCreneauDetail from "../performance-apercu/table-creneau-detail";
+'use client';
 
-interface props{
-    open: boolean,
-     setOpen: (open: boolean) => void,
-     gainsData: PerformanceApercuGlobalGain|null,
-     jour: string|undefined,
+import { Button } from '@heroui-v3/react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+
+import TableCreneauDetail from '../performance-apercu/table-creneau-detail';
+
+/**
+ * Le détail des gains d'un livreur, jour par jour.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>C'était la douzième copie de la même coquille `@headlessui` : deux `TransitionChild`
+ * avec leurs huit classes d'animation recopiées, un fond `bg-[black]/60` écrit en dur, un
+ * panneau en `text-black dark:text-white-dark` — un jeton hérité que le thème ne suit
+ * plus — et une croix de fermeture faite d'un `&lt;button&gt;` nu sans nom accessible.
+ * Elle passe par `FenetreAction`, comme les onze autres.</p>
+ *
+ * <p>Une `Card` était posée DANS la fenêtre : un cadre à l'intérieur d'un cadre, avec sa
+ * propre ombre et ses propres bords.</p>
+ *
+ * <p>Les deux flèches de navigation n'avaient pas de nom : un lecteur d'écran annonçait
+ * deux boutons vides. Elles ne se désactivaient pas non plus en bout de semaine — cliquer
+ * ne faisait rien, sans le dire. Elles portaient `onClick`, que le bouton de la
+ * bibliothèque n'écoute pas ; il attend `onPress`.</p>
+ *
+ * <p>Elles étaient posées sur un `bg-slate-300`, une couleur brute sans variante sombre :
+ * en thème sombre, un bloc gris clair au milieu de la fenêtre.</p>
+ *
+ * <p>⚠ Le bouton « imprimer » du pied n'avait AUCUN gestionnaire. Il n'imprimait rien, et
+ * n'a jamais rien imprimé. Il est retiré plutôt que laissé à cliquer dans le vide.</p>
+ */
+
+const JOURS = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI', 'DIMANCHE'];
+
+interface props {
+  gainsData: PerformanceApercuGlobalGain | null;
+  jour: string | undefined;
+  open: boolean;
+  setOpen: (open: boolean) => void;
 }
 
+export default function DropDownPerformanceCrenea({ gainsData, jour, open, setOpen }: props) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [data, setData] = useState<JourGain | null>(gainsData?.gains[0] || null);
 
+  useEffect(() => {
+    const index = JOURS.indexOf(jour ?? '');
+    setCurrentIndex(index === -1 ? 0 : index);
+  }, [gainsData, jour]);
 
-export default function DropDownPerformanceCrenea({open,setOpen,gainsData,jour}:props) {
-   
-    const [currentIndex, setCurrentIndex] = useState(0);
+  useEffect(() => {
+    if (gainsData) setData(gainsData.gains[currentIndex]);
+  }, [gainsData, currentIndex]);
 
-    const[data,setData]=useState<JourGain|null>(gainsData?.gains[0]||null)
-
-    // {gainsData: PerformanceApercuGlobalGain|null,jour:string|undefined}
-
-    useEffect(()=>{
-
-        function jourDeLaSemaine(jour:string|undefined) {
-            switch (jour) {
-              case "LUNDI":
-                return 0;
-              case "MARDI":
-                return 1;
-              case "MERCREDI":
-                return 2;
-              case "JEUDI":
-                return 3;
-              case "VENDREDI":
-                return 4;
-              case "SAMEDI":
-                return 5;
-              case "DIMANCHE":
-                return 6;
-              default:
-                return 0;
-            }
-          }
-
-          setCurrentIndex(jourDeLaSemaine(jour))        
-
-    },[gainsData,jour])
-
-
-
-//  const[data,setData]=useState<JourGain|null>(curentItemClick({gainsData,jour})||null)
-  const handleNext = () => {
-    if (gainsData && gainsData.gains.length > 0) {
-        setCurrentIndex((prevIndex) =>
-          prevIndex < gainsData.gains.length - 1 ? prevIndex + 1 : prevIndex
-        );
-
-      }
-  };
-
-  const handlePrev = () => {
-    if (gainsData && gainsData.gains.length > 0) {
-        setCurrentIndex((prevIndex) =>
-          prevIndex > 0 ? prevIndex - 1 : prevIndex
-        );
-      }
-  };
-
-    useEffect(()=>{
-        if(gainsData)
-            setData(gainsData.gains[currentIndex])        
-    },[gainsData,currentIndex])
-
-
-// if(data)
+  const dernier = (gainsData?.gains.length ?? 0) - 1;
 
   return (
-     <Transition appear show={open} as={Fragment} >
-              <Dialog as="div" open={open} onClose={() => setOpen(false)} className="relative z-50 ">
-                  <TransitionChild as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-                      <div className="fixed inset-0 bg-[black]/60" />
-                  </TransitionChild>
-                  <div className="fixed inset-0 overflow-y-auto">
-                      <div className="flex min-h-full items-center justify-center px-4 py-8">
-                          <TransitionChild
-                              as={Fragment}
-                              enter="ease-out duration-300"
-                              enterFrom="opacity-0 scale-95"
-                              enterTo="opacity-100 scale-100"
-                              leave="ease-in duration-200"
-                              leaveFrom="opacity-100 scale-100"
-                              leaveTo="opacity-0 scale-95"
-                          >
-                              <DialogPanel className="panel w-full max-w-lg overflow-hidden rounded-lg border-0 p-0 text-black dark:text-white-dark">
-                                  <button
-                                      type="button"
-                                      onClick={() => setOpen(false)}
-                                      className="absolute top-4 text-muted outline-hidden hover:text-foreground ltr:right-4 rtl:left-4 dark:hover:text-muted"
-                                  >
-                                      <IconX />
-                                  </button>
-                                    <Card className="py-4 w-full ">
-                                    <CardHeader className="pb-0 pt-2 px-4 flex-col ">
-                                        <p className="text-tiny uppercase font-bold"> {data?.date}</p>                                   
-                                    </CardHeader>
-                                    <CardBody className="overflow-visible pt-5 flex items-center">
-                                        <div className="bg-slate-300 flex items-center rounded-lg">
-                                        <Button onClick={handlePrev} size="sm"><IconChevronLeft stroke={2} /></Button>
-                                       {data?.jour}
+    <FenetreAction
+      libelleFermer="Fermer"
+      onFermer={() => setOpen(false)}
+      ouvert={open}
+      titre={data?.date ? `Gains du ${data.date}` : 'Gains du jour'}
+    >
+      <div className="flex items-center justify-center gap-3">
+        <Button
+          aria-label="Jour précédent"
+          isDisabled={currentIndex <= 0}
+          isIconOnly
+          onPress={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+          size="sm"
+          variant="ghost"
+        >
+          <ChevronLeft aria-hidden="true" className="size-4" />
+        </Button>
+        <span className="min-w-28 text-center text-sm font-semibold text-foreground">
+          {data?.jour}
+        </span>
+        <Button
+          aria-label="Jour suivant"
+          isDisabled={currentIndex >= dernier}
+          isIconOnly
+          onPress={() => setCurrentIndex((i) => Math.min(dernier, i + 1))}
+          size="sm"
+          variant="ghost"
+        >
+          <ChevronRight aria-hidden="true" className="size-4" />
+        </Button>
+      </div>
 
-                                        <Button  onClick={handleNext} size="sm" ><IconChevronRight stroke={2} /></Button>
-                                          
-                                        </div>
-
-                                       <TableCreneauDetail initialData={data?.gain.gains|| []}/>
-                                    </CardBody>
-                                    <CardFooter className="py-5 flex justify-center">
-                                         <Button size="sm" >imprimer</Button>
-
-                                    </CardFooter>
-                                    </Card>                                         
-                              </DialogPanel>
-                          </TransitionChild>
-                      </div>
-                  </div>
-              </Dialog>
-          </Transition>
+      <TableCreneauDetail initialData={data?.gain.gains || []} />
+    </FenetreAction>
   );
 }

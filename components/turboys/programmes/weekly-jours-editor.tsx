@@ -8,6 +8,7 @@ import { Copy, Fuel } from 'lucide-react';
 import { ChampListeMultiple } from '@/components/commons/champs-formulaire';
 import { IJourProgramme } from '@/features/turboys/types/programme.types';
 import { carburantPrevisionnel, joursTravailles } from '@/features/turboys/utils/carburant.utils';
+import { lundiDeSemaine } from '@/features/turboys/utils/semaine.utils';
 import { formatMontant } from '@/utils/format.utils';
 
 export interface OptionResto {
@@ -72,18 +73,16 @@ const enHeure = (t?: string | null): Time | null => {
 const enTexte = (t: Time) =>
   `${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`;
 
-/** Lundi (UTC) de la semaine ISO donnée. ISO : la semaine 1 contient le 4 janvier. */
+/**
+ * Lundi (UTC) d'une semaine. Le nom dit ISO, la règle est celle du backend (FRANCE) : les
+ * deux placent la semaine 1 sur le 4 janvier, et compter depuis ce lundi vaut aussi pour
+ * les semaines 0 et 53 que l'ISO ne connaît pas. Délégué au calendrier commun.
+ */
 export function isoWeekMonday(year: number, week: number): Date {
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-  const jan4Dow = (jan4.getUTCDay() + 6) % 7; // lundi = 0
-  const week1Monday = new Date(jan4);
-  week1Monday.setUTCDate(jan4.getUTCDate() - jan4Dow);
-  const monday = new Date(week1Monday);
-  monday.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
-  return monday;
+  return lundiDeSemaine(year, week);
 }
 
-/** Affecte à chaque jour (ordre lun→dim) sa date calendaire dans la semaine ISO. */
+/** Affecte à chaque jour (ordre lun→dim) sa date calendaire dans la semaine. */
 export function joursAvecDates(jours: IJourProgramme[], annee: number, semaine: number): IJourProgramme[] {
   const monday = isoWeekMonday(annee, semaine);
   return jours.map((j, i) => {

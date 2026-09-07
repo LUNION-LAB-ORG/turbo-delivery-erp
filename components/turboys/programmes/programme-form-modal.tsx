@@ -108,7 +108,9 @@ export function ProgrammeFormModal({
       toast.error('Sélectionnez un livreur.');
       return;
     }
-    if (annee < 2020 || semaine < 1 || semaine > 53) {
+    // La semaine 0 existe dans la convention du backend : les premiers jours de janvier
+    // tombés avant la semaine qui contient le 4.
+    if (annee < 2020 || semaine < 0 || semaine > 53) {
       toast.error('Année ou semaine invalide.');
       return;
     }
@@ -205,11 +207,13 @@ export function ProgrammeFormModal({
                   <NumberField
                     isDisabled={isLoading}
                     maxValue={53}
-                    minValue={1}
+                    minValue={0}
                     onChange={setSemaine}
                     value={semaine}
                   >
-                    <Label>Semaine (ISO)</Label>
+                    {/* Le libellé disait « ISO » : la numérotation est celle du backend,
+                        identique en milieu d'année, différente autour du Nouvel An. */}
+                    <Label>Semaine</Label>
                     <NumberField.Group>
                       <NumberField.DecrementButton />
                       <NumberField.Input />

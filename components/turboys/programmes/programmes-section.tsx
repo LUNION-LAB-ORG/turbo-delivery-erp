@@ -35,6 +35,7 @@ import {
   lireFichierProgrammes,
   telechargerModeleProgrammes,
 } from '@/features/turboys/utils/programmes-import.utils';
+import { semaineCourante, semaineDecalee, semainePrecedente } from '@/features/turboys/utils/semaine.utils';
 import { getTurboyTypeDisplay } from '@/features/turboys/utils/type-livreur-display';
 import { getAllRestaurants } from '@/src/restaurants/restaurants.actions';
 
@@ -53,33 +54,14 @@ const TYPE_OPTIONS = [
   { cle: 'INDEPENDANT', libelle: getTurboyTypeDisplay('INDEPENDANT').labelPlural },
 ];
 
-/**
- * Numéro de semaine ALIGNÉ sur le backend : `WeekFields.of(Locale.FRANCE).weekOfYear()`
- * (lundi = 1er jour, 4 jours min, ANNÉE CALENDAIRE) — exactement ce que calcule
- * `Utilitaire.recupererSemaineAnneeActuelle()` côté serveur, donc ce que le scheduler
- * et l'app considèrent comme « cette semaine ». Validé contre jshell sur les bornes
- * d'année (ex. 2027-01-01 → (2027, 0), 2025-12-29 → (2025, 53)). En milieu d'année,
- * identique à l'ISO ; ne diffère qu'autour du Nouvel An.
+/*
+ * Le calendrier des semaines vit dans `semaine.utils.ts`, aligné sur le backend
+ * (WeekFields FRANCE, année calendaire). Ce fichier calculait le numéro courant
+ * correctement, mais changeait de semaine avec un 52 écrit en dur : depuis la semaine 1,
+ * « précédente » sautait la 53 des années qui en ont une, et « suivante » depuis la 53
+ * renvoyait sur la même semaine sous un autre nom.
  */
-function semaineCouranteBackend(): { annee: number; semaine: number } {
-  const now = new Date();
-  const annee = now.getFullYear();
-  const start = Date.UTC(annee, 0, 1);
-  const cur = Date.UTC(annee, now.getMonth(), now.getDate());
-  const doy = Math.floor((cur - start) / 86400000) + 1;
-  const dow = ((now.getDay() + 6) % 7) + 1; // 1 = lundi … 7 = dimanche
-  const weekStart = (((doy - dow) % 7) + 7) % 7;
-  const offset = weekStart + 1 > 4 ? 7 - weekStart : -weekStart;
-  const semaine = Math.floor((7 + offset + (doy - 1)) / 7);
-  return { annee, semaine };
-}
-
-const CURRENT_WEEK = semaineCouranteBackend();
-
-/** La semaine d'avant, avec le passage d'année. Même repli que « copier la semaine précédente ». */
-function semainePrecedente(annee: number, semaine: number): { annee: number; semaine: number } {
-  return semaine - 1 < 1 ? { annee: annee - 1, semaine: 52 } : { annee, semaine: semaine - 1 };
-}
+const CURRENT_WEEK = semaineCourante();
 
 export default function ProgrammesSection() {
   const [{ annee, semaine }, setWeek] = useQueryStates({
@@ -111,18 +93,7 @@ export default function ProgrammesSection() {
   const envoyer = useEnvoyerProgrammeMutation();
   const supprimer = useSupprimerProgrammeMutation();
 
-  const changeWeek = (delta: number) => {
-    let s = semaine + delta;
-    let a = annee;
-    if (s < 1) {
-      a -= 1;
-      s = 52;
-    } else if (s > 53) {
-      a += 1;
-      s = 1;
-    }
-    setWeek({ annee: a, semaine: s });
-  };
+  const changeWeek = (delta: number) => setWeek(semaineDecalee(annee, semaine, delta));
 
   const runAction = async (id: string, fn: (id: string) => Promise<unknown>) => {
     setPendingId(id);

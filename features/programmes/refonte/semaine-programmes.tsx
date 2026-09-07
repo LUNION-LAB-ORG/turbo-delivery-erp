@@ -211,7 +211,7 @@ function CelluleCarburant({ p }: { p: IProgramme }) {
   return (
     <span className={cn('block text-end tabular-nums', fige ? 'text-foreground' : 'text-muted')}>
       {formatMontant(montant)}
-      {!fige && <span className="block text-[10px] leading-tight">prévisionnel</span>}
+      {!fige && <span className="block text-[11px] leading-tight">prévisionnel</span>}
     </span>
   );
 }

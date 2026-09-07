@@ -4,7 +4,16 @@ import { apiClientHttp } from '@/lib/api-client-http';
 import { PaginatedResponse } from '@/types';
 import { BonLivraison, BonLivraisonTerminee, ParametreBonLivraisonFacture, Ticket } from '@/types/bon-livraison.model';
 import { formatDate } from '@/utils/date-formate';
-import { RangeValue } from '@/components/heroui';
+/**
+ * Une plage de dates, telle que le serveur l'attend.
+ *
+ * <p>Ce module est une action SERVEUR : il n'a rien a faire d'une bibliotheque de
+ * composants. Il en importait pourtant `RangeValue`, un type de deux champs, ce qui
+ * accrochait tout `@heroui/react` a la chaine de dependances du serveur. La forme
+ * tient en une ligne, on la declare ici. Meme convention que
+ * `facturation-plage-view.tsx`, ou la v3 a impose le meme choix.</p>
+ */
+type PlageDates<T> = { end: T; start: T };
 import axios from 'axios';
 import { ApiResult } from '@/types/general';
 import { handleApiError } from '@/utils/handle-api-error';
@@ -31,7 +40,7 @@ const bonLivraisonEndpoints = {
   },
 };
 
-export async function getBonLivraisonAll(page: number, size: number, { dates: { start, end } }: { dates: RangeValue<string | null> }): Promise<PaginatedResponse<BonLivraison> | null> {
+export async function getBonLivraisonAll(page: number, size: number, { dates: { start, end } }: { dates: PlageDates<string | null> }): Promise<PaginatedResponse<BonLivraison> | null> {
   try {
     return await apiClientHttp.request({
       endpoint: bonLivraisonEndpoints.getBonLivraisonAll.endpoint,
@@ -52,7 +61,7 @@ export async function getBonLivraisonAll(page: number, size: number, { dates: { 
   }
 }
 
-export async function getAllBonLivraisonTerminers(page: number, size: number, { dates: { start, end } }: { dates: RangeValue<string | null> }, typeCommsion: string): Promise<BonLivraison[]> {
+export async function getAllBonLivraisonTerminers(page: number, size: number, { dates: { start, end } }: { dates: PlageDates<string | null> }, typeCommsion: string): Promise<BonLivraison[]> {
   try {
     return await apiClientHttp.request<BonLivraison[]>({
       endpoint: bonLivraisonEndpoints.bonLivraisonTerminers.endpoint,
@@ -73,7 +82,7 @@ export async function getAllBonLivraisonTerminers(page: number, size: number, { 
   }
 }
 
-export async function getBonLivraisonTerminees({ dates: { start, end } }: { dates: RangeValue<string | null> }): Promise<BonLivraisonTerminee[]> {
+export async function getBonLivraisonTerminees({ dates: { start, end } }: { dates: PlageDates<string | null> }): Promise<BonLivraisonTerminee[]> {
   try {
     return await apiClientHttp.request<BonLivraisonTerminee[]>({
       endpoint: bonLivraisonEndpoints.bonLivraisonTerminees.endpoint,
@@ -90,7 +99,7 @@ export async function getBonLivraisonTerminees({ dates: { start, end } }: { date
 export async function getAllBonLivraisonEnAttentes(
   page: number = 0,
   size: number = 10,
-  { dates: { start, end } }: { dates: RangeValue<string | null> },
+  { dates: { start, end } }: { dates: PlageDates<string | null> },
   typeCommsion: string,
 ): Promise<BonLivraison[]> {
   try {

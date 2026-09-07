@@ -1,53 +1,58 @@
-'use client'
+'use client';
 
-import {
-    Dropdown,
-    DropdownTrigger,
-    DropdownMenu,
-    DropdownSection,
-    DropdownItem,
-} from "@/components/heroui";
-import { IconMap, IconUser } from "@tabler/icons-react";
+import { Button, Dropdown } from '@heroui-v3/react';
+import { Map, User, UserCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import React from 'react';
 
-
-
+/**
+ * Menu d'actions sur un livreur, depuis les listes de créneaux.
+ *
+ * <p>Le déclencheur était un `<span>` contenant les trois points en toutes lettres :
+ * ni atteignable au clavier, ni annonçable — un lecteur d'écran lisait « puce puce
+ * puce ». C'est maintenant un bouton nommé.</p>
+ *
+ * <p>Chaque entrée portait une « description » qui répétait son libellé : « Voir
+ * profile » décrit par « Voir Profile ». Rien n'y était dit que le libellé ne disait
+ * déjà. Elles sont retirées, la section « Actions » aussi : elle intitulait la
+ * totalité du menu, ce que fait déjà son nom accessible.</p>
+ */
 export default function DropDownAction({ id }: { id: string }) {
-    const iconClasses = "text-xl text-default-500 pointer-events-none shrink-0";
+  const router = useRouter();
 
-    return (
-        <Dropdown>
-            <DropdownTrigger>
-                <span className="cursor-pointer">•••</span>
-            </DropdownTrigger>
-            <DropdownMenu aria-label="Dropdown menu with description" variant="faded">
-                <DropdownSection showDivider title="Actions">
-                    <DropdownItem
-                        key="profile"
-                        href={`/delivery-men/profil/${id}`}
-                        description="Voir Profile"
-                        startContent={<IconUser className={iconClasses} />}
-                    >
-                        Voir profile
-                    </DropdownItem>
-                    <DropdownItem
-                        key="carte"
-                        href={`/trafic?turboysId=${id}`}
-                        description="position sur la carte du livreur"
-                        startContent={<IconMap className={iconClasses} />}
-
-                    >
-                        Voir la position sur la carte
-                    </DropdownItem>
-                    <DropdownItem
-                        key="performance-details"
-                        href={`/delivery-men/creneau-progressionById/${id}`}
-                        description="voir les details"
-                        startContent={<IconUser className={iconClasses} />}
-                    >
-                        Afficher les créneaux
-                    </DropdownItem>
-                </DropdownSection>
-            </DropdownMenu>
-        </Dropdown>
-    );
+  return (
+    <Dropdown>
+      <Button aria-label="Actions sur ce livreur" isIconOnly size="sm" variant="ghost">
+        <User aria-hidden="true" className="size-4" />
+      </Button>
+      <Dropdown.Popover placement="bottom end">
+        <Dropdown.Menu aria-label="Actions sur ce livreur">
+          <Dropdown.Item
+            id="profil"
+            onAction={() => router.push(`/delivery-men/profil/${id}`)}
+            textValue="Voir le profil"
+          >
+            <UserCircle aria-hidden="true" className="size-4" />
+            Voir le profil
+          </Dropdown.Item>
+          <Dropdown.Item
+            id="carte"
+            onAction={() => router.push(`/trafic?turboysId=${id}`)}
+            textValue="Voir la position sur la carte"
+          >
+            <Map aria-hidden="true" className="size-4" />
+            Voir la position sur la carte
+          </Dropdown.Item>
+          <Dropdown.Item
+            id="creneaux"
+            onAction={() => router.push(`/delivery-men/creneau-progressionById/${id}`)}
+            textValue="Afficher les créneaux"
+          >
+            <User aria-hidden="true" className="size-4" />
+            Afficher les créneaux
+          </Dropdown.Item>
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
+  );
 }

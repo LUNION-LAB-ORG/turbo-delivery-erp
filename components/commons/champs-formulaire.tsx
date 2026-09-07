@@ -2,7 +2,10 @@
 
 import {
   Button,
+  Calendar,
   ComboBox,
+  DateField,
+  DatePicker,
   Description,
   FieldError,
   Input,
@@ -15,7 +18,8 @@ import {
   TextArea,
   TextField,
 } from '@heroui-v3/react';
-import { Eye, EyeOff } from 'lucide-react';
+import { parseDate, type CalendarDate, type DateValue } from '@internationalized/date';
+import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import React from 'react';
 
 /**
@@ -134,37 +138,59 @@ export function ChampZoneTexte({
   );
 }
 
+/**
+ * Un mot de passe, avec son bouton de relecture.
+ *
+ * <p>Deux usages coexistent. La plupart des écrans le pilotent (`valeur` + `onChange`).
+ * Le changement de mot de passe obligatoire, lui, poste vers une action serveur qui lit
+ * `FormData` : là, le champ reste libre et c'est `name` qui porte sa valeur.</p>
+ */
 export function ChampMotDePasse({
+  autoComplete,
   erreur,
+  estRequis,
   label,
+  name,
   onChange,
   placeholder = '••••••••',
   valeur,
 }: {
+  /** Sans lui, aucun gestionnaire de mots de passe ne remplit ni ne propose d'enregistrer. */
+  autoComplete?: 'current-password' | 'new-password';
   erreur?: string;
+  estRequis?: boolean;
   label: string;
-  onChange: (v: string) => void;
+  /** Le champ est alors libre : sa valeur part au formulaire sous ce nom. */
+  name?: string;
+  onChange?: (v: string) => void;
   placeholder?: string;
-  valeur: string;
+  valeur?: string;
 }) {
   const [visible, setVisible] = React.useState(false);
+  // `value` n'est passé que s'il y en a un : le poser à `''` rendrait contrôlé un champ
+  // que l'action serveur veut libre, et React se plaindrait du changement de régime.
+  const pilotage = valeur === undefined ? {} : { onChange, value: valeur };
+
   return (
     <TextField
       isInvalid={Boolean(erreur)}
-      onChange={onChange}
+      isRequired={estRequis}
+      name={name}
       type={visible ? 'text' : 'password'}
-      value={valeur ?? ''}
+      {...pilotage}
     >
       <Label>{label}</Label>
       <InputGroup>
-        <InputGroup.Input placeholder={placeholder} />
+        <InputGroup.Input autoComplete={autoComplete} placeholder={placeholder} />
         {/*
          * C'etait un `<button type="button">` nu place en `endContent` : sans etat de
-         * focus, sans nom accessible, et sans dire s'il montre ou masque.
+         * focus, sans nom accessible, et sans dire s'il montre ou masque. Son nom reprend
+         * le libelle du champ : trois mots de passe sur un meme ecran donnaient sinon
+         * trois boutons annonces a l'identique.
          */}
         <InputGroup.Suffix>
           <Button
-            aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            aria-label={`${visible ? 'Masquer' : 'Afficher'} ${label.toLowerCase()}`}
             isIconOnly
             onPress={() => setVisible((v) => !v)}
             size="sm"
@@ -180,6 +206,78 @@ export function ChampMotDePasse({
       </InputGroup>
       {erreur && <FieldError>{erreur}</FieldError>}
     </TextField>
+  );
+}
+
+/**
+ * Une date, au format `yyyy-MM-dd`.
+ *
+ * <p>Le `DatePicker` de la v3 se compose en une douzaine de balises. Chaque écran qui en
+ * voulait un les recopiait, ce qui multiplie les occasions d'en oublier une — le bouton de
+ * navigation du mois, par exemple, dont l'absence ne casse rien mais empêche de reculer.</p>
+ *
+ * <p>La valeur entre et sort en texte : c'est la forme que le serveur attend, et elle se
+ * compare telle quelle. Une chaîne vide ou illisible vaut « pas de date » plutôt que de
+ * faire tomber l'écran.</p>
+ */
+export function ChampDate({
+  erreur,
+  label,
+  onChange,
+  valeur,
+}: {
+  erreur?: string;
+  label: string;
+  onChange: (v: string) => void;
+  valeur?: string;
+}) {
+  let calendaire: DateValue | null = null;
+  try {
+    calendaire = valeur ? parseDate(valeur.slice(0, 10)) : null;
+  } catch {
+    calendaire = null;
+  }
+
+  return (
+    <DatePicker
+      isInvalid={Boolean(erreur)}
+      onChange={(d: DateValue | null) => onChange(d ? d.toString() : '')}
+      value={calendaire}
+    >
+      <Label>{label}</Label>
+      <DateField.Group>
+        <DateField.Input>
+          {(segment: React.ComponentProps<typeof DateField.Segment>['segment']) => (
+            <DateField.Segment segment={segment} />
+          )}
+        </DateField.Input>
+        <DatePicker.Trigger>
+          <DatePicker.TriggerIndicator />
+        </DatePicker.Trigger>
+      </DateField.Group>
+      <DatePicker.Popover>
+        <Calendar>
+          <Calendar.Header>
+            <Calendar.NavButton slot="previous">
+              <ChevronLeft aria-hidden="true" className="size-4" />
+            </Calendar.NavButton>
+            <Calendar.Heading />
+            <Calendar.NavButton slot="next">
+              <ChevronRight aria-hidden="true" className="size-4" />
+            </Calendar.NavButton>
+          </Calendar.Header>
+          <Calendar.Grid>
+            <Calendar.GridHeader>
+              {(jour: string) => <Calendar.HeaderCell>{jour}</Calendar.HeaderCell>}
+            </Calendar.GridHeader>
+            <Calendar.GridBody>
+              {(date: CalendarDate) => <Calendar.Cell date={date} />}
+            </Calendar.GridBody>
+          </Calendar.Grid>
+        </Calendar>
+      </DatePicker.Popover>
+      {erreur && <FieldError>{erreur}</FieldError>}
+    </DatePicker>
   );
 }
 

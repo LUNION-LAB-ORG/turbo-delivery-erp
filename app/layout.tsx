@@ -125,7 +125,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <html lang="en" className="light">
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <link rel="stylesheet" href="assets/css/leaflet.min.css" />
+          {/*
+           * La feuille de style de Leaflet a ete retiree. Elle etait declaree en chemin
+           * RELATIF — « assets/… », sans barre initiale — donc elle ne se resolvait qu'a
+           * la racine du site : partout ailleurs le serveur renvoyait la page 404 en HTML,
+           * que le navigateur refusait comme feuille de style. Une erreur de console sur
+           * chaque ecran de l'ERP.
+           *
+           * Et elle ne servait a rien : aucun fichier du projet n'importe Leaflet, les
+           * cartes sont passees a Google Maps. Les paquets `leaflet`, `react-leaflet` et
+           * `@types/leaflet` restent dans package.json et sont a retirer a part.
+           */}
         </head>
         <body className={nunito.variable}>
           <ProviderComponent>

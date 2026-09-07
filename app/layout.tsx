@@ -145,7 +145,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
            *
            * Et elle ne servait a rien : aucun fichier du projet n'importe Leaflet, les
            * cartes sont passees a Google Maps. Les paquets `leaflet`, `react-leaflet` et
-           * `@types/leaflet` restent dans package.json et sont a retirer a part.
+           * `@types/leaflet` ont ete retires avec elle.
            */}
         </head>
         <body className={nunito.variable}>

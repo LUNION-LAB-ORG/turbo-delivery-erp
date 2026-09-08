@@ -197,6 +197,19 @@ function RenderMenu({
                     href={child.path ?? ''}
                   >
                     {actif && <Rail />}
+                    {/*
+                     * L'ICONE D'UN ENFANT SE RENDAIT NULLE PART.
+                     *
+                     * <p>Seul le premier niveau la dessinait. Tant que les entrees a icone
+                     * etaient toutes au premier niveau, le defaut ne se voyait pas. Le
+                     * regroupement des menus en a fait descendre cinq d'un cran, et leur
+                     * icone a disparu de l'ecran sans que rien ne la retire : elle est
+                     * toujours declaree dans `menu-data`, elle n'etait simplement plus
+                     * lue. On la dessine, en retrait, pour que le rang reste lisible.</p>
+                     */}
+                    {child.icon && (
+                      <child.icon className="mt-px size-4 shrink-0 opacity-60" />
+                    )}
                     <span className="min-w-0">{t(child.title)}</span>
                   </Link>
                 </li>

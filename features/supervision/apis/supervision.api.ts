@@ -105,6 +105,18 @@ export const supervisionAPI = {
    * un événement d'audit EXPORT (règle de gestion 5 — « qui a exporté quoi, avec quels
    * filtres »). Seule la PREMIÈRE page d'un export le porte, pour ne pas produire une
    * trace par page relue.
+   *
+   * ORDRE DU JOURNAL. Aucun parametre de tri n'est envoye ici, et ce n'est pas un
+   * oubli : le backend n'en accepte aucun. `AuditLectureResource.actions()` construit
+   * `PageRequest.of(page, size)` sans `Sort`, et `AuditLectureService.listerActions`
+   * delegue a `findAll(spec, pageable)` : le SQL part donc sans ORDER BY, et Postgres
+   * rend les lignes dans l'ordre qui l'arrange, en pratique le plus ancien en tete.
+   * Trier cote ERP ne trierait que les 25 lignes de la page affichee, jamais le
+   * journal, et laisserait l'export faux : sur un journal pagine c'est une
+   * demi-verite. Sans ORDER BY, LIMIT/OFFSET n'est meme pas stable, une meme ligne
+   * peut ressortir sur deux pages pendant qu'une autre disparait. La correction est
+   * cote backend : `Sort.by(DESC, "occurredAt")` dans le `PageRequest`, comme le fait
+   * deja `JournalSecuriteResource` pour son propre journal.
    */
   actions(
     userId: string,
@@ -129,7 +141,13 @@ export const supervisionAPI = {
     });
   },
 
-  /** Journal des connexions, déconnexions et échecs, paginé. Voir `actions` pour `export`. */
+  /**
+   * Journal des connexions, déconnexions et échecs, paginé. Voir `actions` pour `export`.
+   *
+   * ORDRE DU JOURNAL : meme constat que `actions`, et meme endroit a corriger.
+   * `AuditLectureResource.connexions()` construit lui aussi son `PageRequest` sans
+   * `Sort`, l'onglet Connexions se lit donc du plus ancien au plus recent.
+   */
   connexions(
     userId: string,
     filtre: Partial<IConnexionsFiltre>,

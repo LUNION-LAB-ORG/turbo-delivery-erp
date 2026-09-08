@@ -124,6 +124,27 @@ export function PrivilegesMatrix() {
                       </Table.Cell>
                     );
                   }
+                  /*
+                   * UN GROUPE N'EST PAS UN SUJET DE DROIT.
+                   *
+                   * <p>La ligne d'un groupe portait la meme marque « aucune regle definie »
+                   * qu'une page reellement non configuree, et le sens de cette marque est
+                   * ecrit plus haut : une LACUNE de configuration. Le regroupement des
+                   * menus a fait passer les groupes de six a huit et leur a retire leur
+                   * regle, puisqu'ils n'en ont pas besoin : leurs enfants portent les
+                   * leurs. La matrice annoncait donc huit lacunes inventees, sur l'ecran
+                   * meme qui sert a auditer qui peut faire quoi.</p>
+                   *
+                   * <p>Une ligne de groupe sans regle est un INTITULE. Ses cases restent
+                   * vides, et le lecteur d'ecran l'entend comme tel.</p>
+                   */
+                  if (row.isParent && !row.can) {
+                    return (
+                      <Table.Cell className="text-center" key={c.key}>
+                        <span className="sr-only">{`${row.title} : intitulé de groupe`}</span>
+                      </Table.Cell>
+                    );
+                  }
                   const allowed = row.can
                     ? ABILITIES[c.key].can(row.can.action, row.can.subject)
                     : null;

@@ -10,12 +10,20 @@ export const metadata: Metadata = {
 
 export default async function CourseExterneDetailPage(props: { params: Promise<{ course_id: string }> }) {
   const params = await props.params;
-  const course = await getCourseExterne(params.course_id);
+
+  /*
+   * Les deux lectures ne dependent pas l'une de l'autre : enchainees, elles ajoutaient
+   * un aller-retour reseau complet a l'ouverture d'une course. `getLivreursDisponible`
+   * relance desormais au lieu de rendre null, l'echec part donc vers la frontiere
+   * d'erreur du segment dans les deux cas.
+   */
+  const [course, delivers] = await Promise.all([
+    getCourseExterne(params.course_id),
+    getLivreursDisponible(),
+  ]);
+
   if (!course) {
     return <NotFound />;
   }
-  // `getLivreursDisponible` relance desormais au lieu de rendre null : ce repli
-  // ne s'executait plus, l'echec part vers la frontiere d'erreur du segment.
-  const delivers = await getLivreursDisponible();
   return <Content course={course} delivers={delivers} />;
 }

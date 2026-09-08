@@ -1,22 +1,36 @@
-"use client";
+'use client';
 
-import Orders from "./components/orders";
-import { Restaurant, Order, PageResponse, OrderStats } from "@/types/models";
+import type { Order, OrderStats, PageResponse, Restaurant } from '@/types/models';
 
-type ContentProps = {
-    commandesInitiales: PageResponse<Order> | null;
-    restaurants: Restaurant[];
-    stats: OrderStats | null;
-};
+import Orders from './components/orders';
 
-export default function Content({ commandesInitiales, restaurants, stats }: ContentProps) {
-    
-    return (
-        <div className="w-full h-full flex flex-col gap-6 mb-4 p-2">
-            <div className="flex items-center">
-                <h5 className="text-2xl font-bold text-primary">Mes Commandes</h5>
-            </div>          
-            <Orders commandesInitiales={commandesInitiales} restaurants={restaurants} stats={stats} />
-        </div>
-    );
+/**
+ * Coquille de l'ecran des commandes.
+ *
+ * <p>Elle portait un titre « Mes Commandes » peint en ROUGE DE MARQUE, alors que le fil
+ * d'Ariane de la coquille annonce deja « Commandes / Client » juste au-dessus, et que
+ * l'ecran ne montre pas les commandes de qui le regarde. Deux titres contradictoires
+ * pour un meme ecran, dont un dans la couleur reservee a ce qui appelle un geste.</p>
+ */
+export default function Content({
+  commandesInitiales,
+  erreurInitiale,
+  restaurants,
+  stats,
+}: {
+  commandesInitiales: null | PageResponse<Order>;
+  erreurInitiale: boolean;
+  restaurants: Restaurant[];
+  stats: null | OrderStats;
+}) {
+  return (
+    <div className="flex h-full w-full flex-col gap-6 p-2 pb-4">
+      <Orders
+        commandesInitiales={commandesInitiales}
+        erreurInitiale={erreurInitiale}
+        restaurants={restaurants}
+        stats={stats}
+      />
+    </div>
+  );
 }

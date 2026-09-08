@@ -134,11 +134,13 @@ type Plage = { debut?: Date; fin?: Date };
 
 type OrdersProps = {
     commandesInitiales: PageResponse<Order> | null;
+    /** Le serveur n'a rien pu lire : on demarre sur l'echec, pas sur une liste vide. */
+    erreurInitiale?: boolean;
     restaurants: Restaurant[];
     stats: OrderStats | null;
 };
 
-export default function OrdersPage({ commandesInitiales, restaurants, stats }: OrdersProps) {
+export default function OrdersPage({ commandesInitiales, erreurInitiale = false, restaurants, stats }: OrdersProps) {
     const [commandes, setCommandes] = React.useState<PageResponse<Order> | null>(commandesInitiales);
     const [orderStats, setOrderStats] = React.useState<OrderStats | null>(stats);
     const [enChargement, setEnChargement] = React.useState(false);
@@ -149,7 +151,7 @@ export default function OrdersPage({ commandesInitiales, restaurants, stats }: O
     // L'echec de lecture a son propre etat : sans lui, l'ecran garde la liste precedente
     // ou reste vide, ce qui se lit comme "il n'y a aucune commande" alors que la donnee
     // existe et n'a pas pu etre lue.
-    const [erreur, setErreur] = React.useState(false);
+    const [erreur, setErreur] = React.useState(erreurInitiale);
 
     const [partenaire, setPartenaire] = React.useState<string>(TOUS);
     const [plage, setPlage] = React.useState<Plage>({});
@@ -171,9 +173,11 @@ export default function OrdersPage({ commandesInitiales, restaurants, stats }: O
 
     React.useEffect(() => {
         setCommandes(commandesInitiales);
-        // Une charge serveur reussie efface l'echec precedent, sinon l'ecran
-        // resterait sur l'erreur alors que la donnee est de nouveau la.
-        setErreur(false);
+        // Une charge serveur REUSSIE efface l'echec precedent, sinon l'ecran resterait
+        // sur l'erreur alors que la donnee est de nouveau la. Une charge qui a echoue,
+        // elle, doit garder l'echec : le remettre a faux ferait passer une lecture
+        // impossible pour une liste vide.
+        setErreur(commandesInitiales === null);
     }, [commandesInitiales]);
 
     /**

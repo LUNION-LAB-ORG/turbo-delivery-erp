@@ -86,7 +86,7 @@ export default function ProgrammesSection() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<IProgramme | null>(null);
   const [apercu, setApercu] = React.useState<IProgramme | null>(null);
-  const [carburantDe, setCarburantDe] = React.useState<IProgramme | null>(null);
+  const [carburantDe, setCarburantDe] = React.useState<IProgramme[]>([]);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const [lotEnCours, setLotEnCours] = React.useState(false);
 
@@ -294,7 +294,8 @@ export default function ProgrammesSection() {
           isLoading={isLoading}
           lotEnCours={lotEnCours}
           onApercu={setApercu}
-          onCarburant={setCarburantDe}
+          onCarburant={(p) => setCarburantDe([p])}
+          onCarburantLot={setCarburantDe}
           onCopierSemainePrecedente={copierSemainePrecedente}
           onEditer={setEditing}
           onEnvoyer={(p) => runAction(p.id, envoyer.mutateAsync)}
@@ -353,11 +354,11 @@ export default function ProgrammesSection() {
         semaineInitiale={semaine}
       />
       <CarburantRapideModal
-        isOpen={!!carburantDe}
+        isOpen={carburantDe.length > 0}
         onOpenChange={(open) => {
-          if (!open) setCarburantDe(null);
+          if (!open) setCarburantDe([]);
         }}
-        programme={carburantDe}
+        programmes={carburantDe}
       />
       <ProgrammeApercuModal
         annee={annee}

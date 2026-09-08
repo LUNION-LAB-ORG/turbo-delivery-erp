@@ -135,10 +135,13 @@ export default function AddDepenseVariableModal({
   const onSubmit = (values: ChargeVariableFormDTO) => {
     if (!hasJustificatif) return;
 
+    // Une charge existante garde son cycle et son échéance : le carburant des programmes
+    // arrive ici en HEBDOMADAIRE, dû le lundi de sa semaine, et une correction depuis cette
+    // fenêtre le repassait en MENSUEL au 5 du mois.
     const payload = {
       ...values,
-      cyclePaiement: 'MENSUEL' as const,
-      echeanceJour: 5,
+      cyclePaiement: chargeToEdit?.cyclePaiement ?? ('MENSUEL' as const),
+      echeanceJour: chargeToEdit?.echeanceJour ?? 5,
       creerPar: session?.user?.name ?? '',
     };
 

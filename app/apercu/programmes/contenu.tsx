@@ -135,16 +135,27 @@ function BancEditeur() {
     );
 }
 
-/** La saisie rapide du carburant, sur un programme publié sans montant. */
-function BancCarburantRapide({ programme }: { programme: IProgramme }) {
-    const [ouvert, setOuvert] = React.useState(false);
+/** La saisie rapide du carburant : un programme publié sans montant, puis trois en lot. */
+function BancCarburantRapide({ programmes }: { programmes: IProgramme[] }) {
+    const [cibles, setCibles] = React.useState<IProgramme[]>([]);
     return (
         <section className="mt-6 rounded-lg border border-separator p-4">
             <h2 className="mb-3 text-sm font-semibold">Le carburant en un geste</h2>
-            <Button onPress={() => setOuvert(true)} size="sm" variant="outline">
-                Carburant de {programme.livreurNom}
-            </Button>
-            <CarburantRapideModal isOpen={ouvert} onOpenChange={setOuvert} programme={programme} />
+            <div className="flex flex-wrap gap-2">
+                <Button onPress={() => setCibles([programmes[0]])} size="sm" variant="outline">
+                    Carburant de {programmes[0].livreurNom}
+                </Button>
+                <Button onPress={() => setCibles(programmes)} size="sm" variant="outline">
+                    Carburant de {programmes.length} programmes cochés
+                </Button>
+            </div>
+            <CarburantRapideModal
+                isOpen={cibles.length > 0}
+                onOpenChange={(o) => {
+                    if (!o) setCibles([]);
+                }}
+                programmes={cibles}
+            />
         </section>
     );
 }
@@ -260,6 +271,7 @@ export default function ApercuProgrammes() {
                         isLoading={etat === 'chargement'}
                         onApercu={(p) => noter(`Aperçu de ${p.livreurNom}`)}
                         onCarburant={(p) => noter(`Carburant de ${p.livreurNom}`)}
+                        onCarburantLot={(ps) => noter(`Carburant en lot sur ${ps.length} programme(s)`)}
                         onCopierSemainePrecedente={() => noter('Copie de la semaine précédente')}
                         onEditer={(p) => noter(`Édition de ${p.livreurNom}`)}
                         onEnvoyer={(p) => noter(`Envoi au livreur ${p.livreurNom}`)}
@@ -291,7 +303,7 @@ export default function ApercuProgrammes() {
                     />
                     <BancEditeur />
                     <BancApercu programme={JEUX.ordinaire.lignes[1]} />
-                    <BancCarburantRapide programme={JEUX.ordinaire.lignes[5]} />
+                    <BancCarburantRapide programmes={[JEUX.ordinaire.lignes[5], JEUX.ordinaire.lignes[3], JEUX.ordinaire.lignes[4]]} />
                 </main>
             </div>
         </div>

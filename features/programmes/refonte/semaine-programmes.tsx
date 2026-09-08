@@ -72,6 +72,8 @@ export interface SemaineProgrammesProps {
   onApercu: (p: IProgramme) => void;
   /** Le carburant du programme, en un geste : un montant par jour travaillé. */
   onCarburant: (p: IProgramme) => void;
+  /** Le même geste sur les lignes cochées. */
+  onCarburantLot: (programmes: IProgramme[]) => void;
   onEditer: (p: IProgramme) => void;
   onPlanifier: (p: IProgramme) => void;
   onPublier: (p: IProgramme) => void;
@@ -154,6 +156,9 @@ const COLONNES_INDEPENDANTS = ['livreur', ...JOURS.map((j) => j.cle)];
 
 /** Publiable : le programme n'est pas encore parti chez le livreur. */
 const estAPublier = (p: IProgramme) => p.statut === 'BROUILLON' || p.statut === 'PLANIFIE';
+
+/** Sans carburant : aucun jour travaillé ne porte de montant, figé ou prévisionnel. */
+const estSansCarburant = (p: IProgramme) => carburantAffiche(p).montant === null;
 
 const hhmm = (t?: string | null) => (t ?? '').slice(0, 5);
 
@@ -254,6 +259,7 @@ export function SemaineProgrammes({
   partenairesEnCours = false,
   onApercu,
   onCarburant,
+  onCarburantLot,
   onEditer,
   onPlanifier,
   onPublier,
@@ -281,7 +287,7 @@ export function SemaineProgrammes({
   engagement = null,
 }: SemaineProgrammesProps) {
   const [recherche, setRecherche] = React.useState('');
-  const [seulement, setSeulement] = React.useState<'TOUS' | 'A_PUBLIER' | 'REFUSE'>('TOUS');
+  const [seulement, setSeulement] = React.useState<'TOUS' | 'A_PUBLIER' | 'REFUSE' | 'SANS_CARBURANT'>('TOUS');
   const [coches, setCoches] = React.useState<Selection>(new Set());
 
   /*
@@ -299,6 +305,7 @@ export function SemaineProgrammes({
       if (q && !(p.livreurNom ?? '').toLowerCase().includes(q)) return false;
       if (seulement === 'A_PUBLIER' && !estAPublier(p)) return false;
       if (seulement === 'REFUSE' && p.statut !== 'REFUSE') return false;
+      if (seulement === 'SANS_CARBURANT' && !estSansCarburant(p)) return false;
       return true;
     });
   }, [programmes, recherche, seulement]);
@@ -308,15 +315,20 @@ export function SemaineProgrammes({
   const carburant = React.useMemo(() => totauxCarburant(programmes), [programmes]);
   const ecart = carburantSemainePrecedente === null || carburantSemainePrecedente === undefined ? null : carburant.total - carburantSemainePrecedente;
 
-  /* Cocher puis publier : les identifiants réellement publiables de la sélection. */
-  /* Ce qui ne peut pas etre publie ne doit pas pouvoir etre coche. */
-  const idsNonPubliables = React.useMemo(() => new Set(lignes.filter((p) => !estAPublier(p)).map((p) => p.id)), [lignes]);
+  /*
+   * La selection porte maintenant DEUX gestes : publier, et poser le carburant. Toute
+   * ligne se coche. Chaque bouton dit son propre compte — « Publier les 5 publiables
+   * coches », « Carburant des 14 coches » — et la case ne ment plus, parce qu'elle ne
+   * pretend plus vouloir dire « publiable ». Avant, seules les lignes publiables se
+   * cochaient : une semaine deja publiee ne pouvait recevoir son carburant qu'une ligne
+   * a la fois.
+   */
+  const programmesCoches = React.useMemo(
+    () => (coches === 'all' ? lignes : lignes.filter((p) => coches.has(p.id))),
+    [coches, lignes],
+  );
 
-  const idsCoches = React.useMemo(() => {
-    const publiables = lignes.filter(estAPublier);
-    if (coches === 'all') return publiables.map((p) => p.id);
-    return publiables.filter((p) => coches.has(p.id)).map((p) => p.id);
-  }, [coches, lignes]);
+  const idsCoches = React.useMemo(() => programmesCoches.filter(estAPublier).map((p) => p.id), [programmesCoches]);
 
   const maxAutosuffisance = Math.max(1, ...autosuffisance.map((j) => j.total));
 
@@ -397,21 +409,28 @@ export function SemaineProgrammes({
             </>
           )}
 
-          {!isLoading && !isError && (aPublier.length > 0 || refuses.length > 0) && (
+          {!isLoading && !isError && (aPublier.length > 0 || refuses.length > 0 || programmesCoches.length > 0) && (
             <>
               <Separator />
               <div className="flex flex-wrap items-center gap-2">
                 {/*
-                 * LE GESTE EN LOT. « Publier » se repetait une fois par
-                 * ligne : quarante clics pour lancer une semaine.
+                 * LES GESTES EN LOT. « Publier » se repetait une fois par
+                 * ligne : quarante clics pour lancer une semaine. Le carburant,
+                 * pareil : un montant pour toutes les lignes cochees.
                  */}
-                {idsCoches.length > 0 ? (
+                {idsCoches.length > 0 && (
                   <Button isPending={lotEnCours} onPress={() => onPublierLot(idsCoches)} variant="primary">
                     {lotEnCours ? <Spinner size="sm" /> : null}
-                    Publier les {idsCoches.length} programmes cochés
+                    Publier les {idsCoches.length} programme{idsCoches.length > 1 ? 's' : ''} publiable{idsCoches.length > 1 ? 's' : ''} coché{idsCoches.length > 1 ? 's' : ''}
                   </Button>
-                ) : (
-                  aPublier.length > 0 && <span className="text-sm text-muted">Cochez des lignes pour publier en une fois.</span>
+                )}
+                {programmesCoches.length > 0 && (
+                  <Button onPress={() => onCarburantLot(programmesCoches)} variant={idsCoches.length > 0 ? 'outline' : 'primary'}>
+                    Carburant des {programmesCoches.length} coché{programmesCoches.length > 1 ? 's' : ''}
+                  </Button>
+                )}
+                {programmesCoches.length === 0 && aPublier.length > 0 && (
+                  <span className="text-sm text-muted">Cochez des lignes pour publier, ou poser le carburant, en une fois.</span>
                 )}
 
                 {refuses.length > 0 && (
@@ -528,7 +547,7 @@ export function SemaineProgrammes({
       <ToggleButtonGroup
         onSelectionChange={(s) => {
           const v = Array.from(s)[0];
-          if (v) setSeulement(String(v) as 'TOUS' | 'A_PUBLIER' | 'REFUSE');
+          if (v) setSeulement(String(v) as 'TOUS' | 'A_PUBLIER' | 'REFUSE' | 'SANS_CARBURANT');
         }}
         selectedKeys={new Set([seulement])}
         selectionMode="single"
@@ -536,6 +555,7 @@ export function SemaineProgrammes({
         <ToggleButton id="TOUS">Tous</ToggleButton>
         <ToggleButton id="A_PUBLIER">À publier</ToggleButton>
         <ToggleButton id="REFUSE">Refusés</ToggleButton>
+        <ToggleButton id="SANS_CARBURANT">Sans carburant</ToggleButton>
       </ToggleButtonGroup>
 
       {/* ── LA GRILLE ────────────────────────────────────────────────────────────── */}
@@ -546,15 +566,6 @@ export function SemaineProgrammes({
               <Table.Content
                 aria-label={`Programmes hebdomadaires de la semaine ${semaine} de ${annee}`}
                 className="min-w-[64rem]"
-                /*
-                 * `disabledBehavior="selection"` et non le defaut : sans lui, « Tout
-                 * cocher » cochait les quatorze lignes — celles deja publiees comprises —
-                 * alors que cinq seulement sont publiables. Le compte du bouton disait
-                 * vrai, la selection a l'ecran mentait. Restreint a la selection, la ligne
-                 * reste cliquable et son menu joignable.
-                 */
-                disabledBehavior="selection"
-                disabledKeys={idsNonPubliables}
                 onSelectionChange={setCoches}
                 selectedKeys={coches}
                 selectionMode="multiple"
@@ -610,7 +621,9 @@ export function SemaineProgrammes({
                               ? 'Tous les programmes de la semaine sont publiés.'
                               : seulement === 'REFUSE'
                                 ? 'Aucun refus cette semaine.'
-                                : 'Aucun programme pour cette semaine.'}
+                                : seulement === 'SANS_CARBURANT'
+                                  ? 'Tous les programmes ont leur carburant.'
+                                  : 'Aucun programme pour cette semaine.'}
                           </p>
                         )}
                       </div>
@@ -639,7 +652,7 @@ export function SemaineProgrammes({
                     return (
                       <Table.Row id={p.id} key={p.id}>
                         <Table.Cell className="pe-0">
-                          <Checkbox aria-label={`Cocher ${p.livreurNom ?? 'ce programme'}`} isDisabled={!estAPublier(p)} slot="selection">
+                          <Checkbox aria-label={`Cocher ${p.livreurNom ?? 'ce programme'}`} slot="selection">
                             <Checkbox.Content>
                               <Checkbox.Control>
                                 <Checkbox.Indicator />

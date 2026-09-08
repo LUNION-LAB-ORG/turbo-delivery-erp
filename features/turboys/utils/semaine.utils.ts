@@ -1,24 +1,17 @@
 /**
  * Le calendrier des semaines de programme, dans la convention du backend.
  *
- * <p>`EmploiTempsTable.semaine` est un `WeekFields.of(Locale.FRANCE).weekOfYear()` : lundi
- * premier jour, quatre jours minimum, et ANNÉE CALENDAIRE. La semaine 1 est celle qui
- * contient le 4 janvier ; les premiers jours de janvier tombés avant elle font une
- * semaine 0, et une année qui finit en début de semaine a une semaine 53. En milieu
- * d'année c'est identique à l'ISO ; autour du Nouvel An, non.</p>
+ * <p>Lundi premier jour, quatre jours minimum, et un nom CANONIQUE par semaine physique :
+ * celui de l'année qui contient son jeudi. C'est la numérotation ISO, de 1 à 53, sans
+ * semaine 0. La semaine 1 est celle qui contient le 4 janvier. Le backend écrit ce nom
+ * partout depuis le 08/09/2026 et accepte encore les anciens à la lecture.</p>
  *
- * <p>L'écran supposait cinquante-deux semaines partout : changer de semaine depuis la 1
- * envoyait sur la 52 de l'année d'avant, qui peut ne pas être la dernière, et « copier la
- * semaine précédente » regardait au mauvais endroit une fois par an. Tout passe par des
- * DATES : le lundi de la semaine, plus ou moins sept jours, puis le numéro de la semaine
- * qui contient ce lundi.</p>
- *
- * <p>Piège assumé : en année calendaire, la semaine qui chevauche le Nouvel An porte DEUX
- * noms. Le lundi 29 décembre 2025 est à la fois 2025/53 et 2026/1 ; le lundi 28 décembre
- * 2026 est 2026/53 et 2027/0. Ici une semaine est nommée par l'année de son lundi. Le
- * backend, lui, la nomme d'après la date du jour où il calcule : un programme créé le
- * 2 janvier peut donc porter l'autre nom. C'est un défaut de la convention, pas de ce
- * fichier, et il ne se répare que côté serveur.</p>
+ * <p>Avant, l'année était celle de la date : la semaine qui chevauche le Nouvel An portait
+ * deux noms (le lundi 29 décembre 2025 était 2025/53 vu du 30 décembre et 2026/1 vu du
+ * 2 janvier), et l'écran supposait cinquante-deux semaines partout. Tout passe par des
+ * DATES : le lundi de la semaine, plus ou moins sept jours, puis le nom canonique de la
+ * semaine qui contient ce lundi. Un ancien nom reçu en entrée (2025/53, 2027/0) désigne
+ * quand même le bon lundi.</p>
  */
 
 export interface SemaineAnnee {
@@ -40,12 +33,13 @@ export function lundiDeSemaine(annee: number, semaine: number): Date {
   return new Date(lundiSemaine1(annee).getTime() + (semaine - 1) * 7 * JOUR_MS);
 }
 
-/** La semaine (convention FRANCE) qui contient une date, lue en UTC. */
+/** Le nom canonique de la semaine qui contient une date (lue en UTC) : l'année de son jeudi. */
 export function semaineDeDate(date: Date): SemaineAnnee {
-  const annee = date.getUTCFullYear();
-  const jour = new Date(Date.UTC(annee, date.getUTCMonth(), date.getUTCDate()));
-  const lundi1 = lundiSemaine1(annee);
-  const semaine = 1 + Math.floor((jour.getTime() - lundi1.getTime()) / (7 * JOUR_MS));
+  const jour = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const decalage = (jour.getUTCDay() + 6) % 7; // lundi = 0
+  const jeudi = new Date(jour.getTime() + (3 - decalage) * JOUR_MS);
+  const annee = jeudi.getUTCFullYear();
+  const semaine = 1 + Math.floor((jeudi.getTime() - lundiSemaine1(annee).getTime()) / (7 * JOUR_MS));
   return { annee, semaine };
 }
 

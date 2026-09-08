@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
+  Checkbox,
   Spinner,
   ComboBox,
   Table,
@@ -17,7 +18,6 @@ import { toast } from 'sonner';
 import { ArchiveRestore, X } from 'lucide-react';
 
 import ConfirmModal from '@/components/ui/confirm-modal';
-import { Checkbox } from '@/components/ui/checkbox';
 import { formatCFA, formatDateFR, formatHoursMinutes } from '@/src/actions/bonLivraison.mapper';
 import { useAbility } from '@/hooks/use-ability';
 import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
@@ -358,9 +358,25 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
                   <div className="min-w-0">
                     <p className="text-xs text-muted">Code Check</p>
                     <p className="truncate text-sm font-semibold text-foreground">{a.reference}</p>
-                    <p className="text-xs text-blue-500 truncate">{a.restaurant}</p>
+                    <p className="truncate text-xs text-muted">{a.restaurant}</p>
                   </div>
-                  <Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Sélectionner la ligne" />
+                  {/* La case fait 16 px de cote, sur une carte tactile ou la regle des
+                      cibles en demande 44. C'est `Checkbox.Content` qui porte la cible —
+                      c'est lui le `<label>` cliquable — et la marge negative la rend sans
+                      changer d'un pixel ce qui est dessine. */}
+                  <Checkbox
+                    aria-label="Sélectionner la ligne"
+                    className="shrink-0"
+                    isSelected={row.getIsSelected()}
+                    onChange={(coche) => row.toggleSelected(coche)}
+                    slot={null}
+                  >
+                    <Checkbox.Content className="-m-3.5 size-11 justify-center">
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
+                    </Checkbox.Content>
+                  </Checkbox>
                 </div>
 
                 <div className="flex items-center justify-between gap-3">
@@ -373,15 +389,15 @@ export function TicketArchivesTable({ restaurantOptions, livreurOptions }: Ticke
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="shrink-0 text-xs text-muted">Montant de Livraison</span>
-                  <span className="text-right text-sm text-foreground">{formatCFA(a.coutLivraison)}</span>
+                  <span className="text-right text-sm text-foreground tabular-nums">{formatCFA(a.coutLivraison)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="shrink-0 text-xs text-muted">Montant de Commande</span>
-                  <span className="text-right text-sm text-foreground">{formatCFA(a.coutCommande)}</span>
+                  <span className="text-right text-sm text-foreground tabular-nums">{formatCFA(a.coutCommande)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="shrink-0 text-xs text-muted">Commission</span>
-                  <span className="text-right text-sm text-foreground">{formatCFA(a.commission ?? 0)}</span>
+                  <span className="text-right text-sm text-foreground tabular-nums">{formatCFA(a.commission ?? 0)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="shrink-0 text-xs text-muted">Date</span>

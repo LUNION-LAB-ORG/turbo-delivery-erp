@@ -1,97 +1,74 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import { CalendarIcon } from "lucide-react"
-import { parseDate } from "chrono-node"
+import React from 'react';
 
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Input } from "@/components/ui/input"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+import { ChampDate } from '@/components/commons/champs-formulaire';
 
-function formatDate(date: Date | undefined) {
-  if (!date) return ""
-  return date.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  })
-}
+/**
+ * Le choix d'une date, dans les filtres finance.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le champ montait quatre composants de la SECONDE bibliotheque (Input, Button,
+ * Popover, Calendar) et lisait la saisie libre avec `chrono-node`, dont l'analyseur est
+ * ANGLAIS : « 01/02/2025 » y vaut le 2 janvier, pas le 1er fevrier. Sur un ecran francais
+ * qui filtre des livraisons par date, la saisie au clavier partait donc un mois plus tot
+ * sans que rien ne le signale. Les segments jour / mois / annee de la v3 se saisissent au
+ * clavier eux aussi, chacun a sa place, sans interpretation.</p>
+ *
+ * <p>Ce qui disparait, et c'est voulu : le langage naturel anglais (« tomorrow », « next
+ * friday »), qui n'a jamais eu de sens ici.</p>
+ *
+ * <p>Ce qui apparait : on peut EFFACER la date. L'ancien champ n'appelait `onChange` que
+ * lorsqu'une date etait comprise ; vider la saisie laissait donc le filtre en place, et
+ * la seule sortie etait de recharger la page.</p>
+ *
+ * <p>Le texte d'invite devient l'INTITULE du champ. En invite il disparaissait des qu'une
+ * date etait choisie, et il ne restait plus rien pour dire ce que cette date filtrait.</p>
+ */
 
 type CalendarInputProps = {
-  value?: Date
-  onChange?: (date: Date | undefined) => void
-  placeholder?: string
-  className?: string
+  className?: string;
+  onChange?: (date: Date | undefined) => void;
+  placeholder?: string;
+  value?: Date;
+};
+
+/**
+ * Le format que `ChampDate` echange, en heure LOCALE : `toISOString` decalerait d'un jour.
+ *
+ * <p>L'annee tient sur QUATRE chiffres, meme quand elle en compte moins. En saisissant
+ * « 2026 » au clavier, le champ passe par les annees 2, 20 puis 202 : rendue « 202-03-12 »,
+ * cette etape n'est pas une date ISO, `ChampDate` ne la relit pas, et le jour et le mois
+ * deja saisis se vidaient sous les doigts de l'operateur.</p>
+ */
+function enTexte(date?: Date) {
+  if (!date || Number.isNaN(date.getTime())) return '';
+  const annee = String(date.getFullYear()).padStart(4, '0');
+  const mois = String(date.getMonth() + 1).padStart(2, '0');
+  const jour = String(date.getDate()).padStart(2, '0');
+  return `${annee}-${mois}-${jour}`;
 }
 
-export function CalendarInput({ value, onChange, placeholder, className }: CalendarInputProps) {
-  const [open, setOpen] = React.useState(false)
-  const [inputValue, setInputValue] = React.useState(value ? formatDate(value) : "")
-  const [month, setMonth] = React.useState<Date | undefined>(value)
+function enDate(texte: string) {
+  if (!texte) return undefined;
+  const [annee, mois, jour] = texte.split('-').map(Number);
+  if (!annee || !mois || !jour) return undefined;
+  // `new Date(an, ...)` renvoie 1902 pour l'an 2 : le constructeur decale les annees a
+  // deux chiffres dans les annees 1900. `setFullYear` prend l'annee telle quelle.
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setFullYear(annee, mois - 1, jour);
+  return date;
+}
 
-  // Synchroniser l'input avec la valeur externe
-  React.useEffect(() => {
-    setInputValue(value ? formatDate(value) : "")
-    setMonth(value)
-  }, [value])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value
-    setInputValue(newValue)
-    
-    const parsed = parseDate(newValue)
-    if (parsed) {
-      onChange?.(parsed)
-      setMonth(parsed)
-    }
-  }
-
-  const handleSelectDate = (date: Date | undefined) => {
-    onChange?.(date)
-    setInputValue(date ? formatDate(date) : "")
-    setOpen(false)
-  }
-
+export function CalendarInput({ className, onChange, placeholder, value }: CalendarInputProps) {
   return (
-    <div className={cn("relative flex gap-2", className)}>
-      <Input
-        value={inputValue}
-        placeholder={placeholder || "Sélectionnez une date"}
-        className="bg-background pr-10"
-        onChange={handleInputChange}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") {
-            e.preventDefault()
-            setOpen(true)
-          }
-        }}
+    <div className={className}>
+      <ChampDate
+        label={placeholder ?? 'Date'}
+        onChange={(texte) => onChange?.(enDate(texte))}
+        valeur={enTexte(value)}
       />
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
-          >
-            <CalendarIcon className="size-3.5" />
-            <span className="sr-only">Sélectionnez une date</span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end">
-          <Calendar
-            mode="single"
-            selected={value}
-            month={month}
-            onMonthChange={setMonth}
-            onSelect={handleSelectDate}
-          />
-        </PopoverContent>
-      </Popover>
     </div>
-  )
+  );
 }

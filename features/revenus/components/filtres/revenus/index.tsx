@@ -1,48 +1,55 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { RestaurantFilter } from "../restaurant/restaurant-filter"
-import FilterPeriode from "../periode/filter-periode"
-import { Button } from "@/components/ui/button"
-import { X } from "lucide-react"
+import { Button } from '@heroui-v3/react';
+import { X } from 'lucide-react';
 
-interface RevenusFiltersProps {
-    onRestaurantChange: (restaurantIds: string[]) => void
-    selectedRestaurants: string[]
-    onClearFilters: () => void
-}
+import FilterPeriode from '../periode/filter-periode';
+import { RestaurantFilter } from '../restaurant/restaurant-filter';
 
-export function RevenusFilters({ 
-    onRestaurantChange, 
+/**
+ * La barre de filtres des revenus sur les livraisons.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le bouton d'effacement venait de shadcn et écoutait `onClick`. Celui de la v3
+ * écoute `onPress` et ignore `onClick` EN SILENCE : converti mécaniquement, ce bouton
+ * serait resté à l'écran, survolable et enfonçable, sans jamais rien effacer.</p>
+ *
+ * <p>La rangée basculait en colonne sous `lg` (1024 px). La fenêtre réelle des postes
+ * fait environ 1000 px : ce seuil ne s'ouvrait jamais, et les filtres s'empilaient en
+ * hauteur sur TOUS les postes. Le seuil passe à `md`.</p>
+ *
+ * <p>Les deux filtres portent maintenant un libellé : ils s'alignent donc par le BAS,
+ * faute de quoi le champ sans libellé remonterait d'une ligne.</p>
+ */
+export function RevenusFilters({
+    onClearFilters,
+    onRestaurantChange,
     selectedRestaurants,
-    onClearFilters 
-}: RevenusFiltersProps) {
-    const hasActiveFilters = selectedRestaurants.length > 0
+}: {
+    onClearFilters: () => void;
+    onRestaurantChange: (restaurantIds: string[]) => void;
+    selectedRestaurants: string[];
+}) {
+    const filtresActifs = selectedRestaurants.length > 0;
 
     return (
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            {/* Filtres */}
-            <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="flex flex-wrap items-end gap-3">
                 <RestaurantFilter
                     onRestaurantChange={onRestaurantChange}
                     selectedRestaurants={selectedRestaurants}
                 />
-                
-                <FilterPeriode moduleName="livraison" />
+
+                <FilterPeriode />
             </div>
 
-            {/* Bouton d'effacement */}
-            {hasActiveFilters && (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onClearFilters}
-                    className="flex items-center gap-2 text-muted hover:text-foreground"
-                >
-                    <X className="h-4 w-4" />
+            {/* Un retrait, pas un geste principal : il n'a ni contour ni couleur. */}
+            {filtresActifs && (
+                <Button onPress={onClearFilters} size="sm" variant="ghost">
+                    <X aria-hidden="true" className="size-4" />
                     Effacer les filtres
                 </Button>
             )}
         </div>
-    )
+    );
 }

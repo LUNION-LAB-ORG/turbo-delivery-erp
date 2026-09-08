@@ -22,7 +22,7 @@ const UsersEdit = ({ user, open, setOpen }: { user: User; open: boolean; setOpen
      * jamais l'envoi en cours et restait cliquable.
      *
      * `SubmitButton` (components/ui/form-ui/submit-button.tsx) fait exactement cela
-     * correctement — il appelle le hook depuis l'interieur du formulaire — et existait
+     * correctement : il appelle le hook depuis l'interieur du formulaire, et il existait
      * deja dans le depot.
      */
 
@@ -112,9 +112,9 @@ const UsersEdit = ({ user, open, setOpen }: { user: User; open: boolean; setOpen
             ) : (
                 <form action={formAction} className="flex flex-col gap-4">
                     <input name="role" type="hidden" value={watchedRole ?? ''} />
-                    {/* Chaque champ portait un `aria-label` en ANGLAIS — « username input »,
-                        « prenoms input » — qui REMPLACE le libelle francais pour le lecteur
-                        d'ecran. */}
+                    {/* Chaque champ portait un `aria-label` en ANGLAIS, « username input »
+                        ou « prenoms input », qui REMPLACE le libelle francais pour le
+                        lecteur d'ecran. */}
                     <Controller
                         control={control}
                         name="username"

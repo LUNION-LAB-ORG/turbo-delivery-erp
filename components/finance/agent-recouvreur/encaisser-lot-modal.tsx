@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { X, Upload, Banknote, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Alert, Spinner } from '@heroui-v3/react';
+import { Upload } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { ChampEnveloppe, ChampZoneTexte } from '@/components/commons/champs-formulaire';
 import type { IAgentFacture } from '@/features/agent-recouvreur';
+
 import { formatMontant } from './agent-recouvreur-columns';
 
-/** Restant dû d'une facture (montant total − déjà recouvré). */
+/** Restant du d'une facture (montant total − deja recouvre). */
 export function resteAEncaisser(f: IAgentFacture) {
   return Math.max(0, f.montant - (f.montantRecouvre ?? 0));
 }
@@ -22,22 +25,32 @@ interface Props {
 }
 
 /**
- * Encaissement en masse — marque chaque facture sélectionnée comme « soldée à
- * 100% » (paiement de type Solde = restant dû). Un seul justificatif + une seule
- * remarque, optionnels, appliqués à tout le lot. La logique d'enregistrement
+ * Encaissement en masse : marque chaque facture selectionnee comme « soldee a
+ * 100% » (paiement de type Solde = restant du). Un seul justificatif + une seule
+ * remarque, optionnels, appliques a tout le lot. La logique d'enregistrement
  * (boucle sur la mutation d'encaissement unitaire) vit dans agent-recouvreur-view.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>La fenetre etait montee a la main, avec un fond `bg-black/50` en dur et une croix de
+ * fermeture sans nom accessible. Pendant l'encaissement, cette croix restait la SEULE
+ * sortie et elle etait desactivee : la fenetre ne se fermait plus, et le clic sur le fond
+ * etait neutralise lui aussi.</p>
+ *
+ * <p>Les montants du lot etaient en chasse proportionnelle, alignes a gauche, sous un
+ * total qui l'etait aussi : on ne pouvait pas verifier d'un coup d'oeil que la somme des
+ * lignes faisait le total annonce.</p>
  */
-export default function EncaisserLotModal({ open, onClose, factures, running, progress, onConfirm }: Props) {
+export default function EncaisserLotModal({
+  open,
+  onClose,
+  factures,
+  running,
+  progress,
+  onConfirm,
+}: Props) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [preuveDataUrl, setPreuveDataUrl] = useState<string | null>(null);
   const [remarque, setRemarque] = useState('');
-  const portalRef = useRef<Element | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    portalRef.current = document.getElementById('modal-portal') ?? document.body;
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (open) {
@@ -46,8 +59,6 @@ export default function EncaisserLotModal({ open, onClose, factures, running, pr
       setRemarque('');
     }
   }, [open]);
-
-  if (!mounted || !open) return null;
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -66,94 +77,112 @@ export default function EncaisserLotModal({ open, onClose, factures, running, pr
 
   const total = factures.reduce((s, f) => s + resteAEncaisser(f), 0);
 
-  return createPortal(
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50" onClick={running ? undefined : onClose}>
-      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-separator shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center">
-              <Banknote className="w-4 h-4 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Encaisser la sélection à 100%</p>
-              <p className="text-xs text-muted">{factures.length} facture(s) · total {formatMontant(total)}</p>
-            </div>
-          </div>
-          <button onClick={onClose} disabled={running} className="text-muted hover:text-foreground transition-colors disabled:opacity-40">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  /*
+   * Sans facture eligible, le bouton est INERTE, pas silencieux.
+   *
+   * <p>Il se contentait de sortir au clic. L'ecran affichait alors « Encaisser 0
+   * facture(s) a 100% » a plein contraste, le bouton s'enfoncait, et rien ne se passait.
+   * Le corps de la fenetre disait bien « Aucune facture eligible selectionnee », mais un
+   * bouton qui a l'air de marcher contredit le texte a cote de lui. `FenetreAction` sait
+   * desormais neutraliser son action.</p>
+   */
+  const rienAEncaisser = factures.length === 0;
 
-        {/* Body */}
-        <div className="px-6 py-5 space-y-4 overflow-y-auto">
-          <div className="rounded-xl bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-800">
-            Chaque facture ci-dessous sera enregistrée comme <strong>réglée à 100%</strong> (paiement « Solde » du restant dû,
-            daté d&apos;aujourd&apos;hui). Le versement au caissier reste une étape séparée.
-          </div>
+  function handleConfirm() {
+    if (rienAEncaisser) return;
+    onConfirm({ preuve: preuveDataUrl ?? undefined, remarque: remarque.trim() || undefined });
+  }
 
-          {/* Liste des factures du lot */}
-          <div className="rounded-xl border border-separator divide-y divide-separator max-h-56 overflow-y-auto">
-            {factures.map((f) => (
-              <div key={f.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <div>
-                  <p className="font-medium text-foreground">{f.numero}</p>
-                  <p className="text-xs text-muted">{f.partenaire}</p>
-                </div>
-                <p className="font-semibold text-foreground">{formatMontant(resteAEncaisser(f))}</p>
-              </div>
-            ))}
-            {factures.length === 0 && (
-              <div className="px-4 py-6 text-center text-xs text-muted">Aucune facture éligible sélectionnée.</div>
-            )}
-          </div>
-
-          {/* Justificatif partagé (optionnel) */}
-          <div>
-            <label className="block text-xs text-muted mb-1.5">Justificatif partagé <span className="text-muted">(optionnel — appliqué à tout le lot)</span></label>
-            <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-separator bg-surface-secondary px-4 py-4 cursor-pointer hover:border-green-300 hover:bg-green-50 transition-colors">
-              <Upload className="w-5 h-5 text-muted" />
-              {fileName
-                ? <p className="text-xs font-medium text-foreground">{fileName}</p>
-                : <p className="text-xs text-muted">Choisir un fichier<br /><span className="text-muted">PNG, JPG ou PDF (max 10Mo)</span></p>
-              }
-              <input type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden" onChange={handleFileChange} />
-            </label>
-          </div>
-
-          {/* Remarque partagée (optionnel) */}
-          <div>
-            <label className="block text-xs text-muted mb-1.5">Remarque partagée <span className="text-muted">(optionnel)</span></label>
-            <textarea
-              value={remarque}
-              onChange={(e) => setRemarque(e.target.value)}
-              placeholder="Ex. : encaissement groupé AL DAR du jour…"
-              rows={2}
-              className="w-full rounded-lg border border-separator bg-surface px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-green-300 resize-none"
-            />
-          </div>
-
-          {running && (
-            <div className="flex items-center gap-2 text-sm text-muted">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Encaissement en cours… {progress.done}/{progress.total}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex gap-3 px-6 pb-5 pt-1 shrink-0">
-          <Button variant="outline" onClick={onClose} disabled={running} className="flex-1 text-sm">Annuler</Button>
-          <Button
-            onClick={() => onConfirm({ preuve: preuveDataUrl ?? undefined, remarque: remarque.trim() || undefined })}
-            disabled={running || factures.length === 0}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm disabled:opacity-50"
-          >
-            {running ? 'Encaissement…' : `Encaisser ${factures.length} facture(s) à 100%`}
-          </Button>
-        </div>
+  return (
+    <FenetreAction
+      actionInactive={rienAEncaisser}
+      enAttente={running}
+      libelleAction={
+        running ? 'Encaissement…' : `Encaisser ${factures.length} facture(s) à 100%`
+      }
+      onAction={handleConfirm}
+      onFermer={onClose}
+      ouvert={open}
+      titre="Encaisser la sélection à 100%"
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-xs text-muted">{factures.length} facture(s) sélectionnée(s)</span>
+        <span className="text-sm font-bold tabular-nums text-foreground">
+          {formatMontant(total)}
+        </span>
       </div>
-    </div>,
-    portalRef.current!,
+
+      <Alert status="default">
+        <Alert.Indicator />
+        <Alert.Content>
+          <Alert.Description>
+            Chaque facture ci-dessous sera enregistrée comme <strong>réglée à 100%</strong>{' '}
+            (paiement « Solde » du restant dû, daté d&apos;aujourd&apos;hui). Le versement au
+            caissier reste une étape séparée.
+          </Alert.Description>
+        </Alert.Content>
+      </Alert>
+
+      <div className="max-h-56 divide-y divide-separator overflow-y-auto rounded-xl border border-separator">
+        {factures.map((f) => (
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5" key={f.id}>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">{f.numero}</p>
+              <p className="truncate text-xs text-muted">{f.partenaire}</p>
+            </div>
+            <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+              {formatMontant(resteAEncaisser(f))}
+            </p>
+          </div>
+        ))}
+        {factures.length === 0 && (
+          <p className="px-4 py-6 text-center text-xs text-muted">
+            Aucune facture éligible sélectionnée.
+          </p>
+        )}
+      </div>
+
+      <ChampEnveloppe label="Justificatif partagé (optionnel, appliqué à tout le lot)">
+        {/*
+         * `className="hidden"` sortait le champ de fichier de l'ordre de tabulation :
+         * joindre le justificatif devenait impossible sans souris.
+         */}
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-separator bg-surface-secondary px-4 py-4 transition-colors hover:bg-surface-tertiary focus-within:border-accent">
+          <Upload aria-hidden="true" className="size-5 text-muted" />
+          {fileName ? (
+            <p className="text-xs font-medium text-foreground">{fileName}</p>
+          ) : (
+            <p className="text-center text-xs text-muted">
+              Choisir un fichier
+              <br />
+              PNG, JPG ou PDF (max 10 Mo)
+            </p>
+          )}
+          <input
+            accept=".pdf,.png,.jpg,.jpeg"
+            className="sr-only"
+            onChange={handleFileChange}
+            type="file"
+          />
+        </label>
+      </ChampEnveloppe>
+
+      <ChampZoneTexte
+        label="Remarque partagée (optionnel)"
+        lignes={2}
+        onChange={setRemarque}
+        placeholder="Ex. : encaissement groupé AL DAR du jour…"
+        valeur={remarque}
+      />
+
+      {running && (
+        <p className="flex items-center gap-2 text-sm text-muted">
+          <Spinner color="current" size="sm" />
+          <span className="tabular-nums">
+            Encaissement en cours… {progress.done}/{progress.total}
+          </span>
+        </p>
+      )}
+    </FenetreAction>
   );
 }

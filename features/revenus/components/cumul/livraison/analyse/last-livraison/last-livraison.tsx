@@ -1,134 +1,128 @@
-﻿import { formatMontant } from '@/utils/format.utils';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel"
-import Autoplay from "embla-carousel-autoplay"
-import { ILivraison } from "@/features/revenus/types/livraison.types"
-import { useMemo } from "react"
-import { format, formatDate, parseISO } from "date-fns"
-import { fr } from "date-fns/locale"
+'use client';
+
+import { Card } from '@heroui-v3/react';
+import { format, parseISO } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { useMemo } from 'react';
+
+import { ILivraison } from '@/features/revenus/types/livraison.types';
+import { formatMontant } from '@/utils/format.utils';
 
 interface LastLivraisonProps {
-    lastlivraisons?: ILivraison[];
+  lastlivraisons?: ILivraison[];
 }
 
+function formatDateHeure(dateString: string) {
+  if (!dateString) return '';
+  try {
+    return format(parseISO(dateString), 'dd/MM/yyyy HH:mm', { locale: fr });
+  } catch {
+    // Une date illisible se rend telle quelle : elle reste une information, la remplacer
+    // par du vide ferait croire a une livraison sans horodatage.
+    return dateString;
+  }
+}
+
+/**
+ * Les livraisons du mois en cours, la plus rentable d'abord a l'oeil.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le bloc s'intitulait « Investissements du mois courant » et comptait des
+ * « investissement(s) » : il n'a jamais montre que des LIVRAISONS. Le libelle etait
+ * simplement FAUX, et il cotoyait le module Investissements de la meme page, ou le mot a
+ * un tout autre sens.</p>
+ *
+ * <p>Les montants portaient eux aussi deux etiquettes fausses : « Cout » sur le total de
+ * la commande, et « commission » sur les FRAIS DE LIVRAISON, alors que le total du pied
+ * additionnait, lui, le champ `commission`, un chiffre qui n'apparaissait nulle part
+ * dans la liste. Le total etait donc invérifiable a l'oeil. Chaque valeur porte
+ * desormais le nom de son champ, et la commission de chaque ligne est visible.</p>
+ *
+ * <p>La liste defilait TOUTE SEULE, une carte par seconde, en boucle : sur des chiffres
+ * d'argent, un operateur ne peut ni finir de lire une ligne, ni comparer deux lignes, ni
+ * revenir sur celle qui vient de passer. Le carrousel (embla, une bibliotheque de plus)
+ * laisse place a une liste qu'on parcourt soi-meme, ou toutes les lignes sont atteignables
+ * et alignees les unes sous les autres.</p>
+ */
 export default function LastLivraison({ lastlivraisons }: LastLivraisonProps) {
-    
-    // Filtrer les investissements du mois courant
-    const livraisonsMoisCourant = useMemo(() => {
-        if (!lastlivraisons) return [];
-        
-        const maintenant = new Date();
-        const moisCourant = maintenant.getMonth();
-        const anneeCourante = maintenant.getFullYear();
-        
-        return lastlivraisons.filter(livraison => {
-            const dateLivraison = new Date(livraison.createdAt);
-            return dateLivraison.getMonth() === moisCourant && 
-                   dateLivraison.getFullYear() === anneeCourante;
-        });
-    }, [lastlivraisons]);
- 
-      const formatDate = (dateString: string) => {
-            if (!dateString) return "";
-    
-            try {
-                const date = parseISO(dateString);
-                return format(date, "dd/MM/yyyy HH:mm", { locale: fr });
-            } catch (error) {
-                console.warn("Erreur de formatage de date:", error);
-                return dateString;
-            }
-        };
+  const livraisonsMoisCourant = useMemo(() => {
+    if (!lastlivraisons) return [];
 
-    return (
-        <div className="p-4">
-            <Card className="max-w-6xl mx-auto shadow-lg rounded-xl overflow-hidden border-0">
-                <CardHeader className="py-4 bg-linear-to-r from-blue-50 to-indigo-50">
-                    <CardTitle className="text-xl font-bold flex items-center text-blue-800">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Investissements du mois courant
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="p-5">
-                        <Carousel
-                            opts={{
-                                align: "start",
-                                loop: true,
-                            }}
-                            plugins={[
-                                Autoplay({
-                                    delay: 1000,
-                                    stopOnInteraction: false,
-                                    stopOnMouseEnter: true,
-                                })
-                            ]}
-                            orientation="vertical"
-                            className="w-full max-w-md mx-auto"
-                        >
-                            <CarouselContent className="h-[400px]">
-                                {livraisonsMoisCourant?.map((livraison, index) => (
-                                    <CarouselItem key={index} className="pt-4 basis-1/2">
-                                        <div className="p-2">
-                                            <Card className="rounded-lg shadow-md overflow-hidden border border-separator hover:shadow-lg transition-all duration-300">
-                                                <div className="p-4">
-                                                    <div className="flex flex-col gap-3">
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="space-y-1">
-                                                                <span className="text-xs text-muted font-medium">Livreur</span>
-                                                                <h3 className="font-semibold text-sm text-blue-600">{livraison.nomLivreur}</h3>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <span className="text-xs text-muted block">Cout</span>
-                                                                <span className="text-sm font-bold text-green-600">{formatMontant(livraison.totalAmount)}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="space-y-1">
-                                                                <span className="text-xs text-muted font-medium">restaurant</span>
-                                                                <h3 className="font-semibold text-sm text-blue-600">{livraison.nomRestaurant}</h3>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <span className="text-xs text-muted block">commission</span>
-                                                                <span className="text-sm font-bold text-green-600">{formatMontant(livraison.fraisLivraison)}</span>
-                                                            </div>
-                                                        </div>
+    const maintenant = new Date();
+    const moisCourant = maintenant.getMonth();
+    const anneeCourante = maintenant.getFullYear();
 
-                                                        <div className="space-y-2">
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs text-muted">Date</span>
-                                                                <span className="text-xs font-medium">{formatDate(livraison.createdAt)}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </Card>
-                                        </div>
-                                    </CarouselItem>
-                                ))}
-                            </CarouselContent>
-                            <div className="flex justify-center gap-2 mt-4">
-                                <CarouselPrevious className="relative static mt-0 transform-none" />
-                                <CarouselNext className="relative static mt-0 transform-none" />
-                            </div>
-                        </Carousel>
-                    </div>
+    return lastlivraisons.filter((livraison) => {
+      const dateLivraison = new Date(livraison.createdAt);
+      return (
+        dateLivraison.getMonth() === moisCourant && dateLivraison.getFullYear() === anneeCourante
+      );
+    });
+  }, [lastlivraisons]);
 
-                    {/* Pied de carte avec statistiques */}
-                    <div className="px-5 py-4 border-t border-separator bg-surface-secondary">
-                        <div className="flex justify-between items-center">
-                            <div className="text-sm text-muted">
-                                Total ce mois: {livraisonsMoisCourant?.length} investissement(s)
-                            </div>
-                            <div className="text-sm font-semibold text-blue-600">
-                                Montant total: {formatMontant(livraisonsMoisCourant?.reduce((sum, invest) => sum + invest.commission, 0))}
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    )
+  const totalCommission = useMemo(
+    () => livraisonsMoisCourant.reduce((somme, l) => somme + (l.commission ?? 0), 0),
+    [livraisonsMoisCourant],
+  );
+
+  return (
+    <Card className="h-full">
+      <Card.Header>
+        <Card.Title>Livraisons du mois en cours</Card.Title>
+      </Card.Header>
+
+      <Card.Content className="p-0">
+        {livraisonsMoisCourant.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm text-muted">
+            Aucune livraison enregistrée ce mois-ci.
+          </p>
+        ) : (
+          <ul className="max-h-96 divide-y divide-separator overflow-y-auto">
+            {livraisonsMoisCourant.map((livraison) => (
+              <li
+                className="flex items-start justify-between gap-4 px-4 py-3"
+                key={`${livraison.commandeId}-${livraison.createdAt}`}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {livraison.nomLivreur}
+                  </p>
+                  <p className="truncate text-xs text-muted">{livraison.nomRestaurant}</p>
+                  <p className="text-xs tabular-nums text-muted">
+                    {formatDateHeure(livraison.createdAt)}
+                  </p>
+                </div>
+
+                {/* La commission est ce que la societe GAGNE sur la course : c'est elle
+                    qu'on aligne en gros, et elle seule qui s'additionne dans le pied. Le
+                    cout et les frais restent en dessous, a la meme place sur chaque ligne,
+                    pour qu'une colonne de chiffres se compare sans relire les libelles. */}
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                    {formatMontant(livraison.commission)}
+                  </p>
+                  <p className="text-xs tabular-nums text-muted">
+                    Coût {formatMontant(livraison.totalAmount)}
+                  </p>
+                  <p className="text-xs tabular-nums text-muted">
+                    Frais {formatMontant(livraison.fraisLivraison)}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card.Content>
+
+      <Card.Footer className="flex items-center justify-between gap-3 border-t border-separator">
+        <span className="text-sm text-muted">
+          {livraisonsMoisCourant.length} livraison{livraisonsMoisCourant.length > 1 ? 's' : ''} ce
+          mois
+        </span>
+        <span className="text-sm font-semibold tabular-nums text-foreground">
+          Commissions : {formatMontant(totalCommission)}
+        </span>
+      </Card.Footer>
+    </Card>
+  );
 }

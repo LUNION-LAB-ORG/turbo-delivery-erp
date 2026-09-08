@@ -1,52 +1,68 @@
 'use client';
 
-import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@heroui-v3/react';
+
+import {
+  DepenseActions,
+  EtiquetteTypeDepense,
+  formatDateDepense,
+} from '@/components/depenses/depense-table/depense-columns';
 import { IDepense } from '@/features/depenses/types/depense.type';
-import { DepenseActions, formatTypeDepense } from './depense-columns';
+import { formatCFA } from '@/src/actions/bonLivraison.mapper';
 
 /**
- * Carte mobile d'une dépense (cf. DepenseTable, wrapper `hidden md:block` /
- * `md:hidden`). Réutilise le badge de type et le menu d'actions partagés de
- * `depense-columns` pour rester aligné sur le tableau desktop.
+ * Une depense au doigt (cf. `depense-table/index.tsx`, qui bascule a `md`).
+ *
+ * <p>La carte etait un `div` habille a la main (fond, bordure, arrondi, ombre) a cote
+ * d'un tableau qui, lui, vient de la bibliotheque : deux surfaces qui ne se ressemblaient
+ * pas sur le meme ecran. C'est la `Card` de la bibliotheque, comme les cartes de la liste
+ * des categories juste a cote.</p>
+ *
+ * <p>Les deux dates affichaient la MEME valeur sous deux libelles differents. Elles
+ * viennent maintenant chacune de leur champ, comme dans l'export CSV.</p>
  */
 export function DepenseMobileCard({ depense }: { depense: IDepense }) {
-  const typeInfo = formatTypeDepense(depense.typeDepense);
-  const dateAjout = format(new Date(depense.dateDepense), 'dd/MM/yyyy');
-
   return (
-    <div className="bg-surface dark:bg-transparent border border-separator rounded-xl p-4 shadow-xs space-y-2">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-foreground min-w-0 wrap-break-word">
-          {depense.description || depense.categorie?.nomCategorie || 'Dépense'}
-        </p>
-        <Badge variant={typeInfo.variant} className="shrink-0">
-          {typeInfo.label}
-        </Badge>
-      </div>
+    <Card>
+      <Card.Content className="gap-2 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <p className="min-w-0 text-sm font-semibold wrap-break-word text-foreground">
+            {depense.description || depense.categorie?.nomCategorie || 'Dépense'}
+          </p>
+          <span className="shrink-0">
+            <EtiquetteTypeDepense typeDepense={depense.typeDepense} />
+          </span>
+        </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-muted">Catégorie</span>
-        <span className="text-sm text-foreground text-right wrap-break-word">{depense.categorie?.nomCategorie ?? '-'}</span>
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-muted">Date d&apos;ajout</span>
-        <span className="text-sm text-foreground">{dateAjout}</span>
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-muted">Comptabilisation</span>
-        <span className="text-sm text-foreground">{dateAjout}</span>
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-muted">Montant</span>
-        <span className="text-sm font-semibold text-foreground">
-          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(depense.montant)}
-        </span>
-      </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-muted">Catégorie</span>
+          <span className="min-w-0 text-right text-sm wrap-break-word text-foreground">
+            {depense.categorie?.nomCategorie ?? '-'}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-muted">Date d&apos;ajout</span>
+          <span className="text-sm tabular-nums text-foreground">
+            {formatDateDepense(depense.createdAt)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-muted">Comptabilisation</span>
+          <span className="text-sm tabular-nums text-foreground">
+            {formatDateDepense(depense.dateDepense)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-muted">Montant</span>
+          <span className="text-sm font-semibold tabular-nums text-foreground">
+            {formatCFA(depense.montant)}
+          </span>
+        </div>
 
-      <div className="pt-1 flex justify-end">
-        <DepenseActions depense={depense} />
-      </div>
-    </div>
+        <div className="flex justify-end pt-1">
+          <DepenseActions depense={depense} />
+        </div>
+      </Card.Content>
+    </Card>
   );
 }

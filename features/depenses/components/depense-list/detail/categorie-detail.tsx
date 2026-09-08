@@ -1,126 +1,131 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Eye, Calendar, User, DollarSign, Hash, Bookmark } from "lucide-react";
-import { ICategorieDepense } from "@/features/depenses/types/categorie-depense.type";
-import Image from "next/image";
+import { Button, Tooltip } from '@heroui-v3/react';
+import { format, parseISO } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { Bookmark, Calendar, Eye } from 'lucide-react';
+import Image from 'next/image';
+import { useState } from 'react';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { ICategorieDepense } from '@/features/depenses/types/categorie-depense.type';
 import { formatMontant } from '@/utils/format.utils';
+
 interface CategorieDetailModalProps {
-    categorie: ICategorieDepense;
+  categorie: ICategorieDepense;
 }
 
+/**
+ * La date d'une categorie, ou un tiret quand elle est illisible.
+ *
+ * <p>Elle etait rendue BRUTE, telle que le serveur l'envoie :
+ * « 2026-03-14T09:22:07.481Z » dans un champ de saisie. Personne ne lit une date sous
+ * cette forme, et le fuseau qui la termine laisse croire a une heure qui n'est pas celle
+ * du bureau.</p>
+ */
+function formatDate(valeur: string | undefined) {
+  if (!valeur) return '-';
+  try {
+    return format(parseISO(valeur), 'dd/MM/yyyy HH:mm', { locale: fr });
+  } catch {
+    return valeur;
+  }
+}
+
+/**
+ * Ce que vaut une categorie de depense.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Les cinq valeurs etaient posees dans des `Input` en lecture seule : des champs de
+ * SAISIE, avec leur bordure et leur curseur de texte, pour une fiche qui ne se modifie
+ * pas. On y cliquait, on selectionnait, et rien ne se passait. Ce sont des valeurs
+ * affichees, pas des champs.</p>
+ *
+ * <p>La reference apparaissait DEUX fois : en rouge de marque dans le titre, puis dans un
+ * champ « Reference » juste en dessous. Le rouge de cet ERP est reserve a ce qui appelle
+ * un geste ; une reference ne demande rien. Elle est ecrite une fois, sous le nom.</p>
+ *
+ * <p>Le montant total est ce qu'on vient chercher ici : il passe en premier, en chasse
+ * tabulaire, pour se comparer d'une categorie a l'autre.</p>
+ *
+ * <p>« Imprimer » etait peint en DESTRUCTIF, la couleur de ce qui detruit, a cote d'un
+ * « Fermer » neutre. Imprimer ne detruit rien.</p>
+ */
 export function CategorieDetailModal({ categorie }: CategorieDetailModalProps) {
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <button className="flex items-center gap-2 cursor-pointer hover:text-blue-800 transition-colors">
-                    <Eye className="h-5 w-5 text-blue-500" />
-                    <span className="hidden md:flex text-sm font-medium">Voir détails</span>
-                </button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 ">
-                        <Image
-                            src="/assets/images/logo_turbo.jpg"
-                            alt="logo_turbo"
-                            width={50}
-                            height={50}
-                            className="rounded-lg"
-                        />
-                        Détails de la catégorie <span className="font-bold text-red-500">REF-{categorie.id}</span>
-                    </DialogTitle>
-                </DialogHeader>
+  const [ouvert, setOuvert] = useState(false);
 
-                <div className="grid gap-6 py-4">
-                    {/* Ligne Référence */}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="reference" className="text-right flex items-center text-sm gap-2">
-                            <Hash className="h-4 w-4" />
-                            Référence
-                        </Label>
-                        <Input
-                            id="reference"
-                            defaultValue={"REF-" + categorie.id}
-                            className="col-span-3"
-                            readOnly
-                        />
-                    </div>
+  return (
+    <>
+      <Tooltip>
+        <Button
+          aria-label={`Voir les détails de ${categorie.nomCategorie}`}
+          isIconOnly
+          onPress={() => setOuvert(true)}
+          size="sm"
+          variant="ghost"
+        >
+          <Eye aria-hidden="true" className="size-4" />
+        </Button>
+        <Tooltip.Content>Voir détails</Tooltip.Content>
+      </Tooltip>
 
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="date" className="text-right flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            Date
-                        </Label>
-                        <Input
-                            id="date"
-                            defaultValue={categorie.createdAt}
-                            className="col-span-3"
-                            readOnly
-                        />
-                    </div>
+      <FenetreAction
+        libelleAction="Imprimer"
+        libelleFermer="Fermer"
+        onAction={() => window.print()}
+        onFermer={() => setOuvert(false)}
+        ouvert={ouvert}
+        titre="Détails de la catégorie"
+      >
+        <div className="flex items-center gap-3">
+          {/* Le logo sert d'en-tete a la fiche imprimee : « Imprimer » sort cette page
+              telle qu'elle est a l'ecran. */}
+          <Image
+            alt=""
+            className="rounded-lg"
+            height={40}
+            src="/assets/images/logo_turbo.jpg"
+            width={40}
+          />
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold text-foreground">
+              {categorie.nomCategorie}
+            </p>
+            <p className="text-xs tabular-nums text-muted">REF-{categorie.id}</p>
+          </div>
+        </div>
 
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="nom" className="text-right flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            Nom
-                        </Label>
-                        <Input
-                            id="nom"
-                            defaultValue={categorie.nomCategorie}
-                            className="col-span-3"
-                            readOnly
-                        />
-                    </div>
+        <div className="rounded-lg border border-separator bg-surface-secondary p-4">
+          <p className="text-xs text-muted">Montant total</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+            {formatMontant(categorie.totalDepense)}
+          </p>
+        </div>
 
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="description" className=" flex items-center gap-2">
-                            <Bookmark className="h-4 w-4" />
-                            Description
-                        </Label>
-                        <Input
-                            id="description"
-                            defaultValue={`${categorie.description}`}
-                            className="col-span-3"
-                            readOnly
-                        />
-                    </div>
+        <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="rounded-lg border border-separator p-3">
+            <dt className="flex items-center gap-1.5 text-xs text-muted">
+              <Calendar aria-hidden="true" className="size-3.5" />
+              Date de création
+            </dt>
+            <dd className="mt-1 text-sm tabular-nums text-foreground">
+              {formatDate(categorie.createdAt)}
+            </dd>
+          </div>
 
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="montant" className=" flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" />
-                            Montant total
-                        </Label>
-                        <Input
-                            id="montant"
-                            defaultValue={formatMontant(categorie.totalDepense)}
-                            className="col-span-3"
-                            readOnly
-                        />
-                    </div>
-
-                </div>
-
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="outline" className="cursor-pointer">Fermer</Button>
-                    </DialogClose>
-                    <Button type="button" onClick={() => window.print()} variant="destructive" className="cursor-pointer">
-                        Imprimer
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
+          <div className="rounded-lg border border-separator p-3">
+            <dt className="flex items-center gap-1.5 text-xs text-muted">
+              <Bookmark aria-hidden="true" className="size-3.5" />
+              Description
+            </dt>
+            {/* Le gabarit interpolait `${categorie.description}` : une categorie sans
+                description affichait donc le mot « undefined ». */}
+            <dd className="mt-1 text-sm wrap-break-word text-foreground">
+              {categorie.description || 'Aucune description'}
+            </dd>
+          </div>
+        </dl>
+      </FenetreAction>
+    </>
+  );
 }

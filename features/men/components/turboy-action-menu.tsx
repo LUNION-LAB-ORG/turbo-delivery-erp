@@ -12,16 +12,7 @@ import { UpdateTurboyTypeModal } from '@/components/turboys/modals';
 import { useRejectTurboyMutation, usePasserEnBirdMutation, turboyKeys } from '@/features/turboys/queries';
 import { UpdateDeliveryDialog } from '@/app/(protected)/delivery-men/update-delivery/update-delivery';
 import { useAbility } from '@/hooks/use-ability';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { FenetreAction } from '@/components/commons/FenetreAction';
 
 export function turboyToLivreurStatut(turboy: ITurboy): LivreurStatutVM {
   // L'API renvoie directement 2=auth pending, 3=ops pending, 4=actif, 5=rejeté
@@ -66,8 +57,6 @@ export function TurboyActionMenu({
   const [openReject, setOpenReject] = useState(false);
   const [openAssign, setOpenAssign] = useState(false);
   const [openBird, setOpenBird] = useState(false);
-  const rejectMutation = useRejectTurboyMutation();
-  const birdMutation = usePasserEnBirdMutation();
 
   const invalidateTurboys = () => {
     queryClient.invalidateQueries({ queryKey: turboyKeys.lists() });
@@ -75,6 +64,22 @@ export function TurboyActionMenu({
     // le statut et le panneau habilitation doivent refléter la nouvelle valeur).
     queryClient.invalidateQueries({ queryKey: turboyKeys.detail(turboy.id) });
   };
+
+  /*
+   * Les deux mutations ne recevaient AUCUN rappel de succes. La desactivation partait,
+   * reussissait, et sa fenetre restait ouverte sur le meme bouton : l'operateur n'avait
+   * que le message fugace pour savoir que c'etait fait, et un second clic relancait le
+   * geste. La fiche detail, elle, n'etait pas rafraichie du tout — seule la LISTE l'etait,
+   * cote mutation, alors que ce menu est aussi rendu dans la fiche.
+   */
+  const rejectMutation = useRejectTurboyMutation(() => {
+    setOpenReject(false);
+    invalidateTurboys();
+  });
+  const birdMutation = usePasserEnBirdMutation(() => {
+    setOpenBird(false);
+    invalidateTurboys();
+  });
 
   if (turboy.status == null) {
     return (
@@ -212,53 +217,53 @@ export function TurboyActionMenu({
         restaurants={restaurants ?? []}
         onSuccess={invalidateTurboys}
       />
-      <AlertDialog open={openReject} onOpenChange={setOpenReject}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Désactiver le livreur</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir désactiver{' '}
-              <strong>
-                {turboy.prenoms} {turboy.nom}
-              </strong>{' '}?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={rejectMutation.isPending}>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={rejectMutation.isPending}
-              onClick={() => rejectMutation.mutate(turboy.id)}
-            >
-              {rejectMutation.isPending ? 'Désactivation...' : 'Désactiver'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={openBird} onOpenChange={setOpenBird}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Passer en Bird</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir dissocier{' '}
-              <strong>
-                {turboy.prenoms} {turboy.nom}
-              </strong>{' '}
-              de son restaurant et le remettre dans le pool Bird ?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={birdMutation.isPending}>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={birdMutation.isPending}
-              onClick={() => birdMutation.mutate(turboy.id)}
-            >
-              {birdMutation.isPending ? 'En cours...' : 'Passer en Bird'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/*
+        * Les deux confirmations venaient de la SECONDE bibliotheque de fenetres. Leur
+        * bouton d'action ecoutait `onClick` et portait `disabled` : traduits mot a mot
+        * vers la bibliotheque unique, ils auraient donne deux boutons MORTS, qui
+        * s'enfoncent et ne desactivent rien. Ils ecoutent `onPress`, et l'attente passe
+        * par la fenetre.
+        *
+        * Le geste engageait aussi sa couleur a la main — `bg-destructive` — la ou la
+        * fenetre a un `destructif` qui la pose depuis le theme, en clair comme en sombre.
+        */}
+      <FenetreAction
+        destructif
+        enAttente={rejectMutation.isPending}
+        libelleAction="Désactiver"
+        onAction={() => rejectMutation.mutate(turboy.id)}
+        onFermer={() => setOpenReject(false)}
+        ouvert={openReject}
+        titre="Désactiver le livreur"
+      >
+        <p className="text-sm text-foreground">
+          Êtes-vous sûr de vouloir désactiver{' '}
+          <strong className="font-semibold">
+            {turboy.prenoms} {turboy.nom}
+          </strong>{' '}?
+        </p>
+      </FenetreAction>
+      {/*
+        * « Passer en Bird » DISSOCIE le coursier de son restaurant : le lien est defait,
+        * pas le compte. C'est bien un geste qui retire quelque chose, d'ou `destructif`.
+        */}
+      <FenetreAction
+        destructif
+        enAttente={birdMutation.isPending}
+        libelleAction="Passer en Bird"
+        onAction={() => birdMutation.mutate(turboy.id)}
+        onFermer={() => setOpenBird(false)}
+        ouvert={openBird}
+        titre="Passer en Bird"
+      >
+        <p className="text-sm text-foreground">
+          Êtes-vous sûr de vouloir dissocier{' '}
+          <strong className="font-semibold">
+            {turboy.prenoms} {turboy.nom}
+          </strong>{' '}
+          de son restaurant et le remettre dans le pool Bird ?
+        </p>
+      </FenetreAction>
     </>
   );
 }

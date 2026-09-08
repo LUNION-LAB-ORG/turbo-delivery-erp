@@ -1,5 +1,6 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
+'use client';
+
+import { Button } from '@heroui-v3/react';
 import { Plus } from 'lucide-react';
 
 interface DeductionAddBarProps {
@@ -8,25 +9,36 @@ interface DeductionAddBarProps {
   onAddLoan?: () => void;
 }
 
+/**
+ * Les trois gestes d'ajout d'une deduction.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le bouton venait de shadcn et ecoutait `onClick`. Le `Button` de la v3 n'ecoute que
+ * `onPress` et ignore `onClick` EN SILENCE : une reprise mecanique aurait laisse ici trois
+ * boutons qui s'affichent, se survolent, s'enfoncent, et n'ouvrent aucune fenetre.</p>
+ *
+ * <p>Les trois libelles melangeaient deux formes derriere le meme « + » : deux noms
+ * (« Absence », « Avance sur salaire ») et une phrase verbale (« Enregistrer un pret »).
+ * Ils nomment maintenant tous la meme chose de la meme facon, ce qu'on ajoute.</p>
+ *
+ * <p>Sans fonction posee, le bouton est desactive plutot que muet : un geste qui ne mene
+ * nulle part doit se voir avant le clic, pas apres.</p>
+ */
 function DeductionAddBar({ onAddAbsence, onAddAdvance, onAddLoan }: DeductionAddBarProps) {
-  const handleAddAbsence = onAddAbsence ?? (() => {});
-  const handleAddAdvance = onAddAdvance ?? (() => {});
-  const handleAddLoan = onAddLoan ?? (() => {});
-
   return (
-    <div className="flex items-center gap-4">
-      <AddButton label="Absence" onClick={handleAddAbsence} />
-      <AddButton label="Avance sur salaire" onClick={handleAddAdvance} />
-      <AddButton label="Enregistrer un prêt" onClick={handleAddLoan} />
+    <div className="flex flex-wrap items-center gap-2">
+      <BoutonAjout libelle="Absence" onAjout={onAddAbsence} />
+      <BoutonAjout libelle="Avance sur salaire" onAjout={onAddAdvance} />
+      <BoutonAjout libelle="Prêt" onAjout={onAddLoan} />
     </div>
   );
 }
 
-function AddButton({ label, onClick }: { label: string; onClick?: () => void }) {
+function BoutonAjout({ libelle, onAjout }: { libelle: string; onAjout?: () => void }) {
   return (
-    <Button onClick={onClick} variant="outline" size="sm">
-      <Plus />
-      <span>{label}</span>
+    <Button isDisabled={!onAjout} onPress={onAjout} size="sm" variant="outline">
+      <Plus aria-hidden="true" className="size-4" />
+      {libelle}
     </Button>
   );
 }

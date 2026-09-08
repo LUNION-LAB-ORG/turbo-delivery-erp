@@ -1,15 +1,18 @@
 'use client';
 
+import { Button, Link } from '@heroui-v3/react';
+import { Check, ChevronLeft, ChevronRight, Download, FileText, Pencil, X } from 'lucide-react';
 import { useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, FileText, Pencil, X, Download } from 'lucide-react';
+
+import { Can } from '@/components/auth/Can';
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { IDepense } from '@/features/depenses/types/depense.type';
 import { formatCFA } from '@/src/actions/bonLivraison.mapper';
-import { fmtDate } from './validation.constants';
-import { StatusBadge, TypeBadge } from './validation-badges';
-import { WorkflowStepper } from './workflow-stepper';
-import { Can } from '@/components/auth/Can';
 import { createUrlFile } from '@/utils/createUrlFile';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+import { StatusBadge, TypeBadge } from './validation-badges';
+import { fmtDate } from './validation.constants';
+import { WorkflowStepper } from './workflow-stepper';
 
 interface ValidationCardProps {
   depense: IDepense;
@@ -28,161 +31,213 @@ interface ValidationCardProps {
   isPending: boolean;
 }
 
-export function ValidationCard({ depense, current, total, totalFile, onPrev, onNext, onAccept, onReject, onEdit, acceptLabel, canAct, isDGA, isPending }: ValidationCardProps) {
-  const [showJustificatif, setShowJustificatif] = useState(false);
+/**
+ * La depense en cours d'examen, dans la file de validation.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Les six commandes de l'ecran etaient des `<button>` nus habilles a la main. Les deux
+ * fleches de navigation n'avaient AUCUN nom accessible : un lecteur d'ecran annoncait
+ * deux boutons vides. Le lien vers le justificatif etait un `<div onClick>`, donc
+ * inatteignable au clavier. Les trois commandes du pied etaient peintes en
+ * `bg-green-500` / `text-red-500` / `text-orange-500`, des couleurs de palette brutes
+ * sans equivalent en mode sombre, posees dans une grille dont le nombre de colonnes etait
+ * calcule sur `onEdit` mais pas sur les droits CASL : quand un role n'avait pas le droit
+ * de rejeter, la grille gardait sa colonne vide et l'arrondi du coin bas gauche partait
+ * avec le bouton masque.</p>
+ *
+ * <p>Le pied suit maintenant la barre d'action du visa DGA, deja refondue : le geste
+ * principal en primaire, le refus en `danger-soft`, alignes a droite, et rien ne casse
+ * quand un droit manque.</p>
+ *
+ * <p>Le montant etait peint en couleur d'alerte et la categorie en bleu. Ni l'un ni
+ * l'autre n'appelle un geste : le montant reprend la couleur du texte, en chasse
+ * tabulaire, et la categorie celle du texte secondaire.</p>
+ */
+export function ValidationCard({
+  depense,
+  current,
+  total,
+  totalFile,
+  onPrev,
+  onNext,
+  onAccept,
+  onReject,
+  onEdit,
+  acceptLabel,
+  canAct,
+  isDGA,
+  isPending,
+}: ValidationCardProps) {
+  const [justificatifOuvert, setJustificatifOuvert] = useState(false);
+  // Un justificatif PDF ne s'affiche pas dans une <img> : on bascule sur le lien.
+  const [apercuImpossible, setApercuImpossible] = useState(false);
+
+  const titreEtape =
+    acceptLabel === 'Viser'
+      ? 'Validation DGA'
+      : acceptLabel === 'Approuver'
+        ? 'Approbation DG'
+        : 'Décaissement Comptable';
+
+  const lienJustificatif = depense.justificatif
+    ? createUrlFile(depense.justificatif, 'backend')
+    : null;
 
   return (
     <div className="rounded-b-xl border border-t-0 border-separator bg-surface">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-separator px-5 py-4">
-        <div>
-          <h2 className="font-semibold text-foreground">{acceptLabel === 'Viser' ? 'Validation DGA' : acceptLabel === 'Approuver' ? 'Approbation DG' : 'Décaissement Comptable'}</h2>
+      <div className="flex items-center justify-between gap-3 border-b border-separator px-5 py-4">
+        <div className="min-w-0">
+          <h2 className="font-semibold text-foreground">{titreEtape}</h2>
           <p className="text-sm text-muted">
-            Dépense {current + 1} sur {total}
+            <span className="tabular-nums">
+              Dépense {current + 1} sur {total}
+            </span>
             {typeof totalFile === 'number' && totalFile > total && (
-              <span className="ml-1 text-muted">({totalFile} en attente au total)</span>
+              <span className="ml-1 tabular-nums">({totalFile} en attente au total)</span>
             )}
           </p>
         </div>
-        <div className="flex gap-1">
-          <button onClick={onPrev} disabled={current === 0} className="rounded p-1.5 hover:bg-surface-secondary disabled:opacity-30">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button onClick={onNext} disabled={current === total - 1} className="rounded p-1.5 hover:bg-surface-secondary disabled:opacity-30">
-            <ChevronRight className="h-4 w-4" />
-          </button>
+        <div className="flex shrink-0 gap-1">
+          <Button
+            aria-label="Dépense précédente"
+            isDisabled={current === 0}
+            isIconOnly
+            onPress={onPrev}
+            size="sm"
+            variant="ghost"
+          >
+            <ChevronLeft aria-hidden="true" />
+          </Button>
+          <Button
+            aria-label="Dépense suivante"
+            isDisabled={current === total - 1}
+            isIconOnly
+            onPress={onNext}
+            size="sm"
+            variant="ghost"
+          >
+            <ChevronRight aria-hidden="true" />
+          </Button>
         </div>
       </div>
 
-      {/* Body */}
       <div className="px-5 py-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <TypeBadge type={depense.typeDepense} />
             <span className="text-sm text-muted">{fmtDate(depense.dateDepense)}</span>
           </div>
-          <span className="text-xl font-bold text-warning-soft-foreground">{formatCFA(depense.montant)}</span>
+          <span className="text-xl font-bold tabular-nums text-foreground">
+            {formatCFA(depense.montant)}
+          </span>
         </div>
 
         <p className="mb-0.5 font-semibold text-foreground">{depense.libelle}</p>
-        <p className="mb-3 text-sm text-blue-500">{depense.categorie?.nomCategorie}</p>
+        <p className="mb-3 text-sm text-muted">{depense.categorie?.nomCategorie}</p>
 
         <WorkflowStepper statut={depense.statut} />
 
-        <div className="mt-2 grid grid-cols-2 rounded-lg bg-surface-secondary p-3">
-          <div>
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg bg-surface-secondary p-3">
+          <div className="min-w-0">
             <p className="text-xs text-muted">Créé par</p>
             <p className="text-sm font-medium text-foreground">Comptable</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-muted">Date de création</p>
-            <p className="text-sm font-medium text-foreground">{fmtDate(depense.createdAt ?? depense.dateDepense)}</p>
+            <p className="text-sm font-medium tabular-nums text-foreground">
+              {fmtDate(depense.createdAt ?? depense.dateDepense)}
+            </p>
           </div>
-          {depense.justificatif && (
-            <div
-              onClick={() => setShowJustificatif(true)}
-              className="col-span-2 mt-2 flex items-center gap-1.5 text-sm text-muted cursor-pointer hover:text-foreground">
-              <FileText className="h-4 w-4" />
-              <span>Voir le justificatif</span>
+          {lienJustificatif && (
+            <div className="col-span-2">
+              <Button onPress={() => setJustificatifOuvert(true)} size="sm" variant="ghost">
+                <FileText aria-hidden="true" />
+                Voir le justificatif
+              </Button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Dialog justificatif */}
-      <Dialog open={showJustificatif} onOpenChange={setShowJustificatif}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Justificatif — {depense.libelle}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
+      <FenetreAction
+        libelleFermer="Fermer"
+        onFermer={() => setJustificatifOuvert(false)}
+        ouvert={justificatifOuvert}
+        titre={`Justificatif : ${depense.libelle}`}
+      >
+        {lienJustificatif && (
+          <>
             <div className="overflow-hidden rounded-lg border border-separator bg-surface-secondary">
-              <img
-                src={createUrlFile(depense.justificatif!, 'backend')}
-                alt="Justificatif"
-                className="max-h-[60vh] w-full object-contain"
-                onError={(e) => {
-                  const target = e.currentTarget as HTMLImageElement;
-                  target.style.display = 'none';
-                  target.nextElementSibling?.classList.remove('hidden');
-                }}
-              />
-              <a
-                href={createUrlFile(depense.justificatif!, 'backend')}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden w-full items-center justify-center gap-2 py-8 text-sm text-blue-600 hover:underline"
-              >
-                <Download className="h-4 w-4" />
-                Ouvrir le fichier
-              </a>
+              {apercuImpossible ? (
+                <Link
+                  className="w-full justify-center py-8 text-sm"
+                  href={lienJustificatif}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <Download aria-hidden="true" className="mr-2 size-4" />
+                  Ouvrir le fichier
+                </Link>
+              ) : (
+                <img
+                  alt="Justificatif"
+                  className="max-h-[60vh] w-full object-contain"
+                  onError={() => setApercuImpossible(true)}
+                  src={lienJustificatif}
+                />
+              )}
             </div>
             <a
-              href={createUrlFile(depense.justificatif!, 'backend')}
-              target="_blank"
+              className="button button--md button--outline button--full-width"
+              href={lienJustificatif}
               rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-separator px-4 py-2 text-sm text-muted hover:bg-surface-secondary transition-colors"
+              target="_blank"
             >
-              <Download className="h-4 w-4" />
+              <Download aria-hidden="true" />
               Télécharger
             </a>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </>
+        )}
+      </FenetreAction>
 
-      {/* Actions */}
       {canAct ? (
-        isDGA ? (
-          <div className={`grid ${onEdit ? 'grid-cols-3' : 'grid-cols-2'} border-t border-separator`}>
-            <Can I="rejeter-dga" a="Depense">
-              <button
-                onClick={() => onReject(depense.id)}
-                disabled={isPending}
-                className="flex items-center justify-center gap-1.5 rounded-bl-xl py-4 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50 border-r border-separator transition-colors"
-              >
-                <X className="h-4 w-4" /> Rejeter
-              </button>
-            </Can>
-            {onEdit && (
-              <Can I="update" a="Depense">
-                <button
-                  onClick={onEdit}
-                  disabled={isPending}
-                  className="flex items-center justify-center gap-1.5 py-4 text-sm font-medium text-orange-500 hover:bg-orange-50 disabled:opacity-50 border-r border-separator transition-colors"
-                >
-                  <Pencil className="h-4 w-4" /> Modifier
-                </button>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-separator px-5 py-4">
+          {isDGA ? (
+            <>
+              <Can I="rejeter-dga" a="Depense">
+                <Button isDisabled={isPending} onPress={() => onReject(depense.id)} size="sm" variant="danger-soft">
+                  <X aria-hidden="true" />
+                  Rejeter
+                </Button>
               </Can>
-            )}
-            <Can I="valider-dga" a="Depense">
-              <button
-                onClick={() => onAccept(depense.id)}
-                disabled={isPending}
-                className="flex items-center justify-center gap-1.5 rounded-br-xl bg-green-500 py-4 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50 transition-colors"
-              >
-                <Check className="h-4 w-4" /> Viser
-              </button>
-            </Can>
-          </div>
-        ) : (
-          // Comptable / DG : 2 actions
-          <div className="grid grid-cols-2 border-t border-separator">
-            <button
-              onClick={() => onReject(depense.id)}
-              disabled={isPending}
-              className="flex items-center justify-center gap-2 rounded-bl-xl py-4 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50 border-r border-separator transition-colors"
-            >
-              <X className="h-4 w-4" /> Rejeter
-            </button>
-            <button
-              onClick={() => onAccept(depense.id)}
-              disabled={isPending}
-              className="flex items-center justify-center gap-2 rounded-br-xl bg-green-500 py-4 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50 transition-colors"
-            >
-              <Check className="h-4 w-4" /> {acceptLabel}
-            </button>
-          </div>
-        )
+              {onEdit && (
+                <Can I="update" a="Depense">
+                  <Button isDisabled={isPending} onPress={onEdit} size="sm" variant="outline">
+                    <Pencil aria-hidden="true" />
+                    Modifier
+                  </Button>
+                </Can>
+              )}
+              <Can I="valider-dga" a="Depense">
+                <Button isDisabled={isPending} onPress={() => onAccept(depense.id)} size="sm" variant="primary">
+                  <Check aria-hidden="true" />
+                  Viser
+                </Button>
+              </Can>
+            </>
+          ) : (
+            <>
+              <Button isDisabled={isPending} onPress={() => onReject(depense.id)} size="sm" variant="danger-soft">
+                <X aria-hidden="true" />
+                Rejeter
+              </Button>
+              <Button isDisabled={isPending} onPress={() => onAccept(depense.id)} size="sm" variant="primary">
+                <Check aria-hidden="true" />
+                {acceptLabel}
+              </Button>
+            </>
+          )}
+        </div>
       ) : (
         <div className="flex items-center justify-center gap-2 rounded-b-xl border-t border-separator py-3 text-sm text-muted">
           <StatusBadge statut={depense.statut} />

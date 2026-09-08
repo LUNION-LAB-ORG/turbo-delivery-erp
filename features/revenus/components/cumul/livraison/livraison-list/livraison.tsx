@@ -1,347 +1,370 @@
-﻿"use client"
-import React, { useState, useMemo } from "react"
-import {
-    useReactTable,
-    getCoreRowModel,
-    getFilteredRowModel,
-    getSortedRowModel,
-    flexRender,
-    type SortingState,
-    type ColumnFiltersState,
-} from '@tanstack/react-table'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { MoreHorizontal } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import FilterPeriode from "@/features/revenus/components/filtres/periode/filter-periode"
-import { RevenusFilters } from "@/features/revenus/components/filtres/revenus"
-import { LivraisonDetailModal } from "./livraison-detail-modal"
-import { format, parseISO } from "date-fns"
-import { fr } from "date-fns/locale"
-import { useLivraisonList } from "@/features/revenus/hooks/use-livraison-list"
-import { Pagination } from "./pagination"
+'use client';
 
+import { Card, Label, SearchField, Table } from '@heroui-v3/react';
+import {
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  type SortingState,
+  useReactTable,
+} from '@tanstack/react-table';
+import { useMemo, useState } from 'react';
+
+import EtatErreur from '@/components/commons/EtatErreur';
+import { RevenusFilters } from '@/features/revenus/components/filtres/revenus';
+import { useLivraisonList } from '@/features/revenus/hooks/use-livraison-list';
+import { ILivraison } from '@/features/revenus/types/livraison.types';
+import { formatMontant } from '@/utils/format.utils';
+
+import {
+  ActionsLivraison,
+  COLONNES_NOMBRE,
+  formatDateHeure,
+  livraisonColumns,
+} from './livraison-table-columns';
+import { Pagination } from './pagination';
+
+/**
+ * La liste des livraisons facturees.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le tableau etait un `&lt;table&gt;` brut coiffe d'un bandeau ROUGE DE MARQUE, avec des
+ * EMOJIS en guise d'indicateurs de tri. Il est monte sur le `Table` de la v3, comme les
+ * autres tableaux de l'ERP, et le tri se lit a l'etat de l'en-tete.</p>
+ *
+ * <h3>Trois defauts de fond, corriges</h3>
+ * <p>Le tableau du poste affichait la PAGE COURANTE, les cartes du telephone affichaient
+ * la liste ENTIERE : le meme ecran ne montrait pas la meme chose selon la largeur, et la
+ * pagination n'avait aucun effet sur mobile. Les deux rendus partent desormais des memes
+ * lignes.</p>
+ *
+ * <p>La recherche et le tri s'appliquaient a la page DEJA DECOUPEE : chercher une
+ * reference qui n'etait pas sur la page affichee ne rendait rien, et trier ne reordonnait
+ * que dix lignes sur deux cents. On cherche et on trie sur l'ensemble, on decoupe ensuite.
+ * Le compteur, lui, annonce le nombre de lignes RETENUES : il ignorait la recherche et
+ * affichait le total.</p>
+ *
+ * <p>Un echec de lecture s'ecrivait « Erreur lors du chargement » en rouge, sans moyen de
+ * relancer ; `EtatErreur` est la forme commune du projet. Le chargement remplacait la
+ * carte entiere par une phrase : ce sont des lignes en attente, la page ne saute plus.</p>
+ */
 export default function LivraisonList() {
-    // S'assurer que livraisons est toujours un tableau
-    const {livraisons, isLoading, isError, error, filters} = useLivraisonList()
+  const { error, filters, isError, isLoading, livraisons } = useLivraisonList();
 
-    const [currentPage, setCurrentPage] = useState(1)
-    const [itemsPerPage, setItemsPerPage] = useState(10)
-    const [sorting, setSorting] = useState<SortingState>([])
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-    const [globalFilter, setGlobalFilter] = useState('')
-    const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([])
-    
-    // S'assurer que livraisons est un tableau avant de faire les calculs
-    const livraisonsArray = Array.isArray(livraisons) ? livraisons : []
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [recherche, setRecherche] = useState('');
+  const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([]);
 
-    // Gestionnaire pour le changement de restaurants
-    const handleRestaurantChange = (restaurantIds: string[]) => {
-        setSelectedRestaurants(restaurantIds)
-        setCurrentPage(1) // Reset à la première page quand on filtre
-    }
+  const livraisonsArray: ILivraison[] = Array.isArray(livraisons) ? livraisons : [];
 
-    // Gestionnaire pour effacer tous les filtres
-    const handleClearFilters = () => {
-        setSelectedRestaurants([])
-        setCurrentPage(1)
-    }
+  const handleRestaurantChange = (restaurantIds: string[]) => {
+    setSelectedRestaurants(restaurantIds);
+    setCurrentPage(1);
+  };
 
-    // Filtrage basé sur les filtres du hook
-    const filteredLivraisons = useMemo(() => {
-        if (!livraisonsArray.length) return []
-        
-        return livraisonsArray.filter((livraisonItem) => {
-            // Filtre par restaurants (multi-sélection)
-            if (selectedRestaurants.length > 0 && livraisonItem.nomRestaurant) {
-                if (!selectedRestaurants.includes(livraisonItem.nomRestaurant)) return false
-            }
-            
-            // Filtre par nom de livreur
-            if (filters.nomLivreur && livraisonItem.nomLivreur && !livraisonItem.nomLivreur.toLowerCase().includes(filters.nomLivreur.toLowerCase())) return false
-            
-            // Filtre par date exacte (création)
-            if (filters.createdAt && livraisonItem.createdAt && !livraisonItem.createdAt.includes(filters.createdAt)) return false
-            
-            // Filtre par frais de livraison
-            if (filters.fraisLivraison && livraisonItem.fraisLivraison !== filters.fraisLivraison) return false
-            
-            // Filtre par date de début
-            if (filters.dateLivraison && livraisonItem.createdAt) {
-                const livraisonDate = new Date(livraisonItem.createdAt)
-                const dateLivraison = new Date(filters.dateLivraison)
-                if (livraisonDate < dateLivraison) return false
-            }
-            
-            return true
-        })
-    }, [livraisonsArray, filters, selectedRestaurants])
-    
-    // Recalculer la pagination avec les données filtrées
-    const filteredTotalPages = Math.ceil(filteredLivraisons.length / itemsPerPage)
-    const filteredStartIndex = (currentPage - 1) * itemsPerPage
-    const filteredCurrentLivraisons = filteredLivraisons.slice(filteredStartIndex, filteredStartIndex + itemsPerPage)
+  const handleClearFilters = () => {
+    setSelectedRestaurants([]);
+    setCurrentPage(1);
+  };
 
-    const formatDate = (dateString: string) => {
-        if (!dateString) return "";
+  const filteredLivraisons = useMemo(() => {
+    if (!livraisonsArray.length) return [];
 
-        try {
-            const date = parseISO(dateString);
-            return format(date, "dd/MM/yyyy HH:mm", { locale: fr });
-        } catch (error) {
-            console.warn("Erreur de formatage de date:", error);
-            return dateString;
-        }
-    };
+    const terme = recherche.trim().toLowerCase();
 
-    // Définition des colonnes pour TanStack Table
-    const columns = useMemo(() => [
-        {
-            accessorKey: 'refCommande',
-            header: 'Reference',
-            cell: (info: any) => (
-                <div className="font-medium text-center">
-                    {info.getValue()}
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'createdAt',
-            header: 'Date et heure',
-            cell: (info: any) => (
-                <div className="font-medium text-center">
-                    {formatDate(info.getValue())}
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'nomLivreur',
-            header: 'Livreur',
-            cell: (info: any) => (
-                <div className="font-medium text-center">
-                    {info.getValue()}
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'totalAmount',
-            header: 'Coût commande',
-            cell: (info: any) => (
-                <div className="font-medium text-center">
-                    {info.getValue()}
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'fraisLivraison',
-            header: 'Commission(%)',
-            cell: (info: any) => (
-                <div className="font-medium text-center">
-                    {info.getValue()} XOF
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'actions',
-            header: 'Actions',
-            cell: (info: any) => {
-                const livraison = info.row.original
-                return (
-                    <div className="text-center">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button className="bg-red-400 hover:bg-red-600 cursor-pointer">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                    <LivraisonDetailModal livraison={livraison} />
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                )
-            },
-        },
-    ], [])
+    return livraisonsArray.filter((livraisonItem) => {
+      // Filtre par restaurants (multi-selection)
+      if (selectedRestaurants.length > 0 && livraisonItem.nomRestaurant) {
+        if (!selectedRestaurants.includes(livraisonItem.nomRestaurant)) return false;
+      }
 
-    const table = useReactTable({
-        data: filteredCurrentLivraisons,
-        columns,
-        state: {
-            sorting,
-            columnFilters,
-            globalFilter,
-        },
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onGlobalFilterChange: setGlobalFilter,
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-    })
+      // Filtre par nom de livreur
+      if (
+        filters.nomLivreur &&
+        livraisonItem.nomLivreur &&
+        !livraisonItem.nomLivreur.toLowerCase().includes(filters.nomLivreur.toLowerCase())
+      )
+        return false;
 
-    if (isLoading) {
-        return (
-            <div className="flex justify-center items-center p-8">
-                <p>Chargement des livraisons...</p>
+      // Filtre par date exacte (creation)
+      if (
+        filters.createdAt &&
+        livraisonItem.createdAt &&
+        !livraisonItem.createdAt.includes(filters.createdAt)
+      )
+        return false;
+
+      // Filtre par frais de livraison
+      if (filters.fraisLivraison && livraisonItem.fraisLivraison !== filters.fraisLivraison)
+        return false;
+
+      // Filtre par date de debut
+      if (filters.dateLivraison && livraisonItem.createdAt) {
+        const livraisonDate = new Date(livraisonItem.createdAt);
+        const dateLivraison = new Date(filters.dateLivraison);
+        if (livraisonDate < dateLivraison) return false;
+      }
+
+      /*
+       * La recherche porte sur ce qu'on LIT dans le tableau. Elle etait confiee au filtre
+       * global de TanStack, pose sur les seules lignes de la page courante : une reference
+       * absente de la page affichee restait introuvable.
+       */
+      if (terme) {
+        const champs = [
+          String(livraisonItem.refCommande ?? ''),
+          livraisonItem.nomLivreur ?? '',
+          livraisonItem.nomRestaurant ?? '',
+          formatDateHeure(livraisonItem.createdAt),
+        ];
+        if (!champs.some((c) => c.toLowerCase().includes(terme))) return false;
+      }
+
+      return true;
+    });
+  }, [livraisonsArray, filters, selectedRestaurants, recherche]);
+
+  const table = useReactTable({
+    columns: livraisonColumns,
+    data: filteredLivraisons,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    state: { sorting },
+  });
+
+  // Le tri s'applique a l'ensemble retenu ; le decoupage vient APRES lui.
+  const lignesTriees = table.getRowModel().rows;
+  const nbPages = Math.max(1, Math.ceil(lignesTriees.length / itemsPerPage));
+  // La page est bornee : un filtre qui reduit la liste laissait sinon l'operateur sur une
+  // page 7 devenue vide, sans rien lui dire.
+  const pageCourante = Math.min(currentPage, nbPages);
+  const debut = (pageCourante - 1) * itemsPerPage;
+  const lignes = lignesTriees.slice(debut, debut + itemsPerPage);
+
+  /*
+   * Les en-tetes portent `allowsSorting`, donc `Table.Content` doit recevoir
+   * `sortDescriptor` ET `onSortChange` : sans eux la fleche s'affiche, se survole, et le
+   * tableau ne se trie jamais.
+   */
+  const triCourant = sorting[0];
+
+  return (
+    <Card className="my-6">
+      <Card.Header className="flex-row flex-wrap items-center justify-between gap-3">
+        {/* Les filtres etaient rendus DANS le titre : un `<h3>` contenant des boutons et
+            deux listes deroulantes. Ils sont a cote de lui. */}
+        <Card.Title>Liste des livraisons</Card.Title>
+        <RevenusFilters
+          onClearFilters={handleClearFilters}
+          onRestaurantChange={handleRestaurantChange}
+          selectedRestaurants={selectedRestaurants}
+        />
+      </Card.Header>
+
+      <Card.Content className="p-0">
+        {isError ? (
+          <EtatErreur
+            detail={error instanceof Error ? error.message : undefined}
+            quoi="les livraisons"
+          />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-3 px-4 pb-4">
+              {/* Un champ de recherche sans LIBELLE : le seul indice de ce qu'on y
+                  cherchait etait un « Rechercher... » qui disparait des la premiere lettre. */}
+              <SearchField
+                className="max-w-sm"
+                onChange={(v) => {
+                  setRecherche(v);
+                  setCurrentPage(1);
+                }}
+                value={recherche}
+              >
+                <Label>Rechercher</Label>
+                <SearchField.Group>
+                  <SearchField.SearchIcon />
+                  <SearchField.Input placeholder="Référence, livreur, restaurant" />
+                  <SearchField.ClearButton />
+                </SearchField.Group>
+              </SearchField>
+
+              <span className="pb-2 text-sm tabular-nums text-muted">
+                {lignesTriees.length} livraison{lignesTriees.length > 1 ? 's' : ''} retenue
+                {lignesTriees.length > 1 ? 's' : ''}
+              </span>
             </div>
-        );
-    }
 
-    if (isError) {
-        return (
-            <div className="flex justify-center items-center p-8">
-                <p className="text-red-500">Erreur lors du chargement des livraisons</p>
+            {/* Tableau, sur poste de travail (a partir de 768 px) */}
+            <div className="hidden md:block">
+              <Table>
+                <Table.ScrollContainer>
+                  <Table.Content
+                    aria-label="Livraisons"
+                    className="min-w-[52rem]"
+                    onSortChange={(descripteur) =>
+                      setSorting([
+                        {
+                          desc: descripteur.direction === 'descending',
+                          id: String(descripteur.column),
+                        },
+                      ])
+                    }
+                    sortDescriptor={
+                      triCourant
+                        ? {
+                            column: triCourant.id,
+                            direction: triCourant.desc ? 'descending' : 'ascending',
+                          }
+                        : undefined
+                    }
+                  >
+                    <Table.Header>
+                      {table.getFlatHeaders().map((header, i) => (
+                        <Table.Column
+                          allowsSorting={header.column.getCanSort()}
+                          className={COLONNES_NOMBRE.includes(header.id) ? 'text-right' : undefined}
+                          id={header.id}
+                          isRowHeader={i === 0}
+                          key={header.id}
+                        >
+                          {({ sortDirection }) =>
+                            header.column.getCanSort() ? (
+                              <Table.SortableColumnHeader sortDirection={sortDirection}>
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(header.column.columnDef.header, header.getContext())}
+                              </Table.SortableColumnHeader>
+                            ) : (
+                              <>
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(header.column.columnDef.header, header.getContext())}
+                              </>
+                            )
+                          }
+                        </Table.Column>
+                      ))}
+                    </Table.Header>
+                    <Table.Body
+                      renderEmptyState={() =>
+                        isLoading ? null : (
+                          <p className="py-8 text-center text-sm text-muted">
+                            Aucune livraison trouvée
+                          </p>
+                        )
+                      }
+                    >
+                      {isLoading
+                        ? Array.from({ length: 6 }).map((_, i) => (
+                            <Table.Row id={`sq-${i}`} key={`sq-${i}`}>
+                              {/* Autant de cellules que de colonnes, derivees de la liste
+                                  elle-meme : un compte ecrit a la main fait tomber la page. */}
+                              {livraisonColumns.map((_c, j) => (
+                                <Table.Cell key={`sq-${i}-${j}`}>
+                                  <div className="h-4 w-full animate-pulse rounded bg-surface-secondary" />
+                                </Table.Cell>
+                              ))}
+                            </Table.Row>
+                          ))
+                        : lignes.map((row) => (
+                            <Table.Row id={row.id} key={row.id}>
+                              {row.getVisibleCells().map((cell) => (
+                                <Table.Cell
+                                  className={
+                                    COLONNES_NOMBRE.includes(cell.column.id)
+                                      ? 'text-right tabular-nums'
+                                      : undefined
+                                  }
+                                  key={cell.id}
+                                >
+                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                </Table.Cell>
+                              ))}
+                            </Table.Row>
+                          ))}
+                    </Table.Body>
+                  </Table.Content>
+                </Table.ScrollContainer>
+              </Table>
             </div>
-        );
-    }
 
-    return (
-        <div className="">
-            <Card className="shadow-lg border-0">
-                <CardHeader className="">
-                    <CardTitle>
-                        <div className="flex justify-between items-center">
-                            <p className="font-bold text-sm md:text-2xl">Liste des livraisons</p>
-                            <RevenusFilters
-                                onRestaurantChange={handleRestaurantChange}
-                                selectedRestaurants={selectedRestaurants}
-                                onClearFilters={handleClearFilters}
-                            />
+            {/* Cartes tactiles, sur telephone (moins de 768 px) */}
+            <div className="space-y-3 p-4 md:hidden">
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    className="h-40 animate-pulse rounded-xl bg-surface-secondary"
+                    key={`m-skel-${i}`}
+                  />
+                ))
+              ) : lignes.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted">Aucune livraison trouvée</p>
+              ) : (
+                lignes.map((row) => {
+                  const livraison = row.original;
+                  return (
+                    <div
+                      className="space-y-2 rounded-xl border border-separator bg-surface p-4 shadow-xs"
+                      key={row.id}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground">
+                            REF-{livraison.refCommande}
+                          </p>
+                          <p className="text-xs tabular-nums text-muted">
+                            {formatDateHeure(livraison.createdAt)}
+                          </p>
                         </div>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {/* Version Desktop */}
-                    <div className="hidden md:block">
-                        <div className="space-y-4">
-                            {/* Barre de recherche globale */}
-                            <div className="mb-4 px-4">
-                                <input
-                                    type="text"
-                                    value={globalFilter ?? ''}
-                                    onChange={(e) => setGlobalFilter(e.target.value)}
-                                    placeholder="Rechercher..."
-                                    className="px-4 py-2 border border-separator rounded-lg w-full max-w-sm focus:outline-hidden focus:ring-2 ring-1 ring-gray-300 focus:ring-blue-500"
-                                />
-                            </div>
-
-                            {/* Tableau */}
-                            <div className="overflow-x-auto border border-separator rounded-lg shadow-sm bg-surface">
-                                <table className="min-w-full divide-y divide-separator">
-                                    <thead className="bg-red-500 hover:bg-red-600">
-                                        {table.getHeaderGroups().map((headerGroup) => (
-                                            <tr key={headerGroup.id}>
-                                                {headerGroup.headers.map((header) => (
-                                                    <th
-                                                        key={header.id}
-                                                        className="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:bg-red-600 bg-accent hover:text-white capitalize select-none"
-                                                        onClick={header.column.getToggleSortingHandler()}
-                                                    >
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            {flexRender(
-                                                                header.column.columnDef.header,
-                                                                header.getContext()
-                                                            )}
-                                                            {header.column.getIsSorted() === 'asc' && ' 🔼'}
-                                                            {header.column.getIsSorted() === 'desc' && ' 🔽'}
-                                                        </div>
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        ))}
-                                    </thead>
-                                    <tbody className="bg-surface divide-y divide-separator">
-                                        {table.getRowModel().rows.map((row) => (
-                                            <tr key={row.id} className="transition-colors hover:bg-surface-secondary">
-                                                {row.getVisibleCells().map((cell) => (
-                                                    <td
-                                                        key={cell.id}
-                                                        className="px-6 py-4 whitespace-nowrap text-sm text-foreground"
-                                                    >
-                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Indicateur de pagination */}
-                            <div className="flex justify-between items-center text-sm text-muted px-4">
-                                <span>
-                                    Page <strong>{currentPage}</strong> sur <strong>{filteredTotalPages}</strong>
-                                </span>
-                                <span>
-                                    {filteredLivraisons.length} livraison{filteredLivraisons.length > 1 ? 's' : ''} au total
-                                </span>
-                            </div>
-                        </div>
+                        <ActionsLivraison livraison={livraison} />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted">Livreur</span>
+                        <span className="min-w-0 text-right text-sm text-foreground">
+                          {livraison.nomLivreur}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted">Coût commande</span>
+                        <span className="text-sm tabular-nums text-foreground">
+                          {formatMontant(livraison.totalAmount)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted">Frais de livraison</span>
+                        <span className="text-sm tabular-nums text-foreground">
+                          {formatMontant(livraison.fraisLivraison)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted">Commission</span>
+                        <span className="text-sm font-semibold tabular-nums text-foreground">
+                          {formatMontant(livraison.commission)}
+                        </span>
+                      </div>
                     </div>
+                  );
+                })
+              )}
+            </div>
 
-                    {/* Version Mobile */}
-                    <div className="md:hidden space-y-4 p-4">
-                        {filteredLivraisons.map((livraison: any, index: number) => (
-                            <div
-                                key={index}
-                                className="border rounded-lg p-4 shadow-xs bg-card text-card-foreground"
-                            >
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">{livraison.refCommande}</p>
-                                        <h3 className="font-semibold text-sm md:text-lg">{formatDate(livraison.createdAt)}</h3>
-                                    </div>
-                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-muted-surface text-muted-foreground">
-                                        {livraison.nomLivreur}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center gap-4 text-sm mt-2">
-
-                                    <div>
-                                        <span className="text-muted-foreground">Coût commande:</span>
-                                        <span className="font-bold ml-2 text-primary">{livraison.totalAmount}</span>
-                                    </div>
-                                </div>
-                                <div className="flex justify-between items-center gap-4 text-sm mt-2">
-                                    <div>
-                                        <span className="text-muted-foreground">Commission(%):</span>
-                                        <span className="font-bold ml-2 text-primary">{livraison.fraisLivraison} XOF</span>
-                                    </div>
-                                    <div className="text-center cursor-pointer ">
-                                        <LivraisonDetailModal livraison={livraison} />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Message si aucune livraison */}
-                    {filteredCurrentLivraisons.length === 0 && (
-                        <div className="text-center py-8">
-                            <p className="text-muted">Aucune livraison trouvée</p>
-                        </div>
-                    )}
-
-                    {/* Pagination */}
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={filteredTotalPages}
-                        itemsPerPage={itemsPerPage}
-                        totalItems={filteredLivraisons.length}
-                        onPageChange={setCurrentPage}
-                        onItemsPerPageChange={setItemsPerPage}
-                    />
-
-                </CardContent>
-            </Card>
-        </div>
-    )
+            <Pagination
+              currentPage={pageCourante}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={(n) => {
+                setItemsPerPage(n);
+                setCurrentPage(1);
+              }}
+              onPageChange={setCurrentPage}
+              totalItems={lignesTriees.length}
+              totalPages={nbPages}
+            />
+          </>
+        )}
+      </Card.Content>
+    </Card>
+  );
 }

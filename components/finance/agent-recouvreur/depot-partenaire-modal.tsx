@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { X, Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Upload } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { ChampEnveloppe } from '@/components/commons/champs-formulaire';
 import type { IAgentFacture as IFactureAgent } from '@/features/agent-recouvreur';
 import { formatMontant } from '@/utils/format.utils';
 
@@ -12,11 +13,14 @@ interface Props {
   onClose: () => void;
   facture: IFactureAgent | null;
   agentNom?: string;
-  onConfirm: (facture: IFactureAgent, data: { date: string; montant: number; agent: string }) => void;
+  onConfirm: (
+    facture: IFactureAgent,
+    data: { date: string; montant: number; agent: string },
+  ) => void;
 }
 
 // Date locale au format YYYY-MM-DD (le toISOString() partirait en UTC et
-// décalerait d'un jour autour de minuit côté Abidjan).
+// decalerait d'un jour autour de minuit cote Abidjan).
 function toLocalYMD(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -30,21 +34,64 @@ const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
   year: 'numeric',
 });
 
-export default function DepotPartenaireModal({ open, onClose, facture, agentNom = '', onConfirm }: Props) {
-  // Snapshot de la date à l'ouverture du modal. Le Recouvreur ne saisit plus
-  // la date manuellement : elle est capturée automatiquement au moment où il
-  // ouvre la confirmation du dépôt.
+/** Une valeur que l'agent lit sans pouvoir la changer : elle vient du systeme. */
+function LigneLecture({
+  aide,
+  libelle,
+  nombre,
+  valeur,
+}: {
+  aide?: string;
+  libelle: string;
+  /** Un chiffre : chasse tabulaire, pour se comparer a celui d'a cote. */
+  nombre?: boolean;
+  valeur: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-separator py-2 last:border-b-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="shrink-0 text-xs text-muted">{libelle}</span>
+        <span
+          className={`text-right text-sm font-medium text-foreground ${nombre ? 'tabular-nums' : ''}`}
+        >
+          {valeur}
+        </span>
+      </div>
+      {aide && <p className="text-xs text-muted">{aide}</p>}
+    </div>
+  );
+}
+
+/**
+ * Le depot de la facture chez le partenaire.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Les trois valeurs en lecture seule etaient rendues comme des CHAMPS desactives
+ * (bordure, fond, hauteur d'un `<input>`), dont deux etaient de vrais `<input disabled>`.
+ * Un champ desactive invite a cliquer, ne repond pas, et n'est meme pas lu par les
+ * lecteurs d'ecran. Ce sont des lignes de fiche, elles se lisent comme telles.</p>
+ *
+ * <p>Leurs libelles etaient introduits par des emojis (une pastille calendrier, un buste,
+ * un maillon) qu'aucune synthese vocale ne sait annoncer utilement.</p>
+ *
+ * <p>Le bouton « Parcourir » etait un `<button>` DANS le `<label>` du champ de fichier :
+ * un element interactif dans un autre, dont le clic simulait un clic sur l'input. Le
+ * label ouvre deja le selecteur ; l'affordance reste, l'imbrication disparait.</p>
+ */
+export default function DepotPartenaireModal({
+  open,
+  onClose,
+  facture,
+  agentNom = '',
+  onConfirm,
+}: Props) {
+  // Snapshot de la date a l'ouverture du modal. Le Recouvreur ne saisit plus
+  // la date manuellement : elle est capturee automatiquement au moment ou il
+  // ouvre la confirmation du depot.
   const [submissionMoment, setSubmissionMoment] = useState<Date>(() => new Date());
   const [fileName, setFileName] = useState<string | null>(null);
-  const portalRef = useRef<Element | null>(null);
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    portalRef.current = document.getElementById('modal-portal') ?? document.body;
-    setMounted(true);
-  }, []);
-
-  // Re-snapshote le moment à chaque ouverture / changement de facture.
+  // Re-snapshote le moment a chaque ouverture / changement de facture.
   useEffect(() => {
     if (open) {
       setSubmissionMoment(new Date());
@@ -52,142 +99,86 @@ export default function DepotPartenaireModal({ open, onClose, facture, agentNom 
     }
   }, [open, facture?.id]);
 
-  if (!open || !facture || !mounted) return null;
+  if (!facture) return null;
 
   function handleConfirm() {
     if (!facture) return;
-    // Aucun montant recouvré au stade du dépôt — l'encaissement (acompte/solde)
-    // se fait via le bouton "Encaisser" qui apparaît une fois le dépôt enregistré.
+    // Aucun montant recouvre au stade du depot : l'encaissement (acompte/solde)
+    // se fait via le bouton « Encaisser » qui apparait une fois le depot enregistre.
     onConfirm(facture, {
+      agent: agentNom,
       date: toLocalYMD(submissionMoment),
       montant: 0,
-      agent: agentNom,
     });
     onClose();
   }
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+  return (
+    <FenetreAction
+      libelleAction="Enregistrer le dépôt"
+      onAction={handleConfirm}
+      onFermer={onClose}
+      ouvert={open}
+      titre="Déposer la facture chez le partenaire"
     >
-      <div
-        className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-lg mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-separator">
-          <h2 className="text-base font-semibold text-foreground">Déposer la facture chez le partenaire</h2>
-          <button onClick={onClose} className="text-muted hover:text-foreground transition-colors" aria-label="Fermer">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-5 space-y-5">
-          {/* Facture info */}
-          <div className="rounded-xl bg-surface-secondary border border-separator px-4 py-3">
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">{facture.partenaire}</p>
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-bold text-foreground">{facture.numero}</p>
-              <p className="text-sm font-bold text-red-500">{formatMontant(facture.montant)}</p>
-            </div>
-          </div>
-
-          {/* Date+heure + Agent (tous deux en lecture seule) */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="flex text-xs text-muted mb-1.5 items-center gap-1">
-                <span>📅</span> Date du dépôt
-              </label>
-              <div
-                aria-readonly="true"
-                className="w-full rounded-lg border border-separator bg-surface-secondary px-3 py-2 text-sm text-foreground cursor-not-allowed select-none"
-              >
-                {dateFormatter.format(submissionMoment)}
-              </div>
-              <p className="text-[11px] text-muted mt-1">Capturée automatiquement à l&apos;ouverture du formulaire.</p>
-            </div>
-            <div>
-              <label className="flex text-xs text-muted mb-1.5 items-center gap-1">
-                <span>👤</span> Agent recouvreur
-              </label>
-              <input
-                type="text"
-                value={agentNom || '—'}
-                readOnly
-                disabled
-                className="w-full rounded-lg border border-separator bg-surface-secondary px-3 py-2 text-sm text-foreground cursor-not-allowed disabled:opacity-100"
-              />
-            </div>
-          </div>
-
-          {/* Montant recouvré — désactivé : pas de paiement à ce stade */}
-          <div>
-            <label className="flex text-xs text-muted mb-1.5 items-center gap-1">
-              <span>🔗</span> Montant recouvré (cumul)
-            </label>
-            <input
-              type="number"
-              value={0}
-              readOnly
-              disabled
-              className="w-full rounded-lg border border-separator bg-surface-secondary px-3 py-2 text-sm text-muted cursor-not-allowed disabled:opacity-100"
-            />
-            <p className="text-xs mt-1.5 text-muted italic">
-              Aucun paiement n&apos;est saisi au dépôt — utilisez « Encaisser » après enregistrement pour ajouter un acompte ou solder la facture.
-            </p>
-          </div>
-
-          {/* Preuve de dépôt */}
-          <div>
-            <label className="block text-xs text-muted mb-1.5">Preuve de dépôt</label>
-            <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-separator bg-surface-secondary px-4 py-8 cursor-pointer hover:border-red-300 hover:bg-red-50 transition-colors">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <Upload className="w-5 h-5 text-red-500" />
-              </div>
-              {fileName ? (
-                <p className="text-xs font-medium text-foreground">{fileName}</p>
-              ) : (
-                <>
-                  <p className="text-sm font-medium text-foreground">Glissez-déposez le bordereau partenaire</p>
-                  <p className="text-xs text-muted">Bon de réception signé · PDF, PNG, JPG (max 10 Mo)</p>
-                </>
-              )}
-              <button
-                type="button"
-                className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  (e.currentTarget.parentElement?.querySelector('input[type=file]') as HTMLInputElement)?.click();
-                }}
-              >
-                Parcourir
-              </button>
-              <input
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg"
-                className="hidden"
-                onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
-              />
-            </label>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex gap-3 px-6 pb-5">
-          <Button variant="outline" onClick={onClose} className="flex-1 text-sm">
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            className="flex-1 bg-red-400 hover:bg-red-500 text-white text-sm"
-          >
-            Enregistrer le dépôt
-          </Button>
+      <div className="rounded-xl border border-separator bg-surface-secondary px-4 py-3">
+        <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+          {facture.partenaire}
+        </p>
+        <div className="flex items-baseline justify-between gap-3 pt-1">
+          <span className="text-sm font-bold text-foreground">{facture.numero}</span>
+          {/* Le montant de la facture etait peint en rouge : il n'est ni une erreur ni un geste. */}
+          <span className="text-sm font-bold tabular-nums text-foreground">
+            {formatMontant(facture.montant)}
+          </span>
         </div>
       </div>
-    </div>,
-    portalRef.current!,
+
+      <div className="rounded-xl border border-separator px-4 py-1">
+        <LigneLecture
+          aide="Capturée automatiquement à l'ouverture du formulaire."
+          libelle="Date du dépôt"
+          valeur={dateFormatter.format(submissionMoment)}
+        />
+        <LigneLecture libelle="Agent recouvreur" valeur={agentNom || '—'} />
+        <LigneLecture
+          aide="Aucun paiement n'est saisi au dépôt : utilisez « Encaisser » après enregistrement pour ajouter un acompte ou solder la facture."
+          libelle="Montant recouvré (cumul)"
+          nombre
+          valeur={formatMontant(0)}
+        />
+      </div>
+
+      <ChampEnveloppe label="Preuve de dépôt">
+        {/*
+         * `className="hidden"` sortait le champ de fichier de l'ordre de tabulation :
+         * joindre le bordereau devenait impossible sans souris.
+         */}
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-separator bg-surface-secondary px-4 py-6 transition-colors hover:bg-surface-tertiary focus-within:border-accent">
+          <Upload aria-hidden="true" className="size-5 text-muted" />
+          {fileName ? (
+            <p className="text-xs font-medium text-foreground">{fileName}</p>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-foreground">
+                Glissez-déposez le bordereau partenaire
+              </p>
+              <p className="text-xs text-muted">
+                Bon de réception signé · PDF, PNG, JPG (max 10 Mo)
+              </p>
+            </>
+          )}
+          <span className="rounded-lg border border-separator px-4 py-1.5 text-xs font-medium text-foreground">
+            Parcourir
+          </span>
+          <input
+            accept=".pdf,.png,.jpg,.jpeg"
+            className="sr-only"
+            onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+            type="file"
+          />
+        </label>
+      </ChampEnveloppe>
+    </FenetreAction>
   );
 }

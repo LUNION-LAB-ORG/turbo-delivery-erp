@@ -1,109 +1,133 @@
 'use client';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Plus } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CategorieDepenseCreateDTO, CategorieDepenseCreateSchema } from '@/features/depenses/schemas/categorie-depense.schema';
-import { useAjouterCategorieDepenseMutation } from '../../queries/category/categorie-depense-mutation.query';
-import { useState } from 'react'; // Import ajouté
+import { Button } from '@heroui-v3/react';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
-export function CreerCategorieModal() {
-  const [open, setOpen] = useState(false); // État pour contrôler la fermeture du dialogue
+import { ChampTexte } from '@/components/commons/champs-formulaire';
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import {
+  CategorieDepenseCreateDTO,
+  CategorieDepenseCreateSchema,
+} from '@/features/depenses/schemas/categorie-depense.schema';
 
-  // Configuration du formulaire avec react-hook-form et zod
+import { useAjouterCategorieDepenseMutation } from '../../queries/category/categorie-depense-mutation.query';
+
+/**
+ * La creation d'une categorie de depense.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le bouton d'ouverture etait peint `bg-amber-500 hover:bg-amber-600 text-white`, une
+ * couleur ecrite en dur qui n'existe nulle part ailleurs dans l'ERP et qui n'a pas de
+ * variante sombre. C'est le bouton d'action de la bibliotheque.</p>
+ *
+ * <p>L'echec de la mutation n'etait ecrit que dans la console : la fenetre restait ouverte
+ * sans un mot et l'operateur recommencait. Il est dit.</p>
+ */
+export function CreerCategorieModal() {
+  const [ouvert, setOuvert] = useState(false);
+
   const {
-    register,
-    handleSubmit,
+    control,
     formState: { errors, isSubmitting },
+    handleSubmit,
     reset,
-    setValue,
   } = useForm<CategorieDepenseCreateDTO>({
     resolver: zodResolver(CategorieDepenseCreateSchema),
     defaultValues: {
-      nomCategorie: '',
       description: '',
+      nomCategorie: '',
     },
   });
 
-  // Utilisation de la mutation pour créer une dépense
-  const ajouterCategorieDepenseMutation = useAjouterCategorieDepenseMutation();
+  const ajouterCategorie = useAjouterCategorieDepenseMutation();
 
-  // Gestion de la soumission du formulaire
+  const fermer = () => {
+    reset();
+    setOuvert(false);
+  };
+
   const onSubmit = async (data: CategorieDepenseCreateDTO) => {
     try {
-      const formData = {
-        nomCategorie: data.nomCategorie,
+      await ajouterCategorie.mutateAsync({
         description: data.description,
-      };
+        nomCategorie: data.nomCategorie,
+      });
 
-      await ajouterCategorieDepenseMutation.mutateAsync(formData);
+      fermer();
 
-      // Réinitialiser le formulaire et fermer le dialogue
-      reset();
-      setOpen(false); // Fermer le dialogue après succès
-
-      // Afficher un toast de succès
       toast.success('Catégorie créée avec succès', {
-        description: `La catégorie "${formData.nomCategorie}" a été ajoutée avec succès`,
+        description: `La catégorie "${data.nomCategorie}" a été ajoutée avec succès`,
         duration: 4000,
       });
     } catch (error) {
-      console.error('Erreur lors de la création de la dépense:', error);
+      toast.error("La catégorie n'a pas été créée", {
+        description: error instanceof Error ? error.message : 'Une erreur est survenue',
+      });
     }
   };
 
+  const soumettre = handleSubmit(onSubmit);
+  const enAttente = isSubmitting || ajouterCategorie.isPending;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="cursor-pointer bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-1 md:gap-2">
-          <Plus />
-          Ajouter <span className="hidden md:flex"> une categorie</span>
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[95%] sm:max-w-[600px] w-full mt-3 sm:mt-3 md:mt-0">
-        <DialogHeader>
-          <DialogTitle>Ajouter une categorie</DialogTitle>
-          <DialogDescription>Ajoutez une nouvelle categorie</DialogDescription>
-        </DialogHeader>
+    <>
+      <Button onPress={() => setOuvert(true)} variant="primary">
+        <Plus aria-hidden="true" className="size-4" />
+        Ajouter<span className="hidden md:inline">&nbsp;une catégorie</span>
+      </Button>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="grid gap-6">
-            {/* Nom de la catégorie */}
-            <div className="grid gap-3">
-              <Label htmlFor="nomCategorie" className="text-sm text-muted">
-                Nom
-              </Label>
-              <Input id="nomCategorie" {...register('nomCategorie')} placeholder="Nom de la catégorie" />
-              {errors.nomCategorie && <p className="text-red-500 text-sm">{errors.nomCategorie.message}</p>}
-            </div>
-
-            {/* Description */}
-            <div className="grid gap-3">
-              <Label htmlFor="description" className="text-sm text-muted">
-                Description
-              </Label>
-              <Input id="description" {...register('description')} placeholder="Description" />
-              {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-4">
-            <DialogClose asChild>
-              <Button type="button" variant="outline" className="rounded-full w-full sm:w-auto cursor-pointer">
-                Annuler
-              </Button>
-            </DialogClose>
-            <Button type="submit" className="cursor-pointer bg-amber-500 hover:bg-amber-600" disabled={isSubmitting || ajouterCategorieDepenseMutation.isPending}>
-              {isSubmitting || ajouterCategorieDepenseMutation.isPending ? 'Création en cours...' : 'Ajouter'}
-            </Button>
-          </DialogFooter>
+      <FenetreAction
+        enAttente={enAttente}
+        libelleAction={enAttente ? 'Création en cours…' : 'Ajouter'}
+        onAction={() => void soumettre()}
+        onFermer={fermer}
+        ouvert={ouvert}
+        titre="Ajouter une catégorie"
+      >
+        {/*
+         * Le bouton d'action vit dans le pied de la fenetre, hors du formulaire. Sans
+         * bouton d'envoi par defaut ICI, la touche Entree ne validerait plus la saisie.
+         */}
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void soumettre();
+          }}
+        >
+          <Controller
+            control={control}
+            name="nomCategorie"
+            render={({ field }) => (
+              <ChampTexte
+                erreur={errors.nomCategorie?.message}
+                label="Nom"
+                onChange={field.onChange}
+                placeholder="Nom de la catégorie"
+                valeur={field.value ?? ''}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="description"
+            render={({ field }) => (
+              <ChampTexte
+                erreur={errors.description?.message}
+                label="Description"
+                onChange={field.onChange}
+                placeholder="Description"
+                valeur={field.value ?? ''}
+              />
+            )}
+          />
+          <button aria-hidden="true" className="hidden" tabIndex={-1} type="submit" />
         </form>
-      </DialogContent>
-    </Dialog>
+      </FenetreAction>
+    </>
   );
 }

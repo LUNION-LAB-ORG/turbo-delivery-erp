@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { ChampTexte } from '@/components/commons/champs-formulaire';
 import type { IFactureCaissier } from '@/features/caissier';
 import { formatMontant } from '@/utils/format.utils';
 
@@ -14,96 +14,80 @@ interface Props {
   onConfirm: (facture: IFactureCaissier, data: { reference: string }) => void;
 }
 
-
+/**
+ * L'enregistrement de la fiche de paiement, cote caisse.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>La fenetre etait une coquille montee a la main : un `createPortal` vers
+ * `#modal-portal`, un fond `bg-black/50` ecrit en dur, un bandeau `bg-indigo-50` avec un
+ * texte `text-indigo-900`, et une croix de fermeture faite d'un `<button>` nu sans nom
+ * accessible. Rien de tout cela ne suivait le theme sombre.</p>
+ *
+ * <p>Le bouton d'enregistrement etait DESACTIVE tant que la reference etait vide, sans
+ * jamais dire pourquoi. Il est maintenant cliquable et repond : la reference manquante
+ * s'affiche sous le champ, la ou l'operateur regarde.</p>
+ */
 export default function ConfirmerReceptionModal({ open, onClose, facture, onConfirm }: Props) {
-  const today = new Date().toISOString().split('T')[0];
   const [reference, setReference] = useState('');
-  const portalRef = useRef<Element | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    portalRef.current = document.getElementById('modal-portal') ?? document.body;
-    setMounted(true);
-  }, []);
+  const [erreur, setErreur] = useState<string>();
 
   useEffect(() => {
     if (open) {
       setReference('');
+      setErreur(undefined);
     }
   }, [open]);
 
-  if (!mounted || !open || !facture) return null;
+  if (!facture) return null;
 
   function handleConfirm() {
     if (!facture) return;
+    if (!reference.trim()) {
+      setErreur('La référence de la fiche de paiement est obligatoire.');
+      return;
+    }
     onConfirm(facture, { reference });
     onClose();
   }
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={onClose} />
-      <div
-        className="relative z-10 w-full max-w-lg mx-4 bg-surface rounded-2xl shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-separator bg-indigo-50">
-          <div>
-            <p className="text-sm font-semibold text-indigo-900">Enregistrer la fiche de paiement</p>
-            <p className="text-xs text-indigo-600 mt-0.5">
-              {facture.numero} — {facture.partenaire}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-indigo-100 text-indigo-400 hover:text-indigo-600 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+  return (
+    <FenetreAction
+      libelleAction="Enregistrer la fiche"
+      onAction={handleConfirm}
+      onFermer={onClose}
+      ouvert={open}
+      titre="Enregistrer la fiche de paiement"
+    >
+      {/* Le numero et le partenaire vivaient dans le bandeau de titre : la fenetre
+          partagee n'a qu'un titre, ils descendent donc dans le corps ou ils restent lus. */}
+      <div className="flex flex-col gap-2 rounded-xl border border-separator bg-surface-secondary px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-muted">Facture</span>
+          <span className="text-sm font-medium text-foreground">{facture.numero}</span>
         </div>
-
-        {/* Body */}
-        <div className="px-6 py-5 space-y-4">
-          {/* Info montant */}
-          <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 flex items-center justify-between">
-            <span className="text-xs text-muted">Montant recouvré</span>
-            <span className="text-sm font-bold text-foreground">
-              {formatMontant(facture.montantRecouvre ?? facture.montant)}
-            </span>
-          </div>
-
-          {/* Référence fiche de paiement */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">
-              Référence fiche de paiement <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="Ex : FP-2026-0042"
-              className="w-full rounded-lg border border-separator px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
-              autoFocus
-            />
-          </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-muted">Partenaire</span>
+          <span className="text-sm text-foreground">{facture.partenaire}</span>
         </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-separator">
-          <Button variant="outline" onClick={onClose} className="text-sm">
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!reference.trim()}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm disabled:opacity-50"
-          >
-            Enregistrer la fiche
-          </Button>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-muted">Montant recouvré</span>
+          <span className="text-sm font-bold tabular-nums text-foreground">
+            {formatMontant(facture.montantRecouvre ?? facture.montant)}
+          </span>
         </div>
       </div>
-    </div>,
-    portalRef.current!,
+
+      <ChampTexte
+        aide="Obligatoire."
+        erreur={erreur}
+        label="Référence fiche de paiement"
+        onChange={(v) => {
+          setReference(v);
+          if (erreur) setErreur(undefined);
+        }}
+        placeholder="Ex : FP-2026-0042"
+        valeur={reference}
+      />
+    </FenetreAction>
   );
 }

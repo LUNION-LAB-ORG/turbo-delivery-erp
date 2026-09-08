@@ -1,135 +1,141 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useState } from 'react';
-import { DepenseCreateDTO, DepenseCreateSchema } from '@/features/depenses/schemas/depense.schema';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { Button } from '@heroui-v3/react';
 import { Plus } from 'lucide-react';
-import { useAjouterDepenseMutation } from '../../queries/depense.mutation';
-import { useCategorieDepensesListQuery } from '../../queries/category/categorie-depense.query';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { DepenseCreateDTO, DepenseCreateSchema } from '@/features/depenses/schemas/depense.schema';
 import { useInvestissementListQuery } from '@/features/revenus/queries/investissement/investissement-list.query';
+
+import { useCategorieDepensesListQuery } from '../../queries/category/categorie-depense.query';
+import { useAjouterDepenseMutation } from '../../queries/depense.mutation';
 import { DepenseForm } from '../common/depense-form';
 
+/**
+ * L'enregistrement d'une depense.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>La date de comptabilisation vivait DEUX fois : dans un etat local du composant et
+ * dans le formulaire. Les deux pouvaient diverger, et c'est l'etat local qui gagnait a
+ * l'envoi, si bien que la validation portait sur une valeur qui n'etait pas celle
+ * envoyee. Il
+ * n'y a plus qu'une date, celle du formulaire.</p>
+ *
+ * <p>L'envoi recopiait aussi la totalite du formulaire dans la console du navigateur,
+ * montant et libelle compris, a chaque enregistrement. Une console de production n'est pas
+ * un journal.</p>
+ *
+ * <p>Enfin, l'echec de la mutation n'etait ecrit que dans cette meme console : l'operateur
+ * voyait la fenetre rester ouverte sans un mot. Il est dit.</p>
+ */
 export function CreerDepenseModal() {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [isOpen, setIsOpen] = useState(false);
-  const [showTypeDepense, setShowTypeDepense] = useState(false);
+  const [ouvert, setOuvert] = useState(false);
+  const [estRecurrente, setEstRecurrente] = useState(false);
 
   const { data: categories, isLoading: categoriesLoading } = useCategorieDepensesListQuery({});
-  const { data: investissementsData, isLoading: investissementsLoading } = useInvestissementListQuery({});
+  const { data: investissementsData, isLoading: investissementsLoading } =
+    useInvestissementListQuery({});
 
   const {
-    register,
-    handleSubmit,
+    control,
     formState: { errors, isSubmitting },
+    handleSubmit,
     reset,
-    setValue,
   } = useForm<DepenseCreateDTO>({
     resolver: zodResolver(DepenseCreateSchema),
     defaultValues: {
-      description: '',
-      montant: 0,
-      dateDepense: new Date(),
       categorieDepense: '',
-      typeDepense: '',
-      sourcePaiement: '',
+      dateDepense: new Date(),
+      description: '',
       investissementId: '',
-      statut: 'PAID',
+      montant: 0,
+      periodicite: null,
+      sourcePaiement: '',
+      statut: 'PENDING',
+      typeDepense: null,
     },
   });
 
-  // Utilisation de la mutation pour créer une dépense
-  const { mutate: ajouterDepenseMutation, isPending } = useAjouterDepenseMutation();
+  const { isPending, mutate: ajouterDepense } = useAjouterDepenseMutation();
 
-  const handleOpenChange = (open: boolean) => {
+  const fermer = () => {
     reset();
-    setSelectedDate(new Date());
-    setShowTypeDepense(false);
-    setIsOpen(open);
+    setEstRecurrente(false);
+    setOuvert(false);
   };
 
-  const onSubmit = async (data: DepenseCreateDTO) => {
-    const formData = {
-      ...data,
-      dateDepense: selectedDate || new Date(),
-      typeDepense: showTypeDepense ? data.typeDepense : null,
-      statut: data.statut || "PENDING",
-      periodicite: showTypeDepense ? data.periodicite : null,
-    };
-
-    console.log('📤 Données envoyées au backend (création dépense):', formData);
-    console.log('📋 Détail des données:', {
-      libelle: formData.description,
-      description: formData.description,
-      montant: formData.montant,
-      dateDepense: formData.dateDepense,
-      typeDepense: formData.typeDepense,
-      periodicite: formData.periodicite,
-      statut: formData.statut,
-      categorieDepense: formData.categorieDepense,
-      sourcePaiement: formData.sourcePaiement,
-      investissementId: formData.investissementId
-    });
-
-    ajouterDepenseMutation(formData, {
-      onSuccess: (response) => {
-        console.log('✅ Dépense créée avec succès:', response);
-        console.log('📥 Réponse du backend:', response);
-        handleOpenChange(false);
+  const onSubmit = (data: DepenseCreateDTO) => {
+    ajouterDepense(
+      {
+        ...data,
+        periodicite: estRecurrente ? data.periodicite : null,
+        statut: data.statut || 'PENDING',
+        typeDepense: estRecurrente ? data.typeDepense : null,
       },
-      onError: (error) => {
-        console.error('❌ Erreur lors de la création de la dépense:', error);
-      }
-    });
+      {
+        onError: (error) => {
+          toast.error("La dépense n'a pas été enregistrée", {
+            description: error instanceof Error ? error.message : 'Une erreur est survenue',
+          });
+        },
+        onSuccess: () => {
+          toast.success('Dépense enregistrée');
+          fermer();
+        },
+      },
+    );
   };
+
+  const soumettre = handleSubmit(onSubmit);
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="default">
-          <Plus />
-          <span className="hidden md:flex">Ajouter une depense</span>
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[95%] sm:max-w-[600px] w-full mt-3 sm:mt-3 md:mt-0">
-        <DialogHeader>
-          <DialogTitle>Ajouter une depense</DialogTitle>
-          <DialogDescription>Ajoutez une nouvelle depense</DialogDescription>
-        </DialogHeader>
+    <>
+      {/* Sous `md` il ne reste que le signe plus : sans nom accessible, le bouton
+          s'annoncait « bouton » et rien d'autre. */}
+      <Button
+        aria-label="Ajouter une dépense"
+        onPress={() => setOuvert(true)}
+        variant="primary"
+      >
+        <Plus aria-hidden="true" className="size-4" />
+        <span className="hidden md:inline">Ajouter une dépense</span>
+      </Button>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+      <FenetreAction
+        enAttente={isSubmitting || isPending}
+        libelleAction={isSubmitting || isPending ? 'Enregistrement…' : 'Ajouter'}
+        onAction={() => void soumettre()}
+        onFermer={fermer}
+        ouvert={ouvert}
+        titre="Ajouter une dépense"
+      >
+        {/*
+         * Le bouton d'action vit dans le pied de la fenetre, hors du formulaire. Sans
+         * bouton d'envoi par defaut ICI, la touche Entree ne validerait plus la saisie.
+         */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void soumettre();
+          }}
+        >
           <DepenseForm
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
             categories={categories}
             categoriesLoading={categoriesLoading}
+            control={control}
+            errors={errors}
+            estRecurrente={estRecurrente}
             investissements={investissementsData?.content || []}
             investissementsLoading={investissementsLoading}
-            register={register}
-            errors={errors}
-            setValue={setValue}
-            showTypeDepense={showTypeDepense}
-            onShowTypeDepenseChange={setShowTypeDepense}
-            defaultStatut="PENDING"
+            onEstRecurrenteChange={setEstRecurrente}
           />
-
-          <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
-            <DialogClose asChild>
-              <Button variant="outline" type="button">
-                Annuler
-              </Button>
-            </DialogClose>
-            <Button type="submit" className="cursor-pointer" disabled={isSubmitting || isPending}>
-              {isSubmitting || isPending ? 'Création en cours...' : 'Ajouter'}
-            </Button>
-          </DialogFooter>
+          <button aria-hidden="true" className="hidden" tabIndex={-1} type="submit" />
         </form>
-      </DialogContent>
-    </Dialog>
+      </FenetreAction>
+    </>
   );
 }
-
-
-

@@ -1,47 +1,56 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Pie, PieChart } from 'recharts';
-import { cn } from '@/lib/utils';
-import { useDepenseDashboardFilters } from '@/features/depenses/hooks/use-depense-dashboard-filters';
+import { Card } from '@heroui-v3/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useMemo } from 'react';
+import { Pie, PieChart } from 'recharts';
+
+import EtatErreur from '@/components/commons/EtatErreur';
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import { useDepenseDashboardFilters } from '@/features/depenses/hooks/use-depense-dashboard-filters';
 import { useTopCategorieDepenseQuery } from '@/features/depenses/queries/category/top4-category-depense.query';
 import { ITopCategorieDepense } from '@/features/depenses/types/categorie-depense.type';
-import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
 
-const COLORS = [
-  '#e6194b', // rouge
-  '#3cb44b', // vert
-  '#ffe119', // jaune
-  '#4363d8', // bleu
-  '#f58231', // orange
-  '#911eb4', // violet
-  '#46f0f0', // cyan
-  '#f032e6', // magenta
-  '#bcf60c', // lime
-  '#fabebe', // rose clair
+/*
+ * Dix teintes distinctes, parce qu'ici la couleur est la SEULE clef qui relie une part a
+ * sa categorie. Le rouge vif de tete a saute : sur un camembert de depenses, il se lisait
+ * comme une alerte alors qu'il ne designait que la premiere categorie du classement.
+ */
+const TEINTES = [
+  '#2563eb',
+  '#0d9488',
+  '#7c3aed',
+  '#c2410c',
+  '#0891b2',
+  '#a16207',
+  '#be185d',
+  '#4d7c0f',
+  '#6366f1',
+  '#78716c',
 ];
 
-function generateChartData(categoriesDepense: ITopCategorieDepense[]) {
-  return categoriesDepense.map((cat, index) => ({
+const teinte = (index: number) => TEINTES[index % TEINTES.length];
+
+function construireDonnees(categories: ITopCategorieDepense[]) {
+  return categories.map((cat, index) => ({
     category: cat.nom,
+    fill: teinte(index),
     montant: cat.totalmontant,
-    fill: COLORS[index] || '#a855f7',
   }));
 }
 
-function generateChartConfig(categoriesDepense: ITopCategorieDepense[]): ChartConfig {
-  const config: ChartConfig = {
-    montant: { label: 'Montant' },
-  };
+function construireConfig(categories: ITopCategorieDepense[]): ChartConfig {
+  const config: ChartConfig = { montant: { label: 'Montant' } };
 
-  categoriesDepense.forEach((cat, index) => {
-    config[cat.nom] = {
-      label: cat.nom,
-      color: COLORS[index] || '#a855f7',
-    };
+  categories.forEach((cat, index) => {
+    config[cat.nom] = { color: teinte(index), label: cat.nom };
   });
 
   return config;
@@ -53,61 +62,78 @@ interface RepartitionDepensePieChartProps {
   fin?: Date;
 }
 
-export default function RepartitionDepensePieChart({ className, debut: debutProp, fin: finProp }: RepartitionDepensePieChartProps) {
+/**
+ * Les categories qui pesent le plus sur la periode.
+ *
+ * <p>L'echec de lecture s'affichait en « Erreur lors du chargement des donnees », sans
+ * relance : il fallait recharger la page entiere. Il propose de reessayer, comme les deux
+ * autres graphiques de la page.</p>
+ */
+export default function RepartitionDepensePieChart({
+  className,
+  debut: debutProp,
+  fin: finProp,
+}: RepartitionDepensePieChartProps) {
   const { filters } = useDepenseDashboardFilters();
   const debut = debutProp ?? filters.debut;
   const fin = finProp ?? filters.fin;
   const {
     data: categoriesDepense,
-    isLoading,
     isError,
+    isFetching,
+    isLoading,
+    refetch,
   } = useTopCategorieDepenseQuery({
+    categorieIds: filters.categoriesDepense,
     debut,
     fin,
-    categorieIds: filters.categoriesDepense,
   });
 
-  const chartData = useMemo(() => generateChartData(categoriesDepense || []), [categoriesDepense]);
-  const chartConfig = useMemo(() => generateChartConfig(categoriesDepense || []), [categoriesDepense]);
+  const chartData = useMemo(() => construireDonnees(categoriesDepense || []), [categoriesDepense]);
+  const chartConfig = useMemo(() => construireConfig(categoriesDepense || []), [categoriesDepense]);
 
   return (
     <Card className={cn('flex flex-col', className)}>
-      <CardHeader className="items-center pb-0">
-        <CardTitle>Répartition des dépenses</CardTitle>
+      <Card.Header>
+        <Card.Title>Répartition des dépenses</Card.Title>
         {debut && fin && (
-          <CardDescription>
+          <Card.Description>
             {format(debut, 'd LLL y', { locale: fr })} - {format(fin, 'd LLL y', { locale: fr })}
-          </CardDescription>
+          </Card.Description>
         )}
-      </CardHeader>
-      <CardContent className="flex-1 pb-0">
+      </Card.Header>
+      <Card.Content className="flex-1">
         {isLoading ? (
-          <div className="flex items-center justify-center h-[300px]">
-            <div className="text-muted-foreground">Chargement...</div>
+          <div className="flex h-[300px] items-center justify-center">
+            <div className="text-muted">Chargement...</div>
           </div>
         ) : isError ? (
-          <div className="flex items-center justify-center h-[300px]">
-            <div className="text-destructive">Erreur lors du chargement des données</div>
+          <div className="flex h-[300px] items-center justify-center">
+            <EtatErreur
+              enCours={isFetching}
+              onReessayer={() => refetch()}
+              quoi="la répartition par catégorie"
+            />
           </div>
         ) : chartData.length > 0 ? (
-          <ChartContainer config={chartConfig} className="mx-auto aspect-square px-0">
+          <ChartContainer className="mx-auto aspect-square px-0" config={chartConfig}>
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
               <Pie data={chartData} dataKey="montant" labelLine={false} nameKey="category" />
-              {/*<ChartLegend content={<ChartLegendContent nameKey="category" />} className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center text-xs" />*/}
             </PieChart>
           </ChartContainer>
         ) : (
-          <div className="flex items-center justify-center h-[300px]">
-            <div className="text-muted-foreground">Aucune dépense sur la période</div>
+          <div className="flex h-[300px] items-center justify-center">
+            <div className="text-muted">Aucune dépense sur la période</div>
           </div>
         )}
-      </CardContent>
-      <CardFooter className="flex-col gap-2 text-sm">
-        <div className="flex items-center gap-2 leading-none font-medium">Top 10 catégories</div>
-        <div className="text-muted-foreground leading-none">Comment les dépenses sont distribuées entre les catégories.</div>
-      </CardFooter>
+      </Card.Content>
+      <Card.Footer className="flex-col items-start gap-1 text-sm">
+        <span className="font-medium text-foreground">Top 10 catégories</span>
+        <span className="text-muted">
+          Comment les dépenses sont distribuées entre les catégories.
+        </span>
+      </Card.Footer>
     </Card>
   );
 }
-

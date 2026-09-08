@@ -1,65 +1,79 @@
 'use client';
 
-import { useCallback } from 'react';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Button, Tooltip } from '@heroui-v3/react';
+import { Trash2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { IDepense } from '@/features/depenses/types/depense.type';
-import { Trash } from 'lucide-react';
+
 import { useSupprimerDepenseMutation } from '../../queries/depense.mutation';
 
-type Props = {
-  depense: IDepense | null;
-};
+/**
+ * La suppression d'une depense.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le declencheur etait un `&lt;button&gt;` nu portant une corbeille ROUGE ecrite en dur
+ * et un libelle cache sous `md` : sur telephone, une icone rouge sans nom accessible. Le
+ * geste est destructif, donc le rouge a sa place, mais celui de la bibliotheque, qui
+ * suit le theme sombre.</p>
+ *
+ * <p>La fenetre restait OUVERTE apres la suppression : la ligne disparaissait derriere
+ * elle et il fallait fermer a la main pour s'en apercevoir. Elle se ferme, et l'echec la
+ * laisse ouverte pour qu'on puisse reessayer.</p>
+ */
+export default function SupprimerDepenseModal({ depense }: { depense: IDepense | null }) {
+  const [ouvert, setOuvert] = useState(false);
+  const { isPending, mutate: supprimerDepense } = useSupprimerDepenseMutation();
 
-export default function SupprimerDepenseModal({ depense }: Props) {
-  const { mutate: supprimerDepenseMutation, isPending } = useSupprimerDepenseMutation();
-
-  const handleDelete = useCallback(async () => {
+  const supprimer = useCallback(() => {
     if (!depense?.id) {
       toast.error('Dépense non trouvée');
       return;
     }
-    supprimerDepenseMutation(depense.id, {
-      onSuccess: () => {
-        toast.success('Dépense supprimée avec succès');
-      },
+
+    supprimerDepense(depense.id, {
       onError: (error) => {
         toast.error('Erreur lors de la suppression de la dépense', {
           description: error instanceof Error ? error.message : 'Une erreur est survenue',
         });
       },
+      onSuccess: () => {
+        setOuvert(false);
+        toast.success('Dépense supprimée avec succès');
+      },
     });
-  }, [supprimerDepenseMutation, depense]);
+  }, [depense, supprimerDepense]);
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button className="flex items-center gap-2 cursor-pointer hover:text-blue-800 transition-colors">
-          <Trash className="h-5 w-5 text-red-500" />
-          <span className="hidden md:flex text-sm font-medium">Supprimer</span>
-        </button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{`Supprimer ${depense?.description || 'la dépense'} ?`}</DialogTitle>
-          <DialogDescription>
-            Êtes-vous sûr de vouloir supprimer cette dépense ?
-            <br />
-            <strong className="text-red-500">Cette action est irréversible.</strong>
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="mt-4 sm:justify-end">
-          <DialogClose asChild>
-            <Button type="button" variant="outline" className="cursor-pointer" disabled={isPending}>
-              Annuler
-            </Button>
-          </DialogClose>
-          <Button type="button" variant="destructive" className="cursor-pointer" onClick={handleDelete} disabled={isPending}>
-            {isPending ? 'Suppression...' : 'Supprimer'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Tooltip>
+        <Button
+          aria-label={`Supprimer la dépense ${depense?.description || ''}`.trim()}
+          isIconOnly
+          onPress={() => setOuvert(true)}
+          size="sm"
+          variant="danger-soft"
+        >
+          <Trash2 aria-hidden="true" className="size-4" />
+        </Button>
+        <Tooltip.Content>Supprimer</Tooltip.Content>
+      </Tooltip>
+
+      <FenetreAction
+        destructif
+        enAttente={isPending}
+        libelleAction={isPending ? 'Suppression…' : 'Supprimer'}
+        onAction={supprimer}
+        onFermer={() => setOuvert(false)}
+        ouvert={ouvert}
+        titre={`Supprimer ${depense?.description || 'la dépense'} ?`}
+      >
+        <p className="text-sm text-muted">
+          Êtes-vous sûr de vouloir supprimer cette dépense ? Cette action est irréversible.
+        </p>
+      </FenetreAction>
+    </>
   );
 }

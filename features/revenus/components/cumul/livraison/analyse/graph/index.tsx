@@ -1,34 +1,58 @@
-﻿"use client"
+'use client';
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LivraisonHebdomadaireChart } from "./livraison-hebdomadaire"
-import { LivraisonMensuelleChart } from "./livraison_mensuelle"
-import { LivraisonJournaliereChart } from "./livraison-journaliere"
-import { ILivraison } from "@/features/revenus/types/livraison.types"
+import { Card, Tabs } from '@heroui-v3/react';
 
+import { ILivraison } from '@/features/revenus/types/livraison.types';
+
+import { LivraisonHebdomadaireChart } from './livraison-hebdomadaire';
+import { LivraisonJournaliereChart } from './livraison-journaliere';
+import { LivraisonMensuelleChart } from './livraison_mensuelle';
+
+/**
+ * Le rapport des revenus de livraison, a trois echelles de temps.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Les trois onglets venaient de shadcn et etaient peints en ROUGE DE MARQUE une fois
+ * actifs, avec leur contrepartie `dark:` recopiee a la main sur chacun. Une echelle de
+ * temps n'appelle aucun geste : elle dit ou l'on regarde. L'onglet actif se lit desormais
+ * a son etat, comme partout ailleurs dans l'ERP, et le rouge reste disponible pour ce qui
+ * demande une action.</p>
+ *
+ * <p>PAS de `Tabs.Indicator` : il rend un `SelectionIndicator` de react-aria qui LEVE hors
+ * d'un `SharedElementTransition` et fait tomber la page entiere.</p>
+ *
+ * <p>La grille de trois colonnes pleine largeur disparait aussi : trois libelles d'un mot
+ * etires sur toute la carte se lisaient comme trois boutons d'action.</p>
+ */
 export default function LivraisonAnalyseChart({ livraison }: { livraison: ILivraison[] }) {
-    return (
-        <div className="w-full px-4 py-6 -mt-6">
-            <div className="w-full px-4 py-6 shadow-lg rounded-lg border border-separator">
-                <h2 className="text-xl font-bold mb-2 ">Rapport des revenus</h2>
+  return (
+    <Card>
+      <Card.Header>
+        <Card.Title>Rapport des revenus</Card.Title>
+      </Card.Header>
+      {/*
+       * Deux enveloppes imbriquees portaient chacune `px-4 py-6`, plus un `-mt-6` qui
+       * remontait le bloc sous son voisin : la carte tient sa propre respiration.
+       */}
+      <Card.Content>
+        <Tabs defaultSelectedKey="jour">
+          <Tabs.List>
+            <Tabs.Tab id="jour">Jours</Tabs.Tab>
+            <Tabs.Tab id="semaine">Semaines</Tabs.Tab>
+            <Tabs.Tab id="mois">Mois</Tabs.Tab>
+          </Tabs.List>
 
-                <Tabs defaultValue="livraison-journaliere" className="w-full">
-                    <TabsList className="grid grid-cols-3 w-full gap-2">
-                        <TabsTrigger value="livraison-journaliere" className="data-[state=active]:bg-red-500 data-[state=active]:text-white dark:data-[state=active]:bg-red-600 dark:data-[state=active]:text-white">Jours</TabsTrigger>
-                        <TabsTrigger value="livraison-hebdomadaire" className="data-[state=active]:bg-red-500 data-[state=active]:text-white dark:data-[state=active]:bg-red-600 dark:data-[state=active]:text-white">Semaines</TabsTrigger>
-                        <TabsTrigger value="livraison-mensuelle" className="data-[state=active]:bg-red-500 data-[state=active]:text-white dark:data-[state=active]:bg-red-600 dark:data-[state=active]:text-white">Mois</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="livraison-journaliere">
-                        <LivraisonJournaliereChart livraison={livraison}/>
-                    </TabsContent>
-                    <TabsContent value="livraison-hebdomadaire">
-                        <LivraisonHebdomadaireChart livraison={livraison}/>
-                    </TabsContent>
-                    <TabsContent value="livraison-mensuelle">
-                        <LivraisonMensuelleChart livraison={livraison}/>
-                    </TabsContent>
-                </Tabs>
-            </div>
-        </div>
-    )
+          <Tabs.Panel className="pt-4" id="jour">
+            <LivraisonJournaliereChart livraison={livraison} />
+          </Tabs.Panel>
+          <Tabs.Panel className="pt-4" id="semaine">
+            <LivraisonHebdomadaireChart livraison={livraison} />
+          </Tabs.Panel>
+          <Tabs.Panel className="pt-4" id="mois">
+            <LivraisonMensuelleChart livraison={livraison} />
+          </Tabs.Panel>
+        </Tabs>
+      </Card.Content>
+    </Card>
+  );
 }

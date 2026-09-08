@@ -1,89 +1,85 @@
-﻿"use client"
-import * as React from "react"
-import { Filter } from "lucide-react"
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { useUniversalFilter } from "@/hooks/use-universal-filter"
-import { ICommission } from "@/features/revenus/types/commission.types"
+'use client';
+
+import * as React from 'react';
+
+import { ChampListe } from '@/components/commons/champs-formulaire';
+import { ICommission } from '@/features/revenus/types/commission.types';
+import { useUniversalFilter } from '@/hooks/use-universal-filter';
+
+/**
+ * Le choix « tout voir », sous une cle qu'aucun restaurant ne peut porter.
+ *
+ * <p>La sentinelle valait « all » : un partenaire nomme ainsi aurait rendu le filtre
+ * incapable de le selectionner.</p>
+ */
+const TOUS = '__tous__';
 
 interface FilterRestaurantProps {
-    moduleName?: string;
     commissions?: ICommission[];
-    
+    onFilterChange?: (filterName: string, value: string) => void;
 }
 
-export default function FilterRestaurantComponent({ 
-    moduleName = 'commission',
+/**
+ * Le filtre par restaurant de la liste des commissions.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>C'etait un `Select` de shadcn, la derniere bibliotheque doublonnee du projet. Un
+ * `Select` ne se CHERCHE pas : sur la production, la liste des partenaires depasse la
+ * centaine, et il fallait derouler jusqu'a trouver le bon a l'oeil. C'est une `ComboBox`,
+ * ou l'on tape les premieres lettres.</p>
+ *
+ * <p>Le champ n'avait pas d'etiquette, seulement un texte de substitution qui disparait
+ * des qu'une valeur est choisie : le filtre en place ne disait plus SUR QUOI il portait.
+ * Il en avait deja une, invisible, dans son icone d'entonnoir.</p>
+ *
+ * <p>Sa largeur montait a `lg:w-[350px]`. Le seuil `lg` de Tailwind ouvre a 1024 px, et la
+ * fenetre reelle des postes fait 1000 px coquille comprise : cette largeur ne s'est jamais
+ * appliquee chez personne. La largeur est laissee a l'ecran appelant.</p>
+ *
+ * <p>La liste vide affichait « Aucun restaurant disponible » sous la forme d'une OPTION
+ * desactivee, c'est-a-dire d'un choix qu'on ne peut pas faire. C'est l'etat vide de la
+ * liste, il est dit comme tel.</p>
+ *
+ * <p>La prop `moduleName` etait declaree, documentee par son defaut « commission », et
+ * lue nulle part.</p>
+ */
+export default function FilterRestaurantComponent({
     commissions = [],
-    onFilterChange
-}: FilterRestaurantProps & { onFilterChange?: (filterName: string, value: string) => void }) {
-    const { applyFilter } = useUniversalFilter()
-    
-    const handleValueChange = (value: string) => {
-        const filterValue = value === "all" ? "" : value;
-        
-        // Utiliser le callback direct si fourni (pour l'approche locale)
-        if (onFilterChange) {
-            onFilterChange('nomRestaurant', filterValue);
-        }
-        
-        // Appliquer le filtre universel (pour l'approche globale)
-        applyFilter('nomRestaurant', filterValue);
-    }
+    onFilterChange,
+}: FilterRestaurantProps) {
+    const { applyFilter } = useUniversalFilter();
+    const [choix, setChoix] = React.useState('');
 
-    // Extraire les noms de restaurants uniques depuis les livraisons
-    const restaurantNames = React.useMemo(() => {
-        const uniqueNames = new Set<string>();
-        commissions.forEach(commission => {
-            if (commission.nomRestaurant) {
-                uniqueNames.add(commission.nomRestaurant);
-            }
-        });
-        return Array.from(uniqueNames).sort();
+    const options = React.useMemo(() => {
+        const noms = Array.from(
+            new Set(commissions.map((c) => c.nomRestaurant).filter(Boolean)),
+        ).sort((a, b) => a.localeCompare(b, 'fr'));
+
+        if (noms.length === 0) return [];
+        return [
+            { label: 'Tous les restaurants', value: TOUS },
+            ...noms.map((nom) => ({ label: nom, value: nom })),
+        ];
     }, [commissions]);
 
+    const changer = (valeur: string) => {
+        setChoix(valeur);
+        const filtre = valeur === TOUS ? '' : valeur;
+
+        // Le rappel direct sert l'ecran qui filtre sa propre liste ; le filtre universel
+        // sert les ecrans qui lisent l'etat partage. Les deux coexistaient deja.
+        onFilterChange?.('nomRestaurant', filtre);
+        applyFilter('nomRestaurant', filtre);
+    };
+
     return (
-        <div className="w-full">
-            <Select onValueChange={handleValueChange}>
-                <SelectTrigger className="w-[170px] md:w-[250px] lg:w-[350px]">
-                    <Filter className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Filtrer par restaurant" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectGroup>
-                        <SelectLabel>Restaurants</SelectLabel>
-                        
-                        {/* Option pour afficher tous les restaurants */}
-                        <SelectItem value="all">
-                            Tous les restaurants
-                        </SelectItem>
-                        
-                        {/* Mapping des noms de restaurants uniques */}
-                        {restaurantNames.map((nomRestaurant) => (
-                            <SelectItem 
-                                key={nomRestaurant} 
-                                value={nomRestaurant}
-                            >
-                                {nomRestaurant}
-                            </SelectItem>
-                        ))}
-                        
-                        {/* Message si aucun restaurant */}
-                        {restaurantNames.length === 0 && (
-                            <SelectItem value="none" disabled>
-                                Aucun restaurant disponible
-                            </SelectItem>
-                        )}
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
-        </div>
-    )
+        <ChampListe
+            label="Restaurant"
+            messageListeVide="Aucun restaurant dans les commissions affichées"
+            onChange={changer}
+            options={options}
+            placeholder="Tous les restaurants"
+            valeur={choix}
+        />
+    );
 }

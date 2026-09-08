@@ -1,46 +1,65 @@
 'use client';
 
+import { Card } from '@heroui-v3/react';
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { IStatistiqueJour } from '@/features/creneaux/types/creneau.types';
 import { getJourLabel } from '@/features/creneaux/utils/semaine.utils';
 
-interface StatistiquesParJourProps {
-  data: IStatistiqueJour[];
-}
+/**
+ * La presence jour par jour d'une semaine de creneaux.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>La carte venait de la SECONDE bibliotheque de composants ; c'est celle de la
+ * bibliotheque unique.</p>
+ *
+ * <p>Les trois seuils de presence etaient peints en `bg-green-50` / `bg-orange-50` /
+ * `bg-red-50`, des couleurs de palette brute sans variante sombre : sur un poste en theme
+ * sombre, les sept lignes restaient sur un fond clair avec un texte clair par-dessus. Les
+ * memes trois seuils passent aux jetons d'etat, qui suivent le theme.</p>
+ *
+ * <p>Les pourcentages se comparent d'une ligne a l'autre : chasse tabulaire, pour que les
+ * chiffres restent colonne sur colonne.</p>
+ *
+ * <p>Le graphique reste un habillage de recharts : la bibliotheque de composants n'a pas
+ * de graphique.</p>
+ */
 
 const chartConfig = {
   pourcentage: {
-    label: 'Presence',
+    label: 'Présence',
     color: 'hsl(var(--chart-1))',
   },
 } satisfies ChartConfig;
 
-function JourStatItem({ item }: { item: IStatistiqueJour }) {
-  const bgColor = item.pourcentage >= 80
-    ? 'bg-green-50'
-    : item.pourcentage >= 50
-      ? 'bg-orange-50'
-      : 'bg-red-50';
+/** Trois seuils, trois etats : ce qui tient, ce qui glisse, ce qui manque. */
+function tonDuSeuil(pourcentage: number) {
+  if (pourcentage >= 80) return { fond: 'bg-success/10', texte: 'text-success-soft-foreground' };
+  if (pourcentage >= 50) return { fond: 'bg-warning/10', texte: 'text-warning-soft-foreground' };
+  return { fond: 'bg-danger/10', texte: 'text-danger-soft-foreground' };
+}
 
-  const textColor = item.pourcentage >= 80
-    ? 'text-green-700'
-    : item.pourcentage >= 50
-      ? 'text-orange-700'
-      : 'text-red-700';
+function JourStatItem({ item }: { item: IStatistiqueJour }) {
+  const ton = tonDuSeuil(item.pourcentage);
 
   return (
-    <div className={`flex items-center justify-between rounded-lg p-3 ${bgColor}`}>
-      <div className="flex flex-col">
-        <span className="text-sm font-medium">{getJourLabel(item.jour)} {new Date(item.date).getDate()}</span>
-        <span className="text-xs text-default-500">
-          Presents: {item.presents}/{item.total}
+    <div className={`flex items-center justify-between gap-3 rounded-lg p-3 ${ton.fond}`}>
+      <div className="flex min-w-0 flex-col">
+        <span className="text-sm font-medium text-foreground">
+          {getJourLabel(item.jour)} {new Date(item.date).getDate()}
+        </span>
+        <span className="text-xs text-muted tabular-nums">
+          Présents : {item.presents}/{item.total}
         </span>
       </div>
-      <span className={`text-xl font-bold ${textColor}`}>{item.pourcentage}%</span>
+      <span className={`shrink-0 text-xl font-bold tabular-nums ${ton.texte}`}>{item.pourcentage}%</span>
     </div>
   );
+}
+
+interface StatistiquesParJourProps {
+  data: IStatistiqueJour[];
 }
 
 export function StatistiquesParJour({ data }: StatistiquesParJourProps) {
@@ -51,10 +70,10 @@ export function StatistiquesParJour({ data }: StatistiquesParJourProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Statistiques par jour</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
+      <Card.Header>
+        <Card.Title className="text-base">Statistiques par jour</Card.Title>
+      </Card.Header>
+      <Card.Content className="gap-2">
         {data.map((item) => (
           <JourStatItem key={item.jour} item={item} />
         ))}
@@ -71,7 +90,7 @@ export function StatistiquesParJour({ data }: StatistiquesParJourProps) {
             </ChartContainer>
           </div>
         )}
-      </CardContent>
+      </Card.Content>
     </Card>
   );
 }

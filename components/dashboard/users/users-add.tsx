@@ -28,7 +28,7 @@ const UsersAdd = () => {
      * jamais l'envoi en cours et restait cliquable.
      *
      * `SubmitButton` (components/ui/form-ui/submit-button.tsx) fait exactement cela
-     * correctement — il appelle le hook depuis l'interieur du formulaire — et existait
+     * correctement : il appelle le hook depuis l'interieur du formulaire, et il existait
      * deja dans le depot.
      */
     const router = useRouter();
@@ -127,7 +127,7 @@ const UsersAdd = () => {
                 {state.status === 'success' ? (
                     /*
                      * Les identifiants etaient rendus par le `Snippet` de la v2, dans un
-                     * `<li>` a puce, en VERT — comme si distribuer un mot de passe en clair
+                     * `<li>` a puce, en VERT, comme si distribuer un mot de passe en clair
                      * etait une bonne nouvelle. `ChampCopiable` les affiche en chasse fixe
                      * avec un bouton de copie et un retour visible : sans confirmation, on
                      * recopie a la main « au cas ou ».
@@ -150,8 +150,8 @@ const UsersAdd = () => {
                     />
                 ) : (
                     <form action={formAction} className="flex flex-col gap-4">
-                        {/* Chaque champ portait un `aria-label` en ANGLAIS — « username
-                            input », « prenoms input » — qui REMPLACE le libelle francais
+                        {/* Chaque champ portait un `aria-label` en ANGLAIS, « username
+                            input » ou « prenoms input », qui REMPLACE le libelle francais
                             pour le lecteur d'ecran. */}
                         <Controller
                             control={control}

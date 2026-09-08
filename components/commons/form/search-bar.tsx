@@ -1,56 +1,80 @@
+'use client';
 
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { Search } from "lucide-react";
-import { useState } from "react";
+import { ComboBox, Input, Label, ListBox } from '@heroui-v3/react';
+import React from 'react';
+
+/**
+ * Une barre de recherche a suggestions.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>C'etait un `Input` de la SECONDE bibliotheque, une liste `<ul>` posee en absolu
+ * dessous, et un `onBlur` qui la fermait apres 200 ms d'attente pour laisser passer le
+ * clic. Rien n'y repondait au clavier : ni fleches, ni Entree, ni Echap, et le lecteur
+ * d'ecran n'annoncait ni la liste ni le nombre de resultats. C'est exactement une
+ * `ComboBox` : elle filtre, elle se parcourt au clavier, et sa fermeture ne depend plus
+ * d'une temporisation.</p>
+ *
+ * <p>La saisie libre est conservee (`allowsCustomValue`) : on peut chercher un terme qui
+ * n'est dans aucune suggestion, ce que la liste d'origine permettait aussi.</p>
+ */
 
 interface SearchBarProps {
-    items: any[];
+  /** Les suggestions proposees sous le champ. */
+  items: readonly string[];
+  label?: string;
+  /**
+   * Ce que l'ecran fait du texte saisi.
+   *
+   * <p>Optionnel, et personne ne le branche pour l'instant : la barre du releve de paie
+   * ne filtre RIEN. Le defaut est anterieur a cette bascule, il se corrige la ou la liste
+   * est rendue.</p>
+   */
+  onChange?: (valeur: string) => void;
+  placeholder?: string;
 }
-export function SearchBar({ items }: SearchBarProps) {
-    const [query, setQuery] = useState("");
-    const [isOpen, setIsOpen] = useState(false);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setQuery(e.target.value);
-        setIsOpen(e.target.value.length > 0);
-    };
+export function SearchBar({
+  items,
+  label = 'Rechercher',
+  onChange,
+  placeholder = 'Rechercher',
+}: SearchBarProps) {
+  const [saisie, setSaisie] = React.useState('');
 
-    return (
-        <div className="relative w-full max-w-lg mx-auto">
-            <div className="relative">
-                <Search className="absolute left-3 top-2 text-muted" size={18} />
-                <Input
-                    type="text"
-                    placeholder="Rechercher"
-                    value={query}
-                    onChange={handleChange}
-                    onFocus={() => setIsOpen(query.length > 0)}
-                    onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-                    className="w-full pl-10 pr-4 py-2 border rounded-full bg-surface-secondary focus:bg-surface focus:outline-hidden focus:ring-2 focus:ring-gray-300"
-                />
-            </div>
+  const propager = (valeur: string) => {
+    setSaisie(valeur);
+    onChange?.(valeur);
+  };
 
-            {isOpen && (
-                <div className="absolute w-full mt-2 bg-surface border border-separator rounded-lg shadow-lg z-10">
-                    <ul className="py-2">
-                        {items
-                            .filter((item) => item.toLowerCase().includes(query.toLowerCase()))
-                            .map((item, index) => (
-                                <li
-                                    key={index}
-                                    className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-surface-secondary"
-                                    onMouseDown={() => setQuery(item)}
-                                >
-
-                                    {item}
-                                </li>
-                            ))}
-                    </ul>
-                </div>
+  return (
+    <div className="mx-auto w-full max-w-lg">
+      <ComboBox
+        allowsCustomValue
+        inputValue={saisie}
+        onInputChange={propager}
+        onSelectionChange={(cle) => cle != null && propager(String(cle))}
+      >
+        <Label>{label}</Label>
+        <ComboBox.InputGroup>
+          <Input placeholder={placeholder} />
+          <ComboBox.Trigger />
+        </ComboBox.InputGroup>
+        <ComboBox.Popover>
+          <ListBox
+            items={items.map((item) => ({ id: item }))}
+            renderEmptyState={() => (
+              <p className="px-3 py-2 text-sm text-muted">Aucune suggestion</p>
             )}
-        </div>
-    );
+          >
+            {(item: { id: string }) => (
+              <ListBox.Item id={item.id} textValue={item.id}>
+                {item.id}
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+            )}
+          </ListBox>
+        </ComboBox.Popover>
+      </ComboBox>
+    </div>
+  );
 }
-
-

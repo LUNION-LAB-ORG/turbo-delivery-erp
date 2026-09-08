@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { X, Info } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import type { IFactureRF } from './responsable-financier-columns';
+import { Alert } from '@heroui-v3/react';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { formatMontant } from '@/utils/format.utils';
+
+import type { IFactureRF } from './responsable-financier-columns';
 
 type CyclePaiement = 'Journalier' | 'Hebdomadaire' | 'Mensuel';
 
@@ -16,11 +16,10 @@ interface Props {
   onConfirm: (facture: IFactureRF, cycle: CyclePaiement) => void;
 }
 
-
 /**
- * Mapping backend `facture.type` → libellé UI cycle. Le backend stocke des
- * codes upper-case (QUOTIDIEN, HEBDOMADAIRE, MENSUEL) dérivés du restaurant
- * par FacturationJobService.mapMethodToFactureType — on n'a plus à les
+ * Mapping backend `facture.type` → libelle UI cycle. Le backend stocke des
+ * codes upper-case (QUOTIDIEN, HEBDOMADAIRE, MENSUEL) derives du restaurant
+ * par FacturationJobService.mapMethodToFactureType, on n'a plus a les
  * re-saisir (fix A1 workflow facture, 2026-05).
  */
 function backendCycleToLabel(raw: string | undefined): CyclePaiement {
@@ -29,130 +28,101 @@ function backendCycleToLabel(raw: string | undefined): CyclePaiement {
   if (upper.startsWith('QUOTID') || upper === 'JOURNALIER') return 'Journalier';
   if (upper.startsWith('HEBDO')) return 'Hebdomadaire';
   if (upper.startsWith('MENSU')) return 'Mensuel';
-  // Fallback : si le backend renvoie déjà un libellé UI lisible, l'utiliser.
+  // Fallback : si le backend renvoie deja un libelle UI lisible, l'utiliser.
   if (raw === 'Journalier' || raw === 'Hebdomadaire' || raw === 'Mensuel') {
     return raw as CyclePaiement;
   }
   return 'Mensuel';
 }
 
+/** Une valeur qu'on lit sans pouvoir la modifier : elle vient de la facture. */
+function LigneLecture({
+  aide,
+  libelle,
+  nombre,
+  valeur,
+}: {
+  aide?: string;
+  libelle: string;
+  /** Un chiffre : chasse tabulaire, pour qu'il se compare a celui d'a cote. */
+  nombre?: boolean;
+  valeur: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-separator py-2 last:border-b-0">
+      <span className="shrink-0 text-xs text-muted">{libelle}</span>
+      <span className="flex min-w-0 items-baseline gap-2 text-right">
+        {aide && <span className="text-xs text-muted italic">{aide}</span>}
+        <span
+          className={`text-sm font-medium text-foreground ${nombre ? 'tabular-nums' : ''}`}
+        >
+          {valeur}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * La validation d'une facture par le responsable financier.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Quatre valeurs en lecture seule etaient rendues comme des CHAMPS : bordure, fond,
+ * hauteur d'un `<input>`. Elles invitaient a cliquer et ne repondaient pas. Elles se
+ * lisent maintenant comme ce qu'elles sont, une fiche.</p>
+ *
+ * <p>Le bouton de validation etait `bg-red-600` : le rouge de marque sur un geste qui ne
+ * detruit rien : il lance un recouvrement. Et le bandeau d'explication etait bleu, une
+ * teinte sans variante sombre et absente du reste de l'ERP.</p>
+ */
 export default function ValiderFactureModal({ open, onClose, facture, onConfirm }: Props) {
-  // Fix A1 : le cycle est dérivé du restaurant côté backend (champ
-  // facture.cycle déjà set à la création) et n'est plus saisi par l'utilisateur.
-  // On le calcule au render à partir de la facture courante pour rester
-  // synchronisé même si plusieurs validations sont ouvertes successivement.
+  // Fix A1 : le cycle est derive du restaurant cote backend (champ
+  // facture.cycle deja set a la creation) et n'est plus saisi par l'utilisateur.
+  // On le calcule au render a partir de la facture courante pour rester
+  // synchronise meme si plusieurs validations sont ouvertes successivement.
   const cycleAffiche = backendCycleToLabel(facture?.cycle);
 
-  const portalRef = useRef<Element | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    portalRef.current = document.getElementById('modal-portal') ?? document.body;
-    setMounted(true);
-  }, []);
-
-  if (!open || !facture || !mounted) return null;
+  if (!facture) return null;
 
   function handleConfirm() {
-    // Fix A1 : on envoie quand même le cycle au backend pour compatibilité
+    // Fix A1 : on envoie quand meme le cycle au backend pour compatibilite
     // (le backend l'ignore s'il est null, mais on garde le contrat existant
-    // côté frontend pour ne pas avoir à toucher la mutation).
+    // cote frontend pour ne pas avoir a toucher la mutation).
     if (facture) onConfirm(facture, cycleAffiche);
     onClose();
   }
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+  return (
+    <FenetreAction
+      libelleAction="Valider la facture"
+      onAction={handleConfirm}
+      onFermer={onClose}
+      ouvert={open}
+      titre="Valider la facture"
     >
-      <div
-        className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-lg mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-separator">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center">
-              <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-base font-semibold text-foreground">Valider la facture</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-muted hover:text-foreground transition-colors"
-            aria-label="Fermer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+      <Alert status="default">
+        <Alert.Indicator />
+        <Alert.Content>
+          <Alert.Title>Validation de facture</Alert.Title>
+          <Alert.Description>
+            Vous êtes sur le point de valider la facture <strong>{facture.numero}</strong> pour le
+            partenaire <strong>{facture.partenaire}</strong>. Cette action déclenchera le processus
+            de recouvrement.
+          </Alert.Description>
+        </Alert.Content>
+      </Alert>
 
-        {/* Body */}
-        <div className="px-6 py-5 space-y-5">
-          {/* Info banner */}
-          <div className="flex gap-3 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
-            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-800">
-              <p className="font-semibold mb-0.5">Validation de facture</p>
-              <p>
-                Vous êtes sur le point de valider la facture{' '}
-                <strong>{facture.numero}</strong> pour le partenaire{' '}
-                <strong>{facture.partenaire}</strong>. Cette action déclenchera le processus de
-                recouvrement.
-              </p>
-            </div>
-          </div>
-
-          {/* Fields row 1 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-muted mb-1.5">N° Facture</label>
-              <div className="rounded-lg border border-separator bg-surface-secondary px-3 py-2 text-sm text-foreground font-medium">
-                {facture.numero}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-muted mb-1.5">Partner</label>
-              <div className="rounded-lg border border-separator bg-surface-secondary px-3 py-2 text-sm text-foreground">
-                {facture.partenaire}
-              </div>
-            </div>
-          </div>
-
-          {/* Montant */}
-          <div>
-            <label className="block text-xs text-muted mb-1.5">Montant</label>
-            <div className="rounded-lg border border-separator bg-surface-secondary px-3 py-2 text-sm text-foreground font-semibold">
-              {formatMontant(facture.montant)}
-            </div>
-          </div>
-
-          {/* Cycle de paiement — Fix A1 : lecture seule, dérivé du restaurant */}
-          <div>
-            <label className="block text-xs text-muted mb-1.5">Cycle de paiement</label>
-            <div className="rounded-lg border border-separator bg-surface-secondary px-3 py-2 text-sm text-foreground font-medium flex items-center justify-between">
-              <span>{cycleAffiche}</span>
-              <span className="text-xs text-muted italic">configuré dans le profil partenaire</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 pb-5">
-          <Button variant="outline" onClick={onClose} className="text-sm">
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            className="bg-red-600 hover:bg-red-700 text-white text-sm"
-          >
-            Valider la facture
-          </Button>
-        </div>
+      <div className="rounded-xl border border-separator bg-surface-secondary px-4 py-1">
+        <LigneLecture libelle="N° facture" valeur={facture.numero} />
+        <LigneLecture libelle="Partenaire" valeur={facture.partenaire} />
+        <LigneLecture libelle="Montant" nombre valeur={formatMontant(facture.montant)} />
+        {/* Cycle de paiement, Fix A1 : lecture seule, derive du restaurant. */}
+        <LigneLecture
+          aide="configuré dans le profil partenaire"
+          libelle="Cycle de paiement"
+          valeur={cycleAffiche}
+        />
       </div>
-    </div>,
-    portalRef.current!,
+    </FenetreAction>
   );
 }

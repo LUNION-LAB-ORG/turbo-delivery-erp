@@ -1,131 +1,154 @@
 'use client';
 
-import { Download, Eye, X } from 'lucide-react';
-import { IDepense } from '@/features/depenses/types/depense.type';
-import { formatCFA } from '@/src/actions/bonLivraison.mapper';
-import { fmtDate } from './validation.constants';
-import { TypeBadge, StatusBadge } from './validation-badges';
-import { createUrlFile } from '@/utils/createUrlFile';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Button, Link } from '@heroui-v3/react';
+import { Download, Eye } from 'lucide-react';
 import { useState } from 'react';
 
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { IDepense } from '@/features/depenses/types/depense.type';
+import { formatCFA } from '@/src/actions/bonLivraison.mapper';
+import { createUrlFile } from '@/utils/createUrlFile';
+
+import { StatusBadge, TypeBadge } from './validation-badges';
+import { fmtDate } from './validation.constants';
+
+/**
+ * Une depense deja tranchee, dans l'historique des validations.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le montant etait pose au milieu du texte, en chasse proportionnelle et peint en
+ * bleu. D'une ligne a l'autre les montants ne tombaient pas sur la meme colonne, donc ne
+ * se comparaient pas, et leur couleur ne voulait rien dire. Ils sont a droite, en chasse
+ * tabulaire, dans la couleur du texte.</p>
+ *
+ * <p>Le lien vers le justificatif etait un `<button>` qui appelait `window.open` : le
+ * bloqueur de fenetres du navigateur l'avalait, on ne pouvait ni le survoler pour voir sa
+ * destination ni l'ouvrir dans un onglet choisi. C'est un vrai lien.</p>
+ */
 export function HistoryRow({ depense }: { depense: IDepense }) {
-  const [open, setOpen] = useState(false);
+  const [ouvert, setOuvert] = useState(false);
+  // Un justificatif PDF ne s'affiche pas dans une <img> : la bascule etait faite en
+  // touchant le DOM a la main (`nextElementSibling.classList`), a cote de React.
+  const [apercuImpossible, setApercuImpossible] = useState(false);
+
+  const lienJustificatif = depense.justificatif
+    ? createUrlFile(depense.justificatif, 'backend')
+    : null;
 
   return (
     <>
-      <div className="p-5 hover:bg-surface-secondary transition-colors">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <div className="mb-2 flex items-center gap-3">
-              <TypeBadge type={depense.typeDepense} />
-              <span className="text-sm text-muted">{fmtDate(depense.dateDepense)}</span>
-            </div>
-            <h3 className="mb-1 font-semibold text-foreground">{depense.libelle}</h3>
-            <p className="mb-3 text-sm text-muted">{depense.categorie?.nomCategorie}</p>
-            <div className="flex items-center gap-3">
-              <span className="text-lg font-bold text-blue-600">{formatCFA(depense.montant)}</span>
-              <StatusBadge statut={depense.statut} />
-            </div>
+      <div className="flex flex-wrap items-start justify-between gap-4 p-5 transition-colors hover:bg-surface-secondary">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex flex-wrap items-center gap-3">
+            <TypeBadge type={depense.typeDepense} />
+            <span className="text-sm text-muted">{fmtDate(depense.dateDepense)}</span>
+            <StatusBadge statut={depense.statut} />
           </div>
+          <h3 className="font-semibold text-foreground">{depense.libelle}</h3>
+          <p className="text-sm text-muted">{depense.categorie?.nomCategorie}</p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <p className="min-w-32 text-right text-lg font-bold tabular-nums text-foreground">
+            {formatCFA(depense.montant)}
+          </p>
           <div className="flex items-center gap-2">
-            {depense.justificatif && (
-              <button
-                onClick={() => window.open(createUrlFile(depense.justificatif!, 'backend'), '_blank')}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted hover:bg-surface-secondary hover:text-foreground transition-colors">
-                <Download className="h-4 w-4" />
+            {lienJustificatif && (
+              <a
+                className="button button--sm button--ghost"
+                href={lienJustificatif}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <Download aria-hidden="true" />
                 <span className="hidden sm:inline">Justificatif</span>
-              </button>
+              </a>
             )}
-            <button
-              onClick={() => setOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-separator px-3 py-1.5 text-sm text-muted hover:bg-surface-secondary hover:text-foreground transition-colors">
-              <Eye className="h-4 w-4" />
+            <Button onPress={() => setOuvert(true)} size="sm" variant="outline">
+              <Eye aria-hidden="true" className="size-4" />
               <span className="hidden sm:inline">Détails</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Détails de la dépense</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="flex items-center justify-between">
-              <TypeBadge type={depense.typeDepense} />
-              <StatusBadge statut={depense.statut} />
-            </div>
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-surface-secondary p-4 text-sm">
-              <div>
-                <p className="text-xs text-muted">Libellé</p>
-                <p className="font-medium text-foreground">{depense.libelle}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted">Montant</p>
-                <p className="font-bold text-blue-600">{formatCFA(depense.montant)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted">Date</p>
-                <p className="font-medium text-foreground">{fmtDate(depense.dateDepense)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted">Catégorie</p>
-                <p className="font-medium text-foreground">{depense.categorie?.nomCategorie ?? '—'}</p>
-              </div>
-              {depense.sourcePaiement && (
-                <div className="col-span-2">
-                  <p className="text-xs text-muted">Source de paiement</p>
-                  <p className="font-medium text-foreground">{depense.sourcePaiement}</p>
-                </div>
-              )}
-              {depense.description && (
-                <div className="col-span-2">
-                  <p className="text-xs text-muted">Description</p>
-                  <p className="font-medium text-foreground">{depense.description}</p>
-                </div>
-              )}
-            </div>
-            {depense.justificatif && (
-              <div className="space-y-2">
-                <p className="text-xs text-muted">Justificatif</p>
-                <div className="relative overflow-hidden rounded-lg border border-separator bg-surface-secondary">
-                  <img
-                    src={createUrlFile(depense.justificatif, 'backend')}
-                    alt="Justificatif"
-                    className="max-h-64 w-full object-contain"
-                    onError={(e) => {
-                      // Si pas une image (PDF etc.), afficher un lien de téléchargement
-                      const target = e.currentTarget as HTMLImageElement;
-                      target.style.display = 'none';
-                      target.nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                  <a
-                    href={createUrlFile(depense.justificatif, 'backend')}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hidden w-full items-center justify-center gap-2 py-8 text-sm text-blue-600 hover:underline"
-                  >
-                    <Download className="h-4 w-4" />
-                    Ouvrir le fichier
-                  </a>
-                </div>
-                <a
-                  href={createUrlFile(depense.justificatif, 'backend')}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-separator px-4 py-2 text-sm text-muted hover:bg-surface-secondary transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  Télécharger
-                </a>
-              </div>
-            )}
+      <FenetreAction
+        libelleFermer="Fermer"
+        onFermer={() => setOuvert(false)}
+        ouvert={ouvert}
+        titre="Détails de la dépense"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <TypeBadge type={depense.typeDepense} />
+          <StatusBadge statut={depense.statut} />
+        </div>
+
+        <dl className="grid grid-cols-2 gap-3 rounded-lg bg-surface-secondary p-4 text-sm">
+          <div className="min-w-0">
+            <dt className="text-xs text-muted">Libellé</dt>
+            <dd className="font-medium text-foreground">{depense.libelle}</dd>
           </div>
-        </DialogContent>
-      </Dialog>
+          <div className="min-w-0">
+            <dt className="text-xs text-muted">Montant</dt>
+            <dd className="font-bold tabular-nums text-foreground">{formatCFA(depense.montant)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-xs text-muted">Date</dt>
+            <dd className="font-medium tabular-nums text-foreground">{fmtDate(depense.dateDepense)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-xs text-muted">Catégorie</dt>
+            <dd className="font-medium text-foreground">{depense.categorie?.nomCategorie ?? 'Non renseignée'}</dd>
+          </div>
+          {depense.sourcePaiement && (
+            <div className="col-span-2 min-w-0">
+              <dt className="text-xs text-muted">Source de paiement</dt>
+              <dd className="font-medium text-foreground">{depense.sourcePaiement}</dd>
+            </div>
+          )}
+          {depense.description && (
+            <div className="col-span-2 min-w-0">
+              <dt className="text-xs text-muted">Description</dt>
+              <dd className="font-medium text-foreground">{depense.description}</dd>
+            </div>
+          )}
+        </dl>
+
+        {lienJustificatif && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted">Justificatif</p>
+            <div className="overflow-hidden rounded-lg border border-separator bg-surface-secondary">
+              {apercuImpossible ? (
+                <Link
+                  className="w-full justify-center py-8 text-sm"
+                  href={lienJustificatif}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <Download aria-hidden="true" className="mr-2 size-4" />
+                  Ouvrir le fichier
+                </Link>
+              ) : (
+                <img
+                  alt="Justificatif"
+                  className="max-h-64 w-full object-contain"
+                  onError={() => setApercuImpossible(true)}
+                  src={lienJustificatif}
+                />
+              )}
+            </div>
+            <a
+              className="button button--md button--outline button--full-width"
+              href={lienJustificatif}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <Download aria-hidden="true" />
+              Télécharger
+            </a>
+          </div>
+        )}
+      </FenetreAction>
     </>
   );
 }

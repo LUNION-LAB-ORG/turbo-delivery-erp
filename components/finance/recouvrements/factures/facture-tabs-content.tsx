@@ -1,11 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useQueryStates } from 'nuqs';
-import { factureFiltersClient } from '@/features/recouvrements/filters/facture.filter';
+import { Card } from '@heroui-v3/react';
+
 import { FactureTable } from './facture-table';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { RestaurantSelect } from '../common/restaurant-select';
 
 interface FactureTabsContentProps {
   restoOpts: {
@@ -15,28 +13,24 @@ interface FactureTabsContentProps {
   isOptionsLoading?: boolean;
 }
 
+/**
+ * L'onglet « Toutes les factures » : une coquille autour du tableau.
+ *
+ * <p>La carte venait de shadcn, la derniere bibliotheque doublonnee du projet. Deux
+ * filtres de restaurant etaient par ailleurs declares ici, un `useQueryStates` et un
+ * `RestaurantSelect` importe, que rien ne rendait ni ne lisait : le filtre reel vit dans
+ * `FactureTable`, qui recoit la liste des restaurants. Ils sont retires ; l'ecran ne
+ * perd rien puisqu'ils n'etaient pas affiches.</p>
+ */
 export function FactureTabsContent({ restoOpts, isOptionsLoading }: FactureTabsContentProps) {
-  const [filters, setFilters] = useQueryStates(factureFiltersClient.filter, factureFiltersClient.option);
-
-  const handleRestaurantFilterChange = (restoId?: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      restaurantId: restoId || '',
-      page: 0,
-    }));
-  };
-
   return (
-    <Card className="flex flex-col gap-4">
-      <CardHeader className="flex flex-wrap">
-        <h2 className="text-lg font-medium">Factures</h2>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <FactureTable 
-          restaurants={restoOpts} // ✅ AJOUTÉ: Passer les restaurants
-          restaurantsLoading={isOptionsLoading} // ✅ AJOUTÉ: Passer le loading
-        />
-      </CardContent>
+    <Card>
+      <Card.Header>
+        <Card.Title className="text-lg">Factures</Card.Title>
+      </Card.Header>
+      <Card.Content className="gap-4">
+        <FactureTable restaurants={restoOpts} restaurantsLoading={isOptionsLoading} />
+      </Card.Content>
     </Card>
   );
 }

@@ -1,469 +1,466 @@
-﻿"use client";
+'use client';
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Search, Download, TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { useRecouvrementList } from "@/features/revenus/hooks/use-recouvrement";
-import { useInvestissementList } from "@/features/revenus/hooks/use-investissement-list";
-import { IRecouvrement } from "@/features/revenus/types/recouvrement/recouvrement.types";
-import { IInvestissement } from "@/features/revenus/types/revenus.types";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import EtatErreur from "@/components/commons/EtatErreur";
+import { Chip, Label, SearchField, Tabs, ToggleButton, ToggleButtonGroup } from '@heroui-v3/react';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { Coins, TrendingUp, Wallet } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
+
+import CarteStat, { GrilleStats } from '@/components/commons/CarteStat';
+import EtatErreur from '@/components/commons/EtatErreur';
+import { LienBouton } from '@/components/commons/LienBouton';
+import { TableauResponsive, type ColonneResponsive } from '@/components/commons/TableauResponsive';
+import { useInvestissementList } from '@/features/revenus/hooks/use-investissement-list';
+import { useRecouvrementList } from '@/features/revenus/hooks/use-recouvrement';
+import { IRecouvrement } from '@/features/revenus/types/recouvrement/recouvrement.types';
+import { IInvestissement } from '@/features/revenus/types/revenus.types';
 import { formatMontant } from '@/utils/format.utils';
 
+/**
+ * L'historique des revenus encaissés : recouvrements et investissements.
+ *
+ * <h3>La forme de la donnée</h3>
+ * <p>C'était une PILE DE CARTES, une par opération, chacune avec sa pastille ronde, son
+ * icône, son badge et son montant posé à droite dans une graisse propre à la carte. Un
+ * historique d'argent ne se lit pas ainsi : on l'ouvre pour retrouver une ligne, et pour
+ * comparer des montants entre eux. Deux nombres qui ne tombent pas dans la même colonne
+ * ne se comparent pas, et l'œil doit relire chaque chiffre. Ce sont des LIGNES : montants
+ * en chasse tabulaire, alignés à droite, sous le même en-tête.</p>
+ *
+ * <p>Sur téléphone le tableau redevient des cartes, une fois, dans le composant partagé.</p>
+ *
+ * <h3>La couleur</h3>
+ * <p>L'écran portait sept teintes fixes : bleu pour les recouvrements, vert pour les
+ * investissements, violet pour le total et pour le PDG, rouge pour l'onglet actif, orange
+ * pour l'échéance, et des dégradés pastel sur les trois cartes du bandeau. Aucune ne
+ * disait rien : elles nommaient des CATÉGORIES. Le rouge de marque, lui, est réservé à ce
+ * qui appelle un geste, et l'onglet actif d'un historique n'en appelle aucun. Aucune de
+ * ces teintes n'avait de variante sombre.</p>
+ *
+ * <h3>Ce qui manquait</h3>
+ * <p>Il n'y avait AUCUN état de chargement : pendant la lecture, l'écran affichait
+ * « Aucun recouvrement trouvé », ce qui se lit comme un résultat vide. L'échec, lui,
+ * remplaçait le bandeau entier des trois totaux, y compris ceux qui avaient été lus.
+ * Chaque carte dit maintenant elle-même si sa source a répondu, et la relance reste
+ * offerte sur une ligne au-dessus.</p>
+ */
+
+type Periode = 'annee' | 'aujourdhui' | 'mois' | 'semaine' | 'tous';
+
+const PERIODES: readonly { cle: Periode; libelle: string }[] = [
+    { cle: 'tous', libelle: 'Toutes les dates' },
+    { cle: 'aujourdhui', libelle: "Aujourd'hui" },
+    { cle: 'semaine', libelle: 'Cette semaine' },
+    { cle: 'mois', libelle: 'Ce mois' },
+    { cle: 'annee', libelle: 'Cette année' },
+];
+
+/**
+ * Les deux bornes de la periode choisie, ou `null` quand on ne filtre pas.
+ *
+ * <p>Le calcul etait ecrit DEUX FOIS, mot pour mot, une fois par jeu de donnees : le meme
+ * `switch` de trente lignes sur les recouvrements et sur les investissements. Deux copies
+ * qui divergent des qu'on touche a l'une.</p>
+ */
+function bornesPeriode(periode: Periode): { debut: Date; fin: Date } | null {
+    if (periode === 'tous') return null;
+
+    const jour = new Date();
+    jour.setHours(0, 0, 0, 0);
+
+    if (periode === 'aujourdhui') {
+        const fin = new Date(jour);
+        fin.setHours(23, 59, 59, 999);
+        return { debut: jour, fin };
+    }
+
+    if (periode === 'semaine') {
+        // La semaine francaise commence le LUNDI. L'ancien calcul retranchait `getDay()`,
+        // donc partait du dimanche : le dimanche courant tombait hors de « cette semaine »
+        // et celui de la semaine passee y entrait.
+        const decalage = (jour.getDay() + 6) % 7;
+        const debut = new Date(jour);
+        debut.setDate(jour.getDate() - decalage);
+        const fin = new Date(debut);
+        fin.setDate(debut.getDate() + 6);
+        fin.setHours(23, 59, 59, 999);
+        return { debut, fin };
+    }
+
+    if (periode === 'mois') {
+        return {
+            debut: new Date(jour.getFullYear(), jour.getMonth(), 1),
+            fin: new Date(jour.getFullYear(), jour.getMonth() + 1, 0, 23, 59, 59, 999),
+        };
+    }
+
+    return {
+        debut: new Date(jour.getFullYear(), 0, 1),
+        fin: new Date(jour.getFullYear(), 11, 31, 23, 59, 59, 999),
+    };
+}
+
+/**
+ * Une ligne SANS date reste visible quelle que soit la periode.
+ *
+ * <p>C'est le comportement d'origine, et il est le bon : masquer une operation parce
+ * qu'il lui manque une date, c'est retirer de l'ecran precisement celle qu'il faut aller
+ * corriger.</p>
+ */
+function dansLaPeriode(iso: string | undefined, bornes: { debut: Date; fin: Date } | null): boolean {
+    if (!bornes || !iso) return true;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return true;
+    return date >= bornes.debut && date <= bornes.fin;
+}
+
+function contient(valeur: string | undefined, recherche: string): boolean {
+    return Boolean(valeur && valeur.toLowerCase().includes(recherche));
+}
+
+function formatDate(iso: string | undefined): string {
+    if (!iso) return '—';
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return '—';
+    return format(date, 'dd MMM yyyy', { locale: fr });
+}
+
+/*
+ * La direction se reconnait au NOM de l'investisseur, faute de champ dedie dans la charge
+ * utile. C'est une heuristique : elle sert a remonter ces lignes en tete de liste, jamais
+ * a peindre la ligne d'une couleur qui laisserait croire a un etat verifie.
+ */
+const MOTS_DIRECTION = ['pdg', 'président', 'directeur général'];
+
+function estDirection(nom: string | undefined): boolean {
+    const bas = (nom ?? '').toLowerCase();
+    return MOTS_DIRECTION.some((mot) => bas.includes(mot));
+}
+
+/** Le nom, avec la référence de l'opération dessous. */
+function Identite({ reference, titre }: { reference: string; titre: ReactNode }) {
+    return (
+        <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                {titre}
+            </div>
+            {/*
+             * La reference etait CHERCHABLE et nulle part affichee : le champ de recherche
+             * annoncait « par reference » alors que la ligne mise en commentaire etait la
+             * seule a la porter. On cherchait donc une valeur qu'on ne pouvait pas lire.
+             */}
+            <p className="truncate font-mono text-[11px] leading-tight text-muted">{reference}</p>
+        </div>
+    );
+}
+
 export default function RevenusEncaissesClient() {
-    const [activeTab, setActiveTab] = useState("recouvrements");
-    const [searchTerm, setSearchTerm] = useState("");
-    const [dateFilter, setDateFilter] = useState("tous");
+    const [onglet, setOnglet] = useState('recouvrements');
+    const [recherche, setRecherche] = useState('');
+    const [periode, setPeriode] = useState<Periode>('tous');
 
     const {
-        recouvrement: recouvrementsData,
-        total: totalTransactions,
-        isLoading: isLoadingRecouvrements,
-        isFetching: isFetchingRecouvrements,
         isError: isErrorRecouvrements,
+        isFetching: isFetchingRecouvrements,
+        isLoading: isLoadingRecouvrements,
+        recouvrement: recouvrementsData,
         refetch: refetchRecouvrements,
-    } = useRecouvrementList({
-        initialData: []
-    });
+        total: totalTransactions,
+    } = useRecouvrementList({ initialData: [] });
 
     const {
         investissements,
-        isLoading: isLoadingInvestissements,
-        isFetching: isFetchingInvestissements,
         isError: isErrorInvestissements,
+        isFetching: isFetchingInvestissements,
+        isLoading: isLoadingInvestissements,
         refetch: refetchInvestissements,
     } = useInvestissementList();
 
-    // Calculer les totaux
-    const totalRecouvrements = recouvrementsData?.reduce((sum: number, rec: any) => sum + (rec.montant || 0), 0) || 0;
-    const totalInvestissements = investissements?.reduce((sum: number, inv: any) => sum + (inv.montant || 0), 0) || 0;
+    const recouvrements: IRecouvrement[] = useMemo(
+        () => (Array.isArray(recouvrementsData) ? recouvrementsData : []),
+        [recouvrementsData],
+    );
+    const apports: IInvestissement[] = useMemo(
+        () => (Array.isArray(investissements) ? investissements : []),
+        [investissements],
+    );
+
+    // Les totaux portent sur TOUT ce qui a ete lu, pas sur ce que les filtres laissent
+    // voir : c'est le stock encaisse, et il ne bouge pas quand on cherche une ligne.
+    const totalRecouvrements = recouvrements.reduce((somme, r) => somme + (r.montant || 0), 0);
+    const totalInvestissements = apports.reduce((somme, i) => somme + (i.montant || 0), 0);
     const totalGeneral = totalRecouvrements + totalInvestissements;
+    const enEchec = isErrorRecouvrements || isErrorInvestissements;
 
-    // Filtrer et trier les données
-    const filteredRecouvrements = recouvrementsData?.filter((rec: IRecouvrement) => {
-        // Filtre par recherche
-        const searchMatch = !searchTerm || 
-            rec.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            rec.nomRestaurant?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        // Filtre par date
-        let dateMatch = true;
-        if (dateFilter !== "tous" && rec.dateRecouvrement) {
-            const recDate = new Date(rec.dateRecouvrement);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            switch (dateFilter) {
-                case "aujourd'hui":
-                    const todayEnd = new Date(today);
-                    todayEnd.setHours(23, 59, 59, 999);
-                    dateMatch = recDate >= today && recDate <= todayEnd;
-                    break;
-                case "semaine":
-                    const weekStart = new Date(today);
-                    weekStart.setDate(today.getDate() - today.getDay());
-                    weekStart.setHours(0, 0, 0, 0);
-                    const weekEnd = new Date(weekStart);
-                    weekEnd.setDate(weekStart.getDate() + 6);
-                    weekEnd.setHours(23, 59, 59, 999);
-                    dateMatch = recDate >= weekStart && recDate <= weekEnd;
-                    break;
-                case "mois":
-                    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-                    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                    monthEnd.setHours(23, 59, 59, 999);
-                    dateMatch = recDate >= monthStart && recDate <= monthEnd;
-                    break;
-                case "annee":
-                    const yearStart = new Date(today.getFullYear(), 0, 1);
-                    const yearEnd = new Date(today.getFullYear(), 11, 31);
-                    yearEnd.setHours(23, 59, 59, 999);
-                    dateMatch = recDate >= yearStart && recDate <= yearEnd;
-                    break;
-            }
-        }
-        
-        return searchMatch && dateMatch;
-    }) || [];
+    /*
+     * Le total SERVEUR n'est lisible que si la reponse est paginee : `useRecouvrementList`
+     * le prend dans `totalElements`, absent quand l'API rend un tableau nu, et retombe
+     * alors a zero. « 0 transactions » sous un montant non nul se lirait comme un defaut
+     * d'application ; on annonce dans ce cas ce qu'on a reellement lu.
+     */
+    const noteRecouvrements =
+        totalTransactions >= recouvrements.length
+            ? `${totalTransactions} transactions enregistrées`
+            : `${recouvrements.length} transactions lues`;
 
-    const filteredInvestissements = investissements?.filter((inv: IInvestissement) => {
-        // Filtre par recherche
-        const searchMatch = !searchTerm || 
-            inv.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            inv.nomInvestisseur?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        // Filtre par date
-        let dateMatch = true;
-        if (dateFilter !== "tous" && inv.dateInvestissement) {
-            const invDate = new Date(inv.dateInvestissement);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            switch (dateFilter) {
-                case "aujourd'hui":
-                    const todayEnd = new Date(today);
-                    todayEnd.setHours(23, 59, 59, 999);
-                    dateMatch = invDate >= today && invDate <= todayEnd;
-                    break;
-                case "semaine":
-                    const weekStart = new Date(today);
-                    weekStart.setDate(today.getDate() - today.getDay());
-                    weekStart.setHours(0, 0, 0, 0);
-                    const weekEnd = new Date(weekStart);
-                    weekEnd.setDate(weekStart.getDate() + 6);
-                    weekEnd.setHours(23, 59, 59, 999);
-                    dateMatch = invDate >= weekStart && invDate <= weekEnd;
-                    break;
-                case "mois":
-                    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-                    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                    monthEnd.setHours(23, 59, 59, 999);
-                    dateMatch = invDate >= monthStart && invDate <= monthEnd;
-                    break;
-                case "annee":
-                    const yearStart = new Date(today.getFullYear(), 0, 1);
-                    const yearEnd = new Date(today.getFullYear(), 11, 31);
-                    yearEnd.setHours(23, 59, 59, 999);
-                    dateMatch = invDate >= yearStart && invDate <= yearEnd;
-                    break;
-            }
-        }
-        
-        return searchMatch && dateMatch;
-    }) || [];
+    const bornes = useMemo(() => bornesPeriode(periode), [periode]);
+    const cherche = recherche.trim().toLowerCase();
 
-    // Trier les investissements : PDG en premier, puis par date décroissante
-    const sortedInvestissements = [...filteredInvestissements].sort((a, b) => {
-        // Mettre les investissements du PDG en premier
-        const aIsPDG = a.nomInvestisseur?.toLowerCase().includes('pdg') || 
-                       a.nomInvestisseur?.toLowerCase().includes('président') ||
-                       a.nomInvestisseur?.toLowerCase().includes('directeur général');
-        const bIsPDG = b.nomInvestisseur?.toLowerCase().includes('pdg') || 
-                       b.nomInvestisseur?.toLowerCase().includes('président') ||
-                       b.nomInvestisseur?.toLowerCase().includes('directeur général');
-        
-        if (aIsPDG && !bIsPDG) return -1;
-        if (!aIsPDG && bIsPDG) return 1;
-        
-        // Ensuite, trier par date décroissante
-        const dateA = new Date(a.dateInvestissement || 0);
-        const dateB = new Date(b.dateInvestissement || 0);
-        return dateB.getTime() - dateA.getTime();
-    });
+    const recouvrementsFiltres = useMemo(
+        () =>
+            recouvrements.filter(
+                (r) =>
+                    (!cherche || contient(r.id, cherche) || contient(r.nomRestaurant, cherche)) &&
+                    dansLaPeriode(r.dateRecouvrement, bornes),
+            ),
+        [bornes, cherche, recouvrements],
+    );
+
+    const apportsFiltres = useMemo(() => {
+        const retenus = apports.filter(
+            (i) =>
+                (!cherche || contient(i.id, cherche) || contient(i.nomInvestisseur, cherche)) &&
+                dansLaPeriode(i.dateInvestissement, bornes),
+        );
+
+        // La direction en tete, puis du plus recent au plus ancien.
+        return [...retenus].sort((a, b) => {
+            const directionA = estDirection(a.nomInvestisseur);
+            const directionB = estDirection(b.nomInvestisseur);
+            if (directionA !== directionB) return directionA ? -1 : 1;
+            return (
+                new Date(b.dateInvestissement || 0).getTime() -
+                new Date(a.dateInvestissement || 0).getTime()
+            );
+        });
+    }, [apports, bornes, cherche]);
+
+    const colonnesRecouvrements: ColonneResponsive<IRecouvrement>[] = [
+        {
+            cle: 'restaurant',
+            identite: true,
+            libelle: 'Restaurant',
+            rendu: (r) => (
+                <Identite
+                    reference={r.id}
+                    titre={<span className="truncate">{r.nomRestaurant || 'Restaurant inconnu'}</span>}
+                />
+            ),
+        },
+        {
+            cle: 'date',
+            libelle: 'Date de recouvrement',
+            rendu: (r) => <span className="text-sm">{formatDate(r.dateRecouvrement)}</span>,
+        },
+        {
+            cle: 'montant',
+            libelle: 'Montant',
+            nombre: true,
+            rendu: (r) => <span className="font-medium">{formatMontant(r.montant ?? 0)}</span>,
+        },
+    ];
+
+    const colonnesApports: ColonneResponsive<IInvestissement>[] = [
+        {
+            cle: 'investisseur',
+            identite: true,
+            libelle: 'Investisseur',
+            rendu: (i) => (
+                <Identite
+                    reference={i.id}
+                    titre={
+                        <>
+                            <span className="truncate">{i.nomInvestisseur || 'Investisseur inconnu'}</span>
+                            {estDirection(i.nomInvestisseur) && (
+                                <Chip className="shrink-0" size="sm" variant="soft">
+                                    Direction
+                                </Chip>
+                            )}
+                        </>
+                    }
+                />
+            ),
+        },
+        {
+            cle: 'date',
+            libelle: "Date de l'apport",
+            rendu: (i) => <span className="text-sm">{formatDate(i.dateInvestissement)}</span>,
+        },
+        {
+            cle: 'echeance',
+            libelle: 'Échéance',
+            rendu: (i) => <span className="text-sm">{formatDate(i.deadline)}</span>,
+        },
+        {
+            cle: 'montant',
+            libelle: 'Montant',
+            nombre: true,
+            rendu: (i) => <span className="font-medium">{formatMontant(i.montant ?? 0)}</span>,
+        },
+    ];
 
     return (
-        <div className="p-6 space-y-6">
-            {/* En-tête */}
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-primary">Historique des Revenus Encaissés</h1>
-                        <p className="text-muted mt-2">
-                            Consultez l&apos;historique complet des recouvrements et investissements
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <Button 
-                            className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 font-medium shadow-md hover:shadow-lg transition-all duration-200"
-                            onClick={() => window.location.href = '/finance/recouvrement'}
-                        >
-                            <TrendingUp className="w-5 h-5" />
-                            Gestion Recouvrement
-                        </Button>
-                        <Button 
-                            className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700 px-4 py-2 font-medium shadow-md hover:shadow-lg transition-all duration-200"
-                            onClick={() => window.location.href = '/finance/revenue/investissement'}
-                        >
-                            <DollarSign className="w-5 h-5" />
-                            Gestion Investissement
-                        </Button>
-                        {/* <Button className="flex items-center gap-2 px-4 py-2 font-medium shadow-md hover:shadow-lg transition-all duration-200">
-                            <Download className="w-5 h-5" />
-                            Exporter
-                        </Button> */}
-                    </div>
+        <div className="flex flex-col gap-5 p-4 md:p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h1 className="text-xl font-semibold text-foreground md:text-2xl">
+                    Historique des revenus encaissés
+                </h1>
+
+                {/*
+                 * Deux NAVIGATIONS, pas deux gestes : c'etaient des `Button` peints en bleu
+                 * et en vert qui posaient `window.location.href`, donc un rechargement
+                 * complet de l'application, sans ctrl-clic ni ouverture dans un onglet.
+                 */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <LienBouton href="/finance/recouvrement" taille="sm" variante="outline">
+                        <Wallet aria-hidden="true" className="size-4" />
+                        Gestion des recouvrements
+                    </LienBouton>
+                    <LienBouton href="/finance/revenue/investissement" taille="sm" variante="outline">
+                        <TrendingUp aria-hidden="true" className="size-4" />
+                        Gestion des investissements
+                    </LienBouton>
                 </div>
-
-                {/* Cartes de statistiques */}
-                {/* Les totaux sont sommes cote client : si une des deux listes n'a pas pu
-                    etre lue, « 0 FCFA » s'affiche comme un vrai zero. */}
-                {isErrorRecouvrements || isErrorInvestissements ? (
-                    <Card>
-                        <CardContent className="p-0">
-                            <EtatErreur
-                                quoi="les revenus encaissés"
-                                onReessayer={() => {
-                                    if (isErrorRecouvrements) refetchRecouvrements();
-                                    if (isErrorInvestissements) refetchInvestissements();
-                                }}
-                                enCours={isFetchingRecouvrements || isFetchingInvestissements}
-                            />
-                        </CardContent>
-                    </Card>
-                ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="bg-linear-to-r from-blue-50 to-blue-100 border-blue-200">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-blue-600 text-sm font-medium">Total Recouvrements</p>
-                                    <p className="text-2xl font-bold text-blue-900">
-                                        {formatMontant(totalRecouvrements)}
-                                    </p>
-                                    <div className="flex items-center gap-1 mt-2">
-                                        <TrendingUp className="w-4 h-4 text-blue-600" />
-                                        <span className="text-xs text-blue-600">
-                                            {/* Total SERVEUR, pas la longueur du tableau rendu. */}
-                                            {totalTransactions} transactions
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="p-3 bg-blue-200 rounded-full">
-                                    <Wallet className="w-6 h-6 text-blue-700" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-linear-to-r from-green-50 to-green-100 border-green-200">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-green-600 text-sm font-medium">Total Investissements</p>
-                                    <p className="text-2xl font-bold text-green-900">
-                                        {formatMontant(totalInvestissements)}
-                                    </p>
-                                    <div className="flex items-center gap-1 mt-2">
-                                        <ArrowUpRight className="w-4 h-4 text-green-600" />
-                                        <span className="text-xs text-green-600">
-                                            {sortedInvestissements.length} investissements
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="p-3 bg-green-200 rounded-full">
-                                    <TrendingUp className="w-6 h-6 text-green-700" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-linear-to-r from-purple-50 to-purple-100 border-purple-200">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-purple-600 text-sm font-medium">Total Général</p>
-                                    <p className="text-2xl font-bold text-purple-900">
-                                        {formatMontant(totalGeneral)}
-                                    </p>
-                                    <div className="flex items-center gap-1 mt-2">
-                                        <DollarSign className="w-4 h-4 text-purple-600" />
-                                        <span className="text-xs text-purple-600">
-                                            {(filteredRecouvrements.length + sortedInvestissements.length)} opérations
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="p-3 bg-purple-200 rounded-full">
-                                    <DollarSign className="w-6 h-6 text-purple-700" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-                )}
-
-                {/* Filtres */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-3 w-4 h-4 text-muted" />
-                        <Input
-                            placeholder="Rechercher par référence, restaurant..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    <Select value={dateFilter} onValueChange={setDateFilter}>
-                        <SelectTrigger className="w-full sm:w-48">
-                            <SelectValue placeholder="Filtrer par date" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="tous">Toutes les dates</SelectItem>
-                            <SelectItem value="aujourd'hui">Aujourd&apos;hui</SelectItem>
-                            <SelectItem value="semaine">Cette semaine</SelectItem>
-                            <SelectItem value="mois">Ce mois</SelectItem>
-                            <SelectItem value="annee">Cette année</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {/* Onglets */}
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 bg-surface-secondary p-1 rounded-lg">
-                        <TabsTrigger 
-                            value="recouvrements" 
-                            className={`flex items-center gap-2 data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 ${
-                                activeTab === "recouvrements" ? "bg-red-500 text-white shadow-lg" : "text-muted hover:text-foreground"
-                            }`}
-                        >
-                            <span>Recouvrements</span>
-                            <Badge variant={activeTab === "recouvrements" ? "secondary" : "outline"} className={
-                                activeTab === "recouvrements" ? "bg-surface text-red-500" : ""
-                            }>
-                                {filteredRecouvrements.length}
-                            </Badge>
-                        </TabsTrigger>
-                        <TabsTrigger 
-                            value="investissements" 
-                            className={`flex items-center gap-2 data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 ${
-                                activeTab === "investissements" ? "bg-red-500 text-white shadow-lg" : "text-muted hover:text-foreground"
-                            }`}
-                        >
-                            <span>Investissements</span>
-                            <Badge variant={activeTab === "investissements" ? "secondary" : "outline"} className={
-                                activeTab === "investissements" ? "bg-surface text-red-500" : ""
-                            }>
-                                {sortedInvestissements.length}
-                            </Badge>
-                        </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="recouvrements" className="space-y-4">
-                        <div className="grid gap-4">
-                            {isErrorRecouvrements ? (
-                                <Card>
-                                    <CardContent className="p-0">
-                                        <EtatErreur
-                                            quoi="les recouvrements"
-                                            onReessayer={() => refetchRecouvrements()}
-                                            enCours={isFetchingRecouvrements}
-                                        />
-                                    </CardContent>
-                                </Card>
-                            ) : filteredRecouvrements.length === 0 ? (
-                                <Card>
-                                    <CardContent className="p-8 text-center">
-                                        <p className="text-muted">Aucun recouvrement trouvé</p>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                filteredRecouvrements.map((recouvrement: IRecouvrement) => (
-                                    <Card key={recouvrement.id} className="hover:shadow-md transition-shadow">
-                                        <CardContent className="p-6">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="p-2 bg-blue-100 rounded-full">
-                                                        <Wallet className="w-5 h-5 text-blue-600" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            {/* <h3 className="font-semibold">{recouvrement.id}</h3> */}
-                                                            <Badge variant="outline" className="text-blue-600 border-blue-200">
-                                                                Validé
-                                                            </Badge>
-                                                        </div>
-                                                        <p className="text-sm text-muted">{recouvrement.nomRestaurant}</p>
-                                                        <p className="text-xs text-muted">
-                                                            {recouvrement.dateRecouvrement && format(new Date(recouvrement.dateRecouvrement), 'PPP', { locale: fr })}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold text-lg text-blue-600">
-                                                        {formatMontant(recouvrement.montant ?? 0)}
-                                                    </p>
-                                                    
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))
-                            )}
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="investissements" className="space-y-4">
-                        <div className="grid gap-4">
-                            {isErrorInvestissements ? (
-                                <Card>
-                                    <CardContent className="p-0">
-                                        <EtatErreur
-                                            quoi="les investissements"
-                                            onReessayer={() => refetchInvestissements()}
-                                            enCours={isFetchingInvestissements}
-                                        />
-                                    </CardContent>
-                                </Card>
-                            ) : filteredInvestissements.length === 0 ? (
-                                <Card>
-                                    <CardContent className="p-8 text-center">
-                                        <p className="text-muted">Aucun investissement trouvé</p>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                sortedInvestissements.map((investissement: IInvestissement) => (
-                                    <Card key={investissement.id} className={`hover:shadow-md transition-shadow ${
-                                        investissement.nomInvestisseur?.toLowerCase().includes('pdg') || 
-                                        investissement.nomInvestisseur?.toLowerCase().includes('président') ||
-                                        investissement.nomInvestisseur?.toLowerCase().includes('directeur général') 
-                                        ? 'border-2 border-purple-200 bg-purple-50' 
-                                        : ''
-                                    }`}>
-                                        <CardContent className="p-6">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="p-2 bg-green-100 rounded-full">
-                                                        <TrendingUp className="w-5 h-5 text-green-600" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                           
-                                                            {investissement.nomInvestisseur?.toLowerCase().includes('pdg') || 
-                                                             investissement.nomInvestisseur?.toLowerCase().includes('président') ||
-                                                             investissement.nomInvestisseur?.toLowerCase().includes('directeur général') ? (
-                                                                <Badge variant="outline" className="text-purple-600 border-purple-200 bg-purple-50">
-                                                                    👔 PDG
-                                                                </Badge>
-                                                            ) : (
-                                                                <Badge variant="outline" className="text-green-600 border-green-200">
-                                                                    Actif
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-sm text-muted">{investissement.nomInvestisseur}</p>
-                                                        <p className="text-xs text-muted">
-                                                            {investissement.dateInvestissement && format(new Date(investissement.dateInvestissement), 'PPP', { locale: fr })}
-                                                        </p>
-                                                        {investissement.deadline && (
-                                                            <p className="text-xs text-orange-600">
-                                                                📅 Échéance: {format(new Date(investissement.deadline), 'PPP', { locale: fr })}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold text-lg text-green-600">
-                                                        {formatMontant(investissement.montant ?? 0)}
-                                                    </p>
-                                                    <p className="text-xs text-muted">
-                                                        Investissement personnel
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))
-                            )}
-                        </div>
-                    </TabsContent>
-                </Tabs>
             </div>
+
+            {enEchec && (
+                <EtatErreur
+                    compact
+                    enCours={isFetchingRecouvrements || isFetchingInvestissements}
+                    onReessayer={() => {
+                        if (isErrorRecouvrements) refetchRecouvrements();
+                        if (isErrorInvestissements) refetchInvestissements();
+                    }}
+                    quoi={
+                        isErrorRecouvrements && isErrorInvestissements
+                            ? 'les revenus encaissés'
+                            : isErrorRecouvrements
+                              ? 'les recouvrements'
+                              : 'les investissements'
+                    }
+                />
+            )}
+
+            {/* `md:` et non `lg:` : la fenetre des postes fait 1000 px et n'ouvre jamais `lg`. */}
+            <GrilleStats className="md:grid-cols-3" colonnes={3}>
+                <CarteStat
+                    icone={Wallet}
+                    isError={isErrorRecouvrements}
+                    isLoading={isLoadingRecouvrements}
+                    libelle="Recouvrements"
+                    note={noteRecouvrements}
+                    valeur={formatMontant(totalRecouvrements)}
+                />
+                <CarteStat
+                    icone={TrendingUp}
+                    isError={isErrorInvestissements}
+                    isLoading={isLoadingInvestissements}
+                    libelle="Investissements"
+                    note={`${apports.length} apports lus`}
+                    valeur={formatMontant(totalInvestissements)}
+                />
+                {/*
+                 * La seule carte mise en avant du bandeau : c'est la somme des deux autres,
+                 * pas une troisieme categorie. Un tiret si l'une des deux sources manque,
+                 * car un total ampute se lit comme une baisse.
+                 */}
+                <CarteStat
+                    accent
+                    icone={Coins}
+                    isError={enEchec}
+                    isLoading={isLoadingRecouvrements || isLoadingInvestissements}
+                    libelle="Total général"
+                    note={`${recouvrements.length + apports.length} opérations`}
+                    valeur={formatMontant(totalGeneral)}
+                />
+            </GrilleStats>
+
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <SearchField
+                    className="w-full md:max-w-sm"
+                    onChange={setRecherche}
+                    value={recherche}
+                >
+                    <Label>Recherche</Label>
+                    <SearchField.Group>
+                        <SearchField.SearchIcon />
+                        <SearchField.Input placeholder="Restaurant, investisseur ou référence…" />
+                        <SearchField.ClearButton />
+                    </SearchField.Group>
+                </SearchField>
+
+                {/*
+                 * La periode etait une liste deroulante : il fallait l'ouvrir pour savoir
+                 * ce qui etait filtre. Cinq choix tiennent sur une ligne, et le choix actif
+                 * se voit sans un clic.
+                 */}
+                <ToggleButtonGroup
+                    className="flex-wrap"
+                    onSelectionChange={(cles) => {
+                        const premiere = [...cles][0];
+                        if (premiere) setPeriode(premiere as Periode);
+                    }}
+                    selectedKeys={new Set([periode])}
+                    selectionMode="single"
+                >
+                    {PERIODES.map((p) => (
+                        <ToggleButton id={p.cle} key={p.cle} size="sm">
+                            {p.libelle}
+                        </ToggleButton>
+                    ))}
+                </ToggleButtonGroup>
+            </div>
+
+            {/* Pas de `Tabs.Indicator` : il leve hors d'un conteneur d'animation et fait
+                tomber la page entiere. */}
+            <Tabs
+                className="w-full"
+                onSelectionChange={(cle) => setOnglet(String(cle))}
+                selectedKey={onglet}
+            >
+                <Tabs.List className="overflow-x-auto">
+                    <Tabs.Tab id="recouvrements">{`Recouvrements (${recouvrementsFiltres.length})`}</Tabs.Tab>
+                    <Tabs.Tab id="investissements">{`Investissements (${apportsFiltres.length})`}</Tabs.Tab>
+                </Tabs.List>
+
+                <Tabs.Panel className="pt-4" id="recouvrements">
+                    <TableauResponsive
+                        cleLigne={(r) => r.id || `recouvrement-${recouvrementsFiltres.indexOf(r)}`}
+                        colonnes={colonnesRecouvrements}
+                        enChargement={isLoadingRecouvrements}
+                        enCoursDeRelance={isFetchingRecouvrements}
+                        erreur={isErrorRecouvrements}
+                        libelle="Recouvrements encaissés"
+                        lignes={recouvrementsFiltres}
+                        onReessayer={() => refetchRecouvrements()}
+                        quoi="les recouvrements"
+                        vide={
+                            cherche || periode !== 'tous'
+                                ? 'Aucun recouvrement pour ces critères.'
+                                : 'Aucun recouvrement enregistré.'
+                        }
+                    />
+                </Tabs.Panel>
+
+                <Tabs.Panel className="pt-4" id="investissements">
+                    <TableauResponsive
+                        cleLigne={(i) => i.id || `apport-${apportsFiltres.indexOf(i)}`}
+                        colonnes={colonnesApports}
+                        enChargement={isLoadingInvestissements}
+                        enCoursDeRelance={isFetchingInvestissements}
+                        erreur={isErrorInvestissements}
+                        libelle="Investissements reçus"
+                        lignes={apportsFiltres}
+                        onReessayer={() => refetchInvestissements()}
+                        quoi="les investissements"
+                        vide={
+                            cherche || periode !== 'tous'
+                                ? 'Aucun investissement pour ces critères.'
+                                : 'Aucun investissement enregistré.'
+                        }
+                    />
+                </Tabs.Panel>
+            </Tabs>
         </div>
     );
 }

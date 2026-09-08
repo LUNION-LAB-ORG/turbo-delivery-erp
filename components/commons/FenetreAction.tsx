@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Modal } from '@heroui-v3/react';
+import { Button, Modal, Spinner } from '@heroui-v3/react';
 import React from 'react';
 
 /**
@@ -25,6 +25,7 @@ import React from 'react';
  * <p>La croix de fermeture n'avait de nom accessible sur aucune des onze.</p>
  */
 export function FenetreAction({
+  actionInactive,
   children,
   destructif,
   enAttente,
@@ -35,6 +36,15 @@ export function FenetreAction({
   ouvert,
   titre,
 }: {
+  /**
+   * Le geste n'est pas possible en l'etat.
+   *
+   * <p>Il manquait, et c'est ce qui a produit un bouton MORT sur l'encaissement en lot :
+   * faute de pouvoir neutraliser l'action, l'ecran affichait « Encaisser 0 facture(s) »
+   * a plein contraste et se contentait de sortir en silence au clic. Un bouton qui a
+   * l'air de marcher est pire qu'un bouton grise.</p>
+   */
+  actionInactive?: boolean;
   children: React.ReactNode;
   /** Le geste détruit ou retire quelque chose : il prend la couleur du danger. */
   destructif?: boolean;
@@ -59,7 +69,15 @@ export function FenetreAction({
           <Modal.Dialog className="max-w-lg">
             <Modal.Header>
               <Modal.Heading>{titre}</Modal.Heading>
-              <Modal.CloseTrigger />
+              {/*
+                * La croix suit l'attente, comme les deux boutons du pied.
+                *
+                * <p>Elle restait a plein contraste et cliquable pendant qu'une action
+                * tournait. Elle appelle `onFermer`, que les ecrans ignorent dans cet
+                * etat : un controle vivant a l'oeil, inerte en fait, sur les quatorze
+                * fenetres qui montent cette coquille.</p>
+                */}
+              <Modal.CloseTrigger isDisabled={enAttente} />
             </Modal.Header>
             <Modal.Body className="flex flex-col gap-4">{children}</Modal.Body>
             <Modal.Footer>
@@ -71,12 +89,26 @@ export function FenetreAction({
                 {libelleFermer}
               </Button>
               {libelleAction && (
+                /*
+                 * L'attente se VOIT.
+                 *
+                 * <p>`isPending` rend le bouton inerte, mais son apparence bougeait trop
+                 * peu pour qu'on s'en apercoive : « Supprimer definitivement » gardait
+                 * exactement le meme aspect et cessait simplement de repondre. Un rond
+                 * d'attente le dit, comme sur le formulaire de connexion.</p>
+                 */
                 <Button
+                  isDisabled={actionInactive}
                   isPending={enAttente}
                   onPress={onAction}
                   variant={destructif ? 'danger' : 'primary'}
                 >
-                  {libelleAction}
+                  {({ isPending }: { isPending: boolean }) => (
+                    <>
+                      {isPending && <Spinner color="current" size="sm" />}
+                      {libelleAction}
+                    </>
+                  )}
                 </Button>
               )}
             </Modal.Footer>

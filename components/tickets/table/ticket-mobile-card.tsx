@@ -2,7 +2,8 @@
 
 import {
     Button,
-  Spinner,
+    Checkbox,
+    Spinner,
     Calendar,
     Card,
     ComboBox,
@@ -20,7 +21,6 @@ import { CalendarDate, Time, type DateValue } from '@internationalized/date';
 import { Check, ChevronLeft, ChevronRight, Pen, ShieldCheck, Trash2, X } from 'lucide-react';
 import React from 'react';
 
-import { Checkbox } from '@/components/ui/checkbox';
 import { SelecteurZone } from '@/features/tickets/components/selecteur-zone';
 import { commissionAffichee } from '@/features/tickets/utils/commission.utils';
 import { cn } from '@/lib/utils';
@@ -72,11 +72,27 @@ const enHeure = (v: string): Time | null => {
 };
 
 /** Une valeur en lecture : libelle a gauche, valeur a droite, alignees d'une ligne a l'autre. */
-function Champ({ libelle, children }: { libelle: string; children: React.ReactNode }) {
+function Champ({
+    chiffre,
+    libelle,
+    children,
+}: {
+    /** Un montant : chasse tabulaire, pour qu'il se compare d'une carte a l'autre. */
+    chiffre?: boolean;
+    libelle: string;
+    children: React.ReactNode;
+}) {
     return (
         <div className="flex items-center justify-between gap-3">
             <span className="shrink-0 text-xs text-muted">{libelle}</span>
-            <span className="truncate text-right text-sm text-foreground">{children}</span>
+            <span
+                className={cn(
+                    'truncate text-right text-sm text-foreground',
+                    chiffre && 'tabular-nums',
+                )}
+            >
+                {children}
+            </span>
         </div>
     );
 }
@@ -163,16 +179,26 @@ export function TicketMobileCard({
                 <div className="flex shrink-0 items-center gap-2">
                     {!enEdition && <StatutTicket statut={statutEffectif} />}
                     {/* La case fait 16 px de cote, sur la SEULE surface tactile de
-                        l'ecran. La regle des cibles demande 44 px. L'enveloppe porte la
-                        cible sans changer d'un pixel ce qui est dessine. */}
-                    <label className="-m-3.5 flex size-11 cursor-pointer items-center justify-center">
-                        <Checkbox
-                            aria-label="Sélectionner la ligne"
-                            checked={isSelected}
-                            disabled={estNouveau}
-                            onCheckedChange={(v) => onToggleSelect(!!v)}
-                        />
-                    </label>
+                        l'ecran. La regle des cibles demande 44 px. La marge negative porte
+                        la cible sans changer d'un pixel ce qui est dessine.
+
+                        L'enveloppe etait un `<label>` autour d'un `<button>` : le
+                        `Checkbox.Content` de la bibliotheque EST deja le `<label>`, et
+                        c'est donc lui qui doit porter la cible — la racine n'est qu'un div
+                        de champ, l'agrandir n'aurait rien donne au doigt. */}
+                    <Checkbox
+                        aria-label="Sélectionner la ligne"
+                        isDisabled={estNouveau}
+                        isSelected={isSelected}
+                        onChange={(coche) => onToggleSelect(coche)}
+                        slot={null}
+                    >
+                        <Checkbox.Content className="-m-3.5 size-11 justify-center">
+                            <Checkbox.Control>
+                                <Checkbox.Indicator />
+                            </Checkbox.Control>
+                        </Checkbox.Content>
+                    </Checkbox>
                 </div>
             </div>
 
@@ -226,7 +252,7 @@ export function TicketMobileCard({
                     </NumberField.Group>
                 </NumberField>
             ) : (
-                <Champ libelle="Montant de livraison">{formatCFA(ticket.montantLivraison)}</Champ>
+                <Champ chiffre libelle="Montant de livraison">{formatCFA(ticket.montantLivraison)}</Champ>
             )}
 
             {enEdition ? (
@@ -245,7 +271,7 @@ export function TicketMobileCard({
                     </NumberField.Group>
                 </NumberField>
             ) : (
-                <Champ libelle="Montant de commande">{formatCFA(ticket.montantCommande)}</Champ>
+                <Champ chiffre libelle="Montant de commande">{formatCFA(ticket.montantCommande)}</Champ>
             )}
 
             {/*
@@ -260,7 +286,7 @@ export function TicketMobileCard({
                     <Input placeholder="À l'enregistrement" />
                 </TextField>
             ) : (
-                <Champ libelle="Commission">{formatCFA(ticket?.commission ?? 0)}</Champ>
+                <Champ chiffre libelle="Commission">{formatCFA(ticket?.commission ?? 0)}</Champ>
             )}
 
             {enEdition ? (

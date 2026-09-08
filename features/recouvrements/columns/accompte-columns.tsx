@@ -1,55 +1,46 @@
 import { ColumnDef } from '@tanstack/react-table';
-import { IAccompte } from '@/features/recouvrements/types/accompte.types';
 import { format } from 'date-fns';
-import { MoreHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import React from 'react';
 
-// Composant mémorisé pour les actions
-const AccompteActions = React.memo(({ accompte }: { accompte: IAccompte }) => {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="outline">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-          {/* TODO: Ajouter le modal de modification */}
-          Modifier
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-          {/* TODO: Ajouter le modal de suppression */}
-          Supprimer
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-});
+import { IAccompte } from '@/features/recouvrements/types/accompte.types';
 
-AccompteActions.displayName = 'AccompteActions';
-
+/**
+ * Les colonnes du tableau des acomptes.
+ *
+ * <h3>Ce qui a ete retire</h3>
+ * <p>Un composant `AccompteActions`, un menu shadcn avec « Modifier » et « Supprimer »
+ * tous deux sans gestionnaire sous un `TODO`, vivait ici avec la colonne qui l'aurait
+ * rendu, mise en commentaire. Rien ne l'affichait : c'etait le dernier import de shadcn
+ * de ce fichier, pour un menu que personne n'a jamais vu. Une colonne « Statut » etait
+ * commentee de la meme facon ; la regle qu'elle portait (montant a zero = en attente)
+ * est deja appliquee, elle, par le bandeau de statistiques de l'onglet.</p>
+ *
+ * <p>Le rendu de la date journalisait par ailleurs la ligne entiere dans la console du
+ * navigateur, a chaque rendu de chaque ligne.</p>
+ */
 export const accompteColumns: ColumnDef<IAccompte>[] = [
   {
     id: 'dateAccompte',
     accessorKey: 'dateAccompte',
     header: 'Date',
     cell: ({ row }) => {
-      console.log(row.original);
       const date = new Date(row.getValue('dateAccompte'));
-      return format(date, 'dd/MM/yyyy');
+      return <span className="tabular-nums">{format(date, 'dd/MM/yyyy')}</span>;
     },
     enableSorting: false,
   },
   {
     id: 'montant',
     accessorKey: 'montant',
-    header: 'Montant',
+    // Une colonne d'argent se lit en la comparant a la ligne du dessus : alignee a
+    // droite, en-tete comprise, et en chasse tabulaire.
+    header: () => <span className="block text-right">Montant</span>,
     cell: ({ row }) => {
       const montant = row.getValue('montant') as number;
-      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(montant);
+      return (
+        <span className="block text-right tabular-nums">
+          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(montant)}
+        </span>
+      );
     },
     enableSorting: false,
   },
@@ -58,48 +49,4 @@ export const accompteColumns: ColumnDef<IAccompte>[] = [
     accessorKey: 'nomRestaurant',
     header: 'Partenaire',
   },
-  // {
-  //   id: 'statut',
-  //   header: 'Statut',
-  //   cell: ({ row }) => {
-  //     // Le statut peut être déduit du montant (0 = en attente, > 0 = validé)
-  //     const montant = row.getValue('montant') as number;
-  //     let statut: string;
-  //
-  //     if (montant > 0) {
-  //       statut = 'validé';
-  //     } else if (montant === 0) {
-  //       statut = 'en_attente';
-  //     } else {
-  //       statut = 'inconnu';
-  //     }
-  //
-  //     const getStatutVariant = (statutValue: string) => {
-  //       switch (statutValue) {
-  //         case 'validé':
-  //           return 'default' as const;
-  //         case 'en_attente':
-  //           return 'secondary' as const;
-  //         case 'rejeté':
-  //           return 'destructive' as const;
-  //         default:
-  //           return 'secondary' as const;
-  //       }
-  //     };
-  //
-  //     return (
-  //       <Badge variant={getStatutVariant(statut)}>
-  //         {statut === 'validé' ? 'Validé' :
-  //          statut === 'en_attente' ? 'En attente' :
-  //          statut === 'rejeté' ? 'Rejeté' : statut}
-  //       </Badge>
-  //     );
-  //   },
-  //   enableSorting: false,
-  // },
-  // {
-  //   id: 'actions',
-  //   cell: ({ row }) => <AccompteActions accompte={row.original} />,
-  //   enableSorting: false,
-  // },
 ];

@@ -1,303 +1,283 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Switch } from '@heroui-v3/react';
+import { Control, Controller, FieldErrors, FieldValues, Path } from 'react-hook-form';
 
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import {
+  ChampDate,
+  ChampListe,
+  ChampMontant,
+  ChampZoneTexte,
+} from '@/components/commons/champs-formulaire';
 import { ICategorieDepense } from '@/features/depenses/types/categorie-depense.type';
 import { IInvestissement } from '@/features/revenus/types/revenus.types';
-import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format } from 'date-fns';
-import { Calendar } from '@/components/ui/calendar';
-import { fr } from 'date-fns/locale';
-import { FieldErrors, UseFormRegister, UseFormSetValue } from 'react-hook-form';
 import { formatCFA } from '@/src/actions/bonLivraison.mapper';
-import { Switch } from '@/components/ui/switch';
 
-interface DepenseFormProps {
-  selectedDate: Date | undefined;
-  setSelectedDate: (date: Date | undefined) => void;
+const STATUTS = [
+  { label: 'Payée', value: 'PAID' },
+  { label: 'En attente', value: 'PENDING' },
+] as const;
+
+const SOURCES = [
+  { label: 'Espèces', value: 'especes' },
+  { label: 'Wave', value: 'wave' },
+  { label: 'Orange Money', value: 'orange-money' },
+  { label: 'MTN MoMo', value: 'mtn-momo' },
+  { label: 'Moov money', value: 'moov-money' },
+  { label: 'Autre', value: 'autre' },
+] as const;
+
+const TYPES = [
+  { label: 'Fixe', value: 'FIXE' },
+  { label: 'Variable', value: 'VARIABLE' },
+] as const;
+
+const PERIODICITES = [
+  { label: 'Quotidien', value: 'QUOTIDIEN' },
+  { label: 'Hebdomadaire', value: 'HEBDOMADAIRE' },
+  { label: 'Mensuel', value: 'MENSUEL' },
+  { label: 'Annuel', value: 'ANNUEL' },
+] as const;
+
+/** Sentinelle du choix « pas d'investisseur » : une liste ne se choisit pas avec une clef vide. */
+const AUCUN_INVESTISSEUR = 'aucun';
+
+/** La date circule en `Date` dans le formulaire, en texte dans le champ de saisie. */
+const versTexte = (valeur: unknown): string => {
+  if (!(valeur instanceof Date) || Number.isNaN(valeur.getTime())) return '';
+  const mois = String(valeur.getMonth() + 1).padStart(2, '0');
+  const jour = String(valeur.getDate()).padStart(2, '0');
+  return `${valeur.getFullYear()}-${mois}-${jour}`;
+};
+
+/*
+ * `new Date('2026-09-08')` est lu comme MINUIT UTC : a l'ouest de Greenwich la date
+ * recule d'un jour. Le suffixe d'heure locale garde le jour saisi.
+ */
+const versDate = (texte: string): Date | undefined =>
+  texte ? new Date(`${texte}T00:00:00`) : undefined;
+
+/*
+ * Le formulaire est generique sur les valeurs : la creation exige la categorie, le
+ * montant et la date, la modification les rend toutes facultatives. Un `Control<any>`
+ * n'accepterait NI l'un NI l'autre, car react-hook-form type ses controles de facon
+ * invariante, et il forcerait un transtypage chez chaque appelant.
+ */
+interface DepenseFormProps<T extends FieldValues> {
   categories: ICategorieDepense[] | undefined;
   categoriesLoading: boolean;
+  control: Control<T>;
+  errors: FieldErrors<T>;
   investissements: IInvestissement[];
   investissementsLoading: boolean;
-  register: UseFormRegister<any>;
-  errors: FieldErrors<any>;
-  setValue: UseFormSetValue<any>;
-  defaultCategorieId?: string;
-  defaultSource?: string;
-  defaultInvestissementId?: string;
-  defaultTypeDepense?: string;
-  defaultStatut?: string;
-  showTypeDepense?: boolean;
-  onShowTypeDepenseChange?: (checked: boolean) => void;
+  /** La depense revient a intervalle regulier : le rythme et la periodicite s'ouvrent. */
+  estRecurrente: boolean;
+  onEstRecurrenteChange: (valeur: boolean) => void;
 }
 
-export function DepenseForm({
-  selectedDate,
-  setSelectedDate,
+/**
+ * La saisie d'une depense, partagee par la creation et la modification.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le formulaire montait TROIS bibliotheques pour une seule ligne de saisie : un
+ * `Label`, un `Input` et un `<p className="text-red-500">` pour l'erreur. Ce rouge-la
+ * n'avait pas de variante sombre, et il ne touchait pas le champ : la bordure restait
+ * neutre a cote d'un message rouge, et rien ne reliait l'un a l'autre pour un lecteur
+ * d'ecran. Les champs de la maison portent l'erreur SUR le champ.</p>
+ *
+ * <p>Les cinq listes deroulantes ne se cherchaient pas. Sur les categories de depense, qui se
+ * comptent par dizaines, et sur les investissements, cela voulait dire derouler la
+ * liste entiere pour en trouver un. Ce sont des listes CHERCHABLES.</p>
+ *
+ * <p>La date se choisissait dans un calendrier ouvert par un bouton dont le libelle etait
+ * la date elle-meme, sans champ de saisie : impossible de taper « 03/09 » au clavier. Le
+ * champ de date de la maison se tape ET se choisit.</p>
+ *
+ * <p>Le montant etait un `<input type="number">` libre, dont la valeur repartait par un
+ * `parseFloat` pose a la main. Il est saisi en entier positif, formate a la francaise.</p>
+ */
+export function DepenseForm<T extends FieldValues>({
   categories,
   categoriesLoading,
+  control,
+  errors,
   investissements,
   investissementsLoading,
-  register,
-  errors,
-  setValue,
-  defaultCategorieId,
-  defaultSource,
-  defaultInvestissementId,
-  defaultTypeDepense,
-  defaultStatut,
-  showTypeDepense = false,
-  onShowTypeDepenseChange,
-}: DepenseFormProps) {
-  const [selectedStatut, setSelectedStatut] = useState(defaultStatut || "PENDING");
+  estRecurrente,
+  onEstRecurrenteChange,
+}: DepenseFormProps<T>) {
+  const optionsCategorie = (categories ?? []).map((c) => ({
+    label: c.nomCategorie,
+    value: c.id,
+  }));
 
-  useEffect(() => {
-    if (defaultStatut) {
-      setSelectedStatut(defaultStatut);
-      setValue('statut', defaultStatut);
-    }
-  }, [defaultStatut, setValue]);
+  const optionsInvestissement = [
+    { label: 'Aucun investisseur', value: AUCUN_INVESTISSEUR },
+    ...investissements.map((i) => ({
+      label: `${i.nomInvestisseur} - ${formatCFA(i.montant)}`,
+      value: i.id,
+    })),
+  ];
+
+  const champ = (nom: string) => nom as Path<T>;
+  const message = (nom: string) =>
+    (errors as FieldErrors)[nom]?.message as string | undefined;
+
   return (
-    <div className="grid gap-6">
-      {/* Date et Montant */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="dateDepense" className="text-sm text-muted">
-            Date de comptabilisation *
-          </Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                data-empty={!selectedDate}
-                className="data-[empty=true]:text-muted-foreground w-full justify-between text-left font-normal"
-              >
-                {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : <span>Choisissez une date</span>}
-                <CalendarIcon />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} defaultMonth={selectedDate} />
-            </PopoverContent>
-          </Popover>
-          {errors.dateDepense && <p className="text-red-500 text-sm">{errors.dateDepense.message as string}</p>}
-        </div>
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Controller
+          control={control}
+          name={champ('dateDepense')}
+          render={({ field }) => (
+            <ChampDate
+              erreur={message('dateDepense')}
+              label="Date de comptabilisation *"
+              onChange={(v) => field.onChange(versDate(v))}
+              valeur={versTexte(field.value)}
+            />
+          )}
+        />
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="montant" className="text-sm text-muted">
-            Montant de la dépense *
-          </Label>
-          <Input 
-            id="montant" 
-            placeholder="Montant" 
-            type="number" 
-            step="0.01" 
-            {...register('montant', { 
-              valueAsNumber: true,
-              onChange: (e) => {
-                const value = parseFloat(e.target.value);
-                setValue('montant', isNaN(value) ? 0 : value);
-              }
-            })} 
+        <Controller
+          control={control}
+          name={champ('montant')}
+          render={({ field }) => (
+            <ChampMontant
+              erreur={message('montant')}
+              label="Montant de la dépense *"
+              onChange={(v) => field.onChange(Number.isNaN(v) ? 0 : v)}
+              valeur={field.value as number | undefined}
+            />
+          )}
+        />
+      </div>
+
+      <Controller
+        control={control}
+        name={champ('statut')}
+        render={({ field }) => (
+          <ChampListe
+            erreur={message('statut')}
+            label="Statut de la dépense *"
+            onChange={field.onChange}
+            options={STATUTS}
+            placeholder="Sélectionnez le statut"
+            valeur={(field.value as string) ?? ''}
           />
-          {errors.montant && <p className="text-red-500 text-sm">{errors.montant.message as string}</p>}
-        </div>
+        )}
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Controller
+          control={control}
+          name={champ('categorieDepense')}
+          render={({ field }) => (
+            <ChampListe
+              erreur={message('categorieDepense')}
+              estDesactive={categoriesLoading}
+              label="Catégorie de dépenses *"
+              messageListeVide="Aucune catégorie enregistrée"
+              onChange={field.onChange}
+              options={optionsCategorie}
+              placeholder={categoriesLoading ? 'Chargement…' : 'Rechercher une catégorie'}
+              valeur={(field.value as string) ?? ''}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name={champ('sourcePaiement')}
+          render={({ field }) => (
+            <ChampListe
+              erreur={message('sourcePaiement')}
+              label="Source"
+              onChange={field.onChange}
+              options={SOURCES}
+              placeholder="Sélectionnez une source"
+              valeur={(field.value as string) ?? ''}
+            />
+          )}
+        />
       </div>
 
-      {/* Statut */}
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="statut" className="text-sm text-muted">
-          Statut de la dépense *
-        </Label>
-        <Select 
-          value={selectedStatut}
-          onValueChange={(value) => {
-            setSelectedStatut(value);
-            setValue('statut', value);
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Sélectionnez le statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Statut</SelectLabel>
-              <SelectItem value="PAID">Payée</SelectItem>
-              <SelectItem value="PENDING">En attente</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        {errors.statut && <p className="text-red-500 text-sm">{errors.statut.message as string}</p>}
-      </div>
-
-      {/* Catégorie + Source */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="categorieDepense" className="text-sm text-muted">
-            Catégorie de dépenses *
-          </Label>
-          <Select onValueChange={(value) => setValue('categorieDepense', value)} defaultValue={defaultCategorieId}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Sélectionnez une catégorie" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Catégories</SelectLabel>
-                {categoriesLoading ? (
-                  <SelectItem value="loading" disabled>
-                    Chargement...
-                  </SelectItem>
-                ) : categories && categories.length > 0 ? (
-                  categories.map((categorie: ICategorieDepense) => (
-                    <SelectItem key={categorie.id} value={categorie.id}>
-                      {categorie.nomCategorie}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="none" disabled>
-                    Aucune catégorie disponible
-                  </SelectItem>
-                )}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          {errors.categorieDepense && <p className="text-red-500 text-sm">{errors.categorieDepense.message as string}</p>}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="sourcePaiement" className="text-sm text-muted">
-            Source
-          </Label>
-          <Select onValueChange={(value) => setValue('sourcePaiement', value)} defaultValue={defaultSource}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Sélectionnez une source" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Source</SelectLabel>
-                <SelectItem value="especes">Espèces</SelectItem>
-                <SelectItem value="wave">Wave</SelectItem>
-                <SelectItem value="orange-money">Orange Money</SelectItem>
-                <SelectItem value="mtn-momo">MTN MoMo</SelectItem>
-                <SelectItem value="moov-money">Moov money</SelectItem>
-                <SelectItem value="autre">Autre</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          {errors.sourcePaiement && <p className="text-red-500 text-sm">{errors.sourcePaiement.message as string}</p>}
-        </div>
-      </div>
-
-      {/* Description */}
-      <div className="grid gap-3">
-        <Label htmlFor="description" className="text-sm text-muted">
-          Description *
-        </Label>
-        <Textarea id="description" placeholder="Description" {...register('description')} />
-        {errors.description && <p className="text-red-500 text-sm">{errors.description.message as string}</p>}
-      </div>
-
-      {/* Dépense récurrente */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <Switch
-            id="toggle-type-depense"
-            checked={showTypeDepense}
-            onCheckedChange={(checked) => {
-              onShowTypeDepenseChange?.(checked);
-              if (!checked) {
-                setValue('typeDepense', null);
-                setValue('periodicite', null);
-              }
-            }}
+      <Controller
+        control={control}
+        name={champ('description')}
+        render={({ field }) => (
+          <ChampZoneTexte
+            erreur={message('description')}
+            label="Description *"
+            onChange={field.onChange}
+            placeholder="À quoi correspond cette dépense ?"
+            valeur={(field.value as string) ?? ''}
           />
-          <Label htmlFor="toggle-type-depense" className="text-sm text-muted cursor-pointer">
-            Dépense récurrente (fixe)
-          </Label>
-        </div>
-        {showTypeDepense && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <Select onValueChange={(value) => setValue('typeDepense', value)} defaultValue={defaultTypeDepense ?? undefined}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Type de dépense" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Type</SelectLabel>
-                    <SelectItem value="FIXE">Fixe</SelectItem>
-                    <SelectItem value="VARIABLE">Variable</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              {errors.typeDepense && <p className="text-red-500 text-sm">{errors.typeDepense.message as string}</p>}
-            </div>
-            
-            <div className="flex flex-col gap-1">
-              <Select onValueChange={(value) => setValue('periodicite', value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Période" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Périodicité</SelectLabel>
-                    <SelectItem value="QUOTIDIEN">Quotidien</SelectItem>
-                    <SelectItem value="HEBDOMADAIRE">Hebdomadaire</SelectItem>
-                    <SelectItem value="MENSUEL">Mensuel</SelectItem>
-                    <SelectItem value="ANNUEL">Annuel</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              {errors.periodicite && <p className="text-red-500 text-sm">{errors.periodicite.message as string}</p>}
-            </div>
+        )}
+      />
+
+      <div className="flex flex-col gap-4">
+        {/* Le libelle vit DANS `Switch.Content`, qui est le `<label>` : pose a cote, il
+            ne bascule rien quand on le clique. */}
+        <Switch isSelected={estRecurrente} onChange={onEstRecurrenteChange}>
+          <Switch.Content>
+            <Switch.Thumb />
+            <span className="ms-2 text-sm text-foreground">Dépense récurrente (fixe)</span>
+          </Switch.Content>
+        </Switch>
+
+        {estRecurrente && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name={champ('typeDepense')}
+              render={({ field }) => (
+                <ChampListe
+                  erreur={message('typeDepense')}
+                  label="Type de dépense"
+                  onChange={field.onChange}
+                  options={TYPES}
+                  placeholder="Fixe ou variable"
+                  valeur={(field.value as string) ?? ''}
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name={champ('periodicite')}
+              render={({ field }) => (
+                <ChampListe
+                  erreur={message('periodicite')}
+                  label="Périodicité"
+                  onChange={field.onChange}
+                  options={PERIODICITES}
+                  placeholder="À quel rythme ?"
+                  valeur={(field.value as string) ?? ''}
+                />
+              )}
+            />
           </div>
         )}
       </div>
 
-      {/* Investisseur */}
-      <div className="grid gap-3">
-        <Label htmlFor="investisseur" className="text-sm text-muted">
-          Investissement (optionnel)
-        </Label>
-        <Select
-          onValueChange={(value) => setValue('investissementId', value === 'none' ? '' : value)}
-          defaultValue={defaultInvestissementId}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Sélectionnez un investissement" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Investisseurs</SelectLabel>
-              {investissementsLoading ? (
-                <SelectItem value="loading" disabled>
-                  Chargement...
-                </SelectItem>
-              ) : investissements && investissements.length > 0 ? (
-                <>
-                  <SelectItem value="none">Aucun investisseur</SelectItem>
-                  {investissements.map((investissement: IInvestissement) => (
-                    <SelectItem key={investissement.id} value={investissement.id}>
-                      {investissement.nomInvestisseur} - {formatCFA(investissement.montant)}
-                    </SelectItem>
-                  ))}
-                </>
-              ) : (
-                <SelectItem value="none" disabled>
-                  Aucun investissement
-                </SelectItem>
-              )}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        {errors.investissementId && <p className="text-red-500 text-sm">{errors.investissementId.message as string}</p>}
-      </div>
+      <Controller
+        control={control}
+        name={champ('investissementId')}
+        render={({ field }) => (
+          <ChampListe
+            erreur={message('investissementId')}
+            estDesactive={investissementsLoading}
+            label="Investissement (optionnel)"
+            onChange={(v) => field.onChange(v === AUCUN_INVESTISSEUR ? '' : v)}
+            options={optionsInvestissement}
+            placeholder={
+              investissementsLoading ? 'Chargement…' : 'Rechercher un investissement'
+            }
+            valeur={(field.value as string) || AUCUN_INVESTISSEUR}
+          />
+        )}
+      />
     </div>
   );
 }

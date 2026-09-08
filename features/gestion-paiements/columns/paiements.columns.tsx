@@ -1,9 +1,8 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Button, Chip } from '@heroui-v3/react';
+import { Button, Checkbox, Chip } from '@heroui-v3/react';
 import { FileText, Trash2, Wallet } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Can } from '@/components/auth/Can';
 import { IChargeFixe, StatutChargeFixe } from '@/features/charges/types/charge-fixe.type';
 import { formatMontant } from '@/utils/format.utils';
@@ -52,17 +51,45 @@ export function createPaiementsColumns({ onDecaisser, isPending, onDelete, isDel
   return [
     {
       id: 'select',
+      /*
+       * `slot={null}` : dans un `Table` v3, la case est branchee d'office sur le contexte
+       * de selection de la table, qui exige `slot="selection"` et fait tomber la page en
+       * 500 sans lui. Ici la selection est celle de TanStack, sur laquelle repose le
+       * decaissement par lot : on sort du contexte au lieu de changer de modele.
+       *
+       * Les deux libelles accessibles etaient en ANGLAIS — « Select all », « Select row » —
+       * sur un ecran entierement en francais.
+       */
       header: ({ table }) => (
         <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
+          aria-label="Tout sélectionner"
+          isIndeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
+          isSelected={table.getIsAllPageRowsSelected()}
+          onChange={(coche) => table.toggleAllPageRowsSelected(coche)}
+          slot={null}
+        >
+          <Checkbox.Content>
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+          </Checkbox.Content>
+        </Checkbox>
       ),
-      cell: ({ row }) => {
-        const disabled = isDecaisse(row.original);
-        return <Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} disabled={disabled} aria-label="Select row" />;
-      },
+      cell: ({ row }) => (
+        <Checkbox
+          aria-label={`Sélectionner ${row.original.designation}`}
+          isDisabled={isDecaisse(row.original)}
+          isSelected={row.getIsSelected()}
+          onChange={(coche) => row.toggleSelected(coche)}
+          slot={null}
+        >
+          <Checkbox.Content>
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+          </Checkbox.Content>
+        </Checkbox>
+      ),
       enableSorting: false,
       enableHiding: false,
     },
@@ -78,8 +105,18 @@ export function createPaiementsColumns({ onDecaisser, isPending, onDelete, isDel
     },
     {
       accessorKey: 'montant',
-      header: 'Montant',
-      cell: ({ row }) => <span className="text-sm font-medium text-foreground">{formatMontant(row.getValue<number>('montant'))}</span>,
+      /*
+       * Une colonne d'ARGENT : alignee a gauche en chasse proportionnelle, deux montants
+       * de la liste ne se comparaient pas, et « 1 200 000 » sous « 950 000 » ne se lisait
+       * pas comme un ordre de grandeur au-dessus. En-tete compris, faute de quoi le titre
+       * flotte au-dessus d'une colonne qui, elle, est calee a droite.
+       */
+      header: () => <span className="block text-right">Montant</span>,
+      cell: ({ row }) => (
+        <span className="block text-right text-sm font-medium text-foreground tabular-nums">
+          {formatMontant(row.getValue<number>('montant'))}
+        </span>
+      ),
     },
     {
       accessorKey: 'statut',

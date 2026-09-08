@@ -1,135 +1,139 @@
-﻿import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel"
-import { ICommission } from "@/features/revenus/types/commission.types";
+'use client';
+
+import { Card } from '@heroui-v3/react';
+import { format, parseISO } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { useMemo } from 'react';
+
+import { ICommission } from '@/features/revenus/types/commission.types';
 import { formatMontant } from '@/utils/format.utils';
-import Autoplay from "embla-carousel-autoplay"
-import { useMemo } from "react"
-import { format, parseISO } from "date-fns"
-import { fr } from "date-fns/locale"
 
 interface LastCommissionProps {
     commission?: ICommission[];
 }
 
+/**
+ * La date d'une commission, a la minute.
+ *
+ * <p>L'heure est gardee : deux commissions du meme partenaire tombent souvent le meme
+ * jour, et c'est l'heure qui les distingue dans la liste.</p>
+ */
+function formatDate(dateString: string): string {
+    if (!dateString) return '';
+    try {
+        return format(parseISO(dateString), 'dd/MM/yyyy HH:mm', { locale: fr });
+    } catch {
+        return dateString;
+    }
+}
+
+/**
+ * Les commissions en pourcentage encaissees ce mois-ci.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>C'etait un CARROUSEL vertical qui defilait tout seul toutes les SECONDES, monte sur
+ * embla via le carrousel de shadcn. Un montant qui glisse hors de l'ecran au bout d'une
+ * seconde ne se lit pas, et deux montants qui ne sont jamais immobiles ensemble ne se
+ * comparent pas. Il fallait de surcroit attendre le tour complet pour revoir une ligne :
+ * la carte AFFICHAIT la donnee sans permettre de la consulter. Le defilement automatique
+ * est la seule chose retiree.</p>
+ *
+ * <p>La forme naturelle de cette donnee est une liste : les partenaires les uns sous les
+ * autres, du plus recent au plus ancien, les montants alignes a droite en chasse tabulaire
+ * pour que les milliers tombent les uns sous les autres. Elle se defile a la main, dans
+ * les deux sens, aussi lentement qu'on veut.</p>
+ *
+ * <p>Trois couleurs disparaissent avec le carrousel : le degrade bleu du bandeau, le bleu
+ * du nom de restaurant et le vert des montants. Aucune ne disait quoi que ce soit — ni
+ * alerte, ni reussite, ni geste — et aucune n'avait de variante sombre. L'icone monetaire
+ * du titre etait par ailleurs un heroicon recopie a la main, une quatrieme source d'icones
+ * a cote de lucide.</p>
+ *
+ * <p>Le cas VIDE n'etait pas traite : sans commission ce mois-ci, le carrousel rendait
+ * 400 px de blanc sous un titre. Il se dit maintenant.</p>
+ */
 export default function LastCommission({ commission }: LastCommissionProps) {
-    
-    // Fonction pour formater la date
-    const formatDate = (dateString: string) => {
-        if (!dateString) return "";
-        
-        try {
-            const date = parseISO(dateString);
-            return format(date, "dd/MM/yyyy HH:mm", { locale: fr });
-        } catch (error) {
-            console.warn("Erreur de formatage de date:", error);
-            return dateString;
-        }
-    };
-    
-    // Filtrer les commissions du mois courant
     const commissionMoisCourant = useMemo(() => {
         if (!commission) return [];
-        
+
         const maintenant = new Date();
         const moisCourant = maintenant.getMonth();
         const anneeCourante = maintenant.getFullYear();
-        
-        return commission.filter(commission => {
-            const dateCommission = new Date(commission.createdAt);
-            return dateCommission.getMonth() === moisCourant && 
-                   dateCommission.getFullYear() === anneeCourante;
-        });
+
+        return commission
+            .filter((ligne) => {
+                const date = new Date(ligne.createdAt);
+                return date.getMonth() === moisCourant && date.getFullYear() === anneeCourante;
+            })
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }, [commission]);
 
+    const total = commissionMoisCourant.reduce((somme, ligne) => somme + (ligne.commission || 0), 0);
+
     return (
-        <div className="p-4">
-            <Card className="max-w-6xl mx-auto shadow-lg rounded-xl overflow-hidden border-0">
-                <CardHeader className="py-4 bg-linear-to-r from-blue-50 to-indigo-50">
-                    <CardTitle className="text-xl font-bold flex items-center text-blue-800">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Commission du mois courant
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="p-5">
-                        <Carousel
-                            opts={{
-                                align: "start",
-                                loop: true,
-                            }}
-                            plugins={[
-                                Autoplay({
-                                    delay: 1000,
-                                    stopOnInteraction: false,
-                                    stopOnMouseEnter: true,
-                                })
-                            ]}
-                            orientation="vertical"
-                            className="w-full max-w-md mx-auto"
-                        >
-                            <CarouselContent className="h-[400px]">
-                                {commissionMoisCourant?.map((commission) => (
-                                    <CarouselItem key={commission.id} className="pt-4 basis-1/2">
-                                        <div className="p-2">
-                                            <Card className="rounded-lg shadow-md overflow-hidden border border-separator hover:shadow-lg transition-all duration-300">
-                                                <div className="p-4">
-                                                    <div className="flex flex-col gap-3">
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="space-y-1">
-                                                                <span className="text-xs text-muted font-medium">Restaurant</span>
-                                                                <h3 className="font-semibold text-sm text-blue-600">{commission.nomRestaurant}</h3>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <span className="text-xs text-muted block">Commission</span>
-                                                                <span className="text-sm font-bold text-green-600">{formatMontant(commission.commission)}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="space-y-1">
-                                                                <span className="text-xs text-muted font-medium">Localisation</span>
-                                                                <h3 className="font-semibold text-sm text-blue-600">{commission.localisation}</h3>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <span className="text-xs text-muted block">Frais livraison</span>
-                                                                <span className="text-sm font-bold text-green-600">{formatMontant(commission.fraisLivraison)}</span>
-                                                            </div>
-                                                        </div>
+        <Card>
+            <Card.Header className="flex-row items-baseline justify-between gap-3">
+                <Card.Title className="text-base">Commissions du mois courant</Card.Title>
+                <span className="shrink-0 text-xs tabular-nums text-muted">
+                    {commissionMoisCourant.length} commission
+                    {commissionMoisCourant.length > 1 ? 's' : ''}
+                </span>
+            </Card.Header>
 
-                                                        <div className="space-y-2">
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs text-muted">Date</span>
-                                                                <span className="text-xs font-medium">{formatDate(commission.createdAt)}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </Card>
-                                        </div>
-                                    </CarouselItem>
-                                ))}
-                            </CarouselContent>
-                            <div className="flex justify-center gap-2 mt-4">
-                                <CarouselPrevious className="relative static mt-0 transform-none" />
-                                <CarouselNext className="relative static mt-0 transform-none" />
-                            </div>
-                        </Carousel>
-                    </div>
-
-                    {/* Pied de carte avec statistiques */}
-                    <div className="px-5 py-4 border-t border-separator bg-surface-secondary">
-                        <div className="flex justify-between items-center">
-                            <div className="text-sm text-muted">
-                                Total ce mois: {commissionMoisCourant?.length} commission(s)
-                            </div>
-                            <div className="text-sm font-semibold text-blue-600">
-                                Montant total: {formatMontant(commissionMoisCourant?.reduce((sum, commission) => sum + commission.commission, 0))}
-                            </div>
+            <Card.Content className="p-0">
+                {commissionMoisCourant.length === 0 ? (
+                    <p className="px-4 py-10 text-center text-sm text-muted">
+                        Aucune commission ce mois-ci
+                    </p>
+                ) : (
+                    <>
+                        {/* Les libelles « Restaurant » et « Commission » etaient repetes sur
+                            chaque vignette du carrousel. Ils sont dits une fois, en tete de
+                            colonne, la ou ils servent a lire toute la liste. */}
+                        <div className="flex items-center justify-between gap-3 border-b border-separator px-4 py-2 text-xs text-muted">
+                            <span>Restaurant</span>
+                            <span>Commission</span>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    )
+                        <ul className="max-h-72 divide-y divide-separator overflow-y-auto">
+                            {commissionMoisCourant.map((ligne) => (
+                                <li
+                                    className="flex items-start justify-between gap-3 px-4 py-2.5"
+                                    key={ligne.id}
+                                >
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-medium text-foreground">
+                                            {ligne.nomRestaurant}
+                                        </p>
+                                        <p className="truncate text-xs text-muted">
+                                            {ligne.localisation}
+                                        </p>
+                                        <p className="text-xs tabular-nums text-muted">
+                                            {formatDate(ligne.createdAt)}
+                                        </p>
+                                    </div>
+                                    <div className="shrink-0 text-right">
+                                        <p className="text-sm font-semibold tabular-nums text-foreground">
+                                            {formatMontant(ligne.commission)}
+                                        </p>
+                                        <p className="text-xs tabular-nums text-muted">
+                                            Livraison {formatMontant(ligne.fraisLivraison)}
+                                        </p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </>
+                )}
+            </Card.Content>
+
+            <Card.Footer className="flex items-baseline justify-between gap-3 border-t border-separator">
+                <span className="text-sm text-muted">Montant total</span>
+                {/* Le total tombe dans la meme colonne que les montants de la liste :
+                    c'est la seule facon de verifier une somme d'un coup d'oeil. */}
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                    {formatMontant(total)}
+                </span>
+            </Card.Footer>
+        </Card>
+    );
 }

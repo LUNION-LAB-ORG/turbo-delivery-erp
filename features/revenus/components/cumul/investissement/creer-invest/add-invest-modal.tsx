@@ -1,83 +1,75 @@
-﻿'use client';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { useAjouterInvestissementMutation } from '@/features/revenus/queries/investissement/investissement.mutation';
-import { toast } from 'sonner';
-import { useForm } from 'react-hook-form';
+'use client';
+
+import { Button } from '@heroui-v3/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { InvestissementCreateDTO, InvestissementCreateSchema } from '@/features/revenus/schemas/investissement.schema';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { useAjouterInvestissementMutation } from '@/features/revenus/queries/investissement/investissement.mutation';
+import {
+  InvestissementCreateDTO,
+  InvestissementCreateSchema,
+} from '@/features/revenus/schemas/investissement.schema';
+
 import { InvestissementForm } from '../investissement-form';
 
 export function AddInvestModal() {
   const [open, setOpen] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-  } = useForm<InvestissementCreateDTO>({
+  const form = useForm<InvestissementCreateDTO>({
     resolver: zodResolver(InvestissementCreateSchema),
     defaultValues: {
-      nomInvestisseur: '',
-      montant: 0,
       dateInvestissement: '',
       deadline: '',
+      montant: 0,
+      nomInvestisseur: '',
     },
   });
 
-  const ajouterInvestissementMutation = useAjouterInvestissementMutation();
+  const { handleSubmit, reset } = form;
 
-  const resetForm = () => {
+  const ajouterInvestissementMutation = useAjouterInvestissementMutation();
+  const enAttente = form.formState.isSubmitting || ajouterInvestissementMutation.isPending;
+
+  const fermer = () => {
     reset();
+    setOpen(false);
   };
 
-  const onSubmit = async (data: InvestissementCreateDTO) => {
-    const formData = {
-      nomInvestisseur: data.nomInvestisseur,
-      montant: data.montant,
-      dateInvestissement: data.dateInvestissement,
-      deadline: data.deadline,
-    };
-
-    ajouterInvestissementMutation.mutate(formData, {
+  const onSubmit = (data: InvestissementCreateDTO) => {
+    ajouterInvestissementMutation.mutate(data, {
       onSuccess: () => {
-        resetForm();
-        setOpen(false);
+        fermer();
         toast.success('Investissement créé avec succès !');
       },
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="secondary">
-          <Plus />
-          <span className="hidden md:flex">Ajouter Investissement</span>
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[95%] sm:max-w-[600px] w-full mt-3 sm:mt-3 md:mt-0">
-        <DialogHeader>
-          <DialogTitle>Ajouter un investissement</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <InvestissementForm register={register} errors={errors} />
+    <>
+      {/*
+       * Sous 768 px le libelle est masque et il ne reste que le signe « + » : le bouton
+       * n'avait alors PLUS AUCUN nom, ni a l'ecran ni pour un lecteur d'ecran. Le nom
+       * accessible est desormais porte par le bouton lui-meme, quelle que soit la largeur.
+       */}
+      <Button aria-label="Ajouter un investissement" onPress={() => setOpen(true)} variant="secondary">
+        <Plus aria-hidden="true" className="size-4" />
+        <span className="hidden md:inline">Ajouter Investissement</span>
+      </Button>
 
-          <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
-            <DialogClose asChild>
-              <Button variant="outline" onClick={() => resetForm()}>
-                Annuler
-              </Button>
-            </DialogClose>
-            <Button variant="secondary" type="submit" className="cursor-pointer" disabled={isSubmitting || ajouterInvestissementMutation.isPending}>
-              {isSubmitting || ajouterInvestissementMutation.isPending ? 'Création en cours...' : 'Ajouter'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <FenetreAction
+        enAttente={enAttente}
+        libelleAction="Ajouter"
+        onAction={handleSubmit(onSubmit)}
+        onFermer={fermer}
+        ouvert={open}
+        titre="Ajouter un investissement"
+      >
+        <InvestissementForm form={form} />
+      </FenetreAction>
+    </>
   );
 }

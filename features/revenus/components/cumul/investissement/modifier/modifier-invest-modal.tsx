@@ -1,66 +1,74 @@
-﻿'use client';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useState } from 'react';
-import { Edit } from 'lucide-react';
-import { useModifierInvestissementMutation } from '@/features/revenus/queries/investissement/investissement.mutation';
-import { toast } from 'sonner';
-import { useForm } from 'react-hook-form';
+'use client';
+
 import { zodResolver } from '@hookform/resolvers/zod';
-import { InvestissementUpdateDTO, InvestissementUpdateSchema } from '@/features/revenus/schemas/investissement.schema';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { useModifierInvestissementMutation } from '@/features/revenus/queries/investissement/investissement.mutation';
+import {
+  InvestissementUpdateDTO,
+  InvestissementUpdateSchema,
+} from '@/features/revenus/schemas/investissement.schema';
 import { IInvestissement } from '@/features/revenus/types/revenus.types';
+
 import { InvestissementForm } from '../investissement-form';
 
 interface ModifierInvestModalProps {
   investissement: IInvestissement;
+  onFermer: () => void;
+  ouvert: boolean;
 }
 
-export function ModifierInvestModal({ investissement }: ModifierInvestModalProps) {
-  const [open, setOpen] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-    setValue,
-  } = useForm<InvestissementUpdateDTO>({
+/**
+ * <p>La fenetre portait son propre declencheur, un `<button>` nu place DANS un element de
+ * menu : un element interactif dans un autre element interactif, dont le comportement
+ * n'est pas defini. Elle est maintenant pilotee par la ligne, qui sait quel geste a ete
+ * choisi dans le menu.</p>
+ */
+export function ModifierInvestModal({ investissement, onFermer, ouvert }: ModifierInvestModalProps) {
+  const form = useForm<InvestissementUpdateDTO>({
     resolver: zodResolver(InvestissementUpdateSchema),
     defaultValues: {
-      nomInvestisseur: investissement.nomInvestisseur,
-      montant: investissement.montant,
       dateInvestissement: investissement.dateInvestissement,
       deadline: investissement.deadline,
+      montant: investissement.montant,
+      nomInvestisseur: investissement.nomInvestisseur,
     },
   });
 
+  const { handleSubmit, reset } = form;
+
+  // La fenetre n'est plus demontee entre deux ouvertures : sans cette remise a l'etat de
+  // la ligne, on rouvrirait sur la saisie abandonnee la fois precedente.
+  useEffect(() => {
+    if (!ouvert) return;
+    reset({
+      dateInvestissement: investissement.dateInvestissement,
+      deadline: investissement.deadline,
+      montant: investissement.montant,
+      nomInvestisseur: investissement.nomInvestisseur,
+    });
+  }, [investissement, ouvert, reset]);
+
   const modifierInvestissementMutation = useModifierInvestissementMutation();
+  const enAttente = form.formState.isSubmitting || modifierInvestissementMutation.isPending;
 
-  const onSubmit = async (data: InvestissementUpdateDTO) => {
-    const formData = {
-      nomInvestisseur: data.nomInvestisseur,
-      montant: data.montant,
-      dateInvestissement: data.dateInvestissement,
-      deadline: data.deadline,
-    };
-
+  const onSubmit = (data: InvestissementUpdateDTO) => {
     modifierInvestissementMutation.mutate(
+      { data, id: investissement.id },
       {
-        id: investissement.id,
-        data: formData,
-      },
-      {
-        onSuccess: () => {
-          reset();
-          setOpen(false);
-          toast.success('Investissement modifié avec succès', {
-            description: `L'investissement de "${formData.nomInvestisseur}" a été modifié avec succès`,
-            duration: 4000,
-          });
-        },
         onError: () => {
           toast.error('Erreur lors de la modification', {
             description: "Une erreur s'est produite lors de la modification",
+            duration: 4000,
+          });
+        },
+        onSuccess: () => {
+          onFermer();
+          toast.success('Investissement modifié avec succès', {
+            description: `L'investissement de "${data.nomInvestisseur}" a été modifié avec succès`,
             duration: 4000,
           });
         },
@@ -69,33 +77,18 @@ export function ModifierInvestModal({ investissement }: ModifierInvestModalProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <button className="flex items-center gap-2 cursor-pointer hover:text-blue-800 transition-colors">
-          <Edit className="h-5 w-5 text-amber-500" />
-          <span className="hidden md:flex text-sm font-medium">Modifier</span>
-        </button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[95%] sm:max-w-[600px] w-full mt-3 sm:mt-3 md:mt-0">
-        <DialogHeader>
-          <DialogTitle>Modifier un investissement</DialogTitle>
-          <DialogDescription>Modifiez les informations de l&apos;investissement de {investissement.nomInvestisseur}</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <InvestissementForm register={register as any} errors={errors} defaultValues={investissement} />
-
-          <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
-            <DialogClose asChild>
-              <Button variant="outline" onClick={() => reset()}>
-                Annuler
-              </Button>
-            </DialogClose>
-            <Button variant="secondary" type="submit" className="cursor-pointer" disabled={isSubmitting || modifierInvestissementMutation.isPending}>
-              {isSubmitting || modifierInvestissementMutation.isPending ? 'Modification en cours...' : 'Modifier'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FenetreAction
+      enAttente={enAttente}
+      libelleAction="Modifier"
+      onAction={handleSubmit(onSubmit)}
+      onFermer={onFermer}
+      ouvert={ouvert}
+      titre="Modifier un investissement"
+    >
+      <p className="text-sm text-muted">
+        Modifiez les informations de l&apos;investissement de {investissement.nomInvestisseur}
+      </p>
+      <InvestissementForm form={form} />
+    </FenetreAction>
   );
 }

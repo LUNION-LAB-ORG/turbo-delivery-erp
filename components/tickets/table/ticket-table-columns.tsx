@@ -7,6 +7,7 @@ import { formatDateFR, formatHoursMinutes } from '@/src/actions/bonLivraison.map
 import { formatMontant } from '@/utils/format.utils';
 import {
   Button,
+  Checkbox,
   Spinner,
   ComboBox,
   DateField,
@@ -25,7 +26,6 @@ import { Check, ChevronLeft, ChevronRight, Pen, ShieldCheck, Trash2, X } from 'l
 import { SelecteurZone } from '@/features/tickets/components/selecteur-zone';
 import { commissionAffichee } from '@/features/tickets/utils/commission.utils';
 import { StatutTicket } from './statut-ticket';
-import { Checkbox } from '@/components/ui/checkbox';
 import { StatutControle } from '@/types/statut-controle.enum';
 
 /** « 2026-09-04 » vers une date calendaire, sans heure ni fuseau. */
@@ -105,14 +105,44 @@ const isNew = (ticket: Ticket, meta: TicketColumnMeta): boolean => {
 export const createTicketColumns = (): ColumnDef<Ticket>[] => [
   {
     id: 'select',
+    /*
+     * `slot={null}` : dans un `Table` v3, la case est branchee d'office sur le contexte
+     * de selection de la table, qui exige `slot="selection"` et fait tomber la page en
+     * 500 sans lui. Ici la selection est celle de TanStack — c'est elle que lisent la
+     * suppression en masse et la carte mobile — on sort donc du contexte.
+     *
+     * Les deux libelles accessibles etaient en ANGLAIS, seuls de leur espece sur un
+     * ecran entierement en francais : un lecteur d'ecran annoncait « Select row ».
+     */
     header: ({ table }) => (
       <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
+        aria-label="Tout sélectionner"
+        isIndeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
+        isSelected={table.getIsAllPageRowsSelected()}
+        onChange={(coche) => table.toggleAllPageRowsSelected(coche)}
+        slot={null}
+      >
+        <Checkbox.Content>
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+        </Checkbox.Content>
+      </Checkbox>
     ),
-    cell: ({ row }) => <Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row" />,
+    cell: ({ row }) => (
+      <Checkbox
+        aria-label="Sélectionner la ligne"
+        isSelected={row.getIsSelected()}
+        onChange={(coche) => row.toggleSelected(coche)}
+        slot={null}
+      >
+        <Checkbox.Content>
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+        </Checkbox.Content>
+      </Checkbox>
+    ),
     enableSorting: false,
     enableHiding: false,
   },

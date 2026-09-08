@@ -1,14 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Button,
-Spinner, Tooltip } from '@heroui-v3/react';
+import { Button, Checkbox, Spinner, Tooltip } from '@heroui-v3/react';
 import { ColumnDef } from '@tanstack/react-table';
 import { ArchiveRestore } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-import { Checkbox } from '@/components/ui/checkbox';
 import { formatCFA, formatDateFR, formatHoursMinutes } from '@/src/actions/bonLivraison.mapper';
 import { IArchiveBonLivraisonVm } from '@/features/tickets/types/tickets.type';
 
@@ -43,18 +41,56 @@ function AgentCell({ agent, date }: AgentCellProps) {
   );
 }
 
+/**
+ * Les colonnes des tickets archives.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>La case a cocher venait de la SECONDE bibliotheque de composants ; c'est celle de la
+ * bibliotheque unique, sortie du contexte de selection de la table.</p>
+ *
+ * <p>Les trois colonnes d'argent — cout de livraison, cout de commande, commission —
+ * etaient alignees a GAUCHE en chasse proportionnelle : deux montants de la meme ligne ne
+ * se comparaient pas, et « 1 000 » sous « 900 » ne se lisait pas comme dix fois plus. Elles
+ * s'alignent a droite en chasse tabulaire, en-tetes compris, comme dans l'onglet « Tous les
+ * tickets » a cote.</p>
+ */
 export const ticketArchivesColumns: ColumnDef<IArchiveBonLivraisonVm>[] = [
   {
     id: 'select',
+    /*
+     * `slot={null}` : dans un `Table` v3, la case est branchee d'office sur le contexte
+     * de selection de la table, qui exige `slot="selection"` et fait tomber la page en
+     * 500 sans lui. Ici la selection est celle de TanStack — c'est elle que lisent la
+     * restauration en masse et le compteur — on sort donc du contexte.
+     */
     header: ({ table }) => (
       <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Tout sélectionner"
-      />
+        isIndeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
+        isSelected={table.getIsAllPageRowsSelected()}
+        onChange={(coche) => table.toggleAllPageRowsSelected(coche)}
+        slot={null}
+      >
+        <Checkbox.Content>
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+        </Checkbox.Content>
+      </Checkbox>
     ),
     cell: ({ row }) => (
-      <Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Sélectionner la ligne" />
+      <Checkbox
+        aria-label="Sélectionner la ligne"
+        isSelected={row.getIsSelected()}
+        onChange={(coche) => row.toggleSelected(coche)}
+        slot={null}
+      >
+        <Checkbox.Content>
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+        </Checkbox.Content>
+      </Checkbox>
     ),
     enableSorting: false,
     enableHiding: false,
@@ -72,7 +108,13 @@ export const ticketArchivesColumns: ColumnDef<IArchiveBonLivraisonVm>[] = [
   {
     accessorKey: 'restaurant',
     header: 'Partner',
-    cell: ({ row }) => <span className="text-xs text-blue-500">{row.original.restaurant}</span>,
+    /*
+     * Le nom du partenaire etait peint en `text-blue-500`, une couleur de palette brute
+     * posee sur une CATEGORIE : elle n'appelle aucun geste, ce n'est pas un lien, et
+     * l'onglet « Tous les tickets » rend la meme colonne en texte ordinaire. Deux
+     * traitements de la meme donnee sur les deux onglets du meme ecran.
+     */
+    cell: ({ row }) => <span className="text-xs">{row.original.restaurant}</span>,
   },
   {
     accessorKey: 'nomZone',
@@ -86,18 +128,24 @@ export const ticketArchivesColumns: ColumnDef<IArchiveBonLivraisonVm>[] = [
   },
   {
     accessorKey: 'coutLivraison',
-    header: 'Montant de Livraison',
-    cell: ({ row }) => <span className="text-xs">{formatCFA(row.original.coutLivraison)}</span>,
+    header: () => <span className="block text-right">Montant de Livraison</span>,
+    cell: ({ row }) => (
+      <span className="block text-right text-xs tabular-nums">{formatCFA(row.original.coutLivraison)}</span>
+    ),
   },
   {
     accessorKey: 'coutCommande',
-    header: 'Montant de Commande',
-    cell: ({ row }) => <span className="text-xs">{formatCFA(row.original.coutCommande)}</span>,
+    header: () => <span className="block text-right">Montant de Commande</span>,
+    cell: ({ row }) => (
+      <span className="block text-right text-xs tabular-nums">{formatCFA(row.original.coutCommande)}</span>
+    ),
   },
   {
     accessorKey: 'commission',
-    header: 'Commission',
-    cell: ({ row }) => <span className="text-xs">{formatCFA(row.original.commission ?? 0)}</span>,
+    header: () => <span className="block text-right">Commission</span>,
+    cell: ({ row }) => (
+      <span className="block text-right text-xs tabular-nums">{formatCFA(row.original.commission ?? 0)}</span>
+    ),
   },
   {
     accessorKey: 'date',

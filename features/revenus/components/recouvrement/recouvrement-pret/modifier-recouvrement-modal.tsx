@@ -1,24 +1,32 @@
-﻿'use client';
+'use client';
 
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
-import { RecouvrementEditDTO, recouvrementEditSchema } from '@/features/revenus/schemas/recouvrement/recouvrement.schema';
+import { useForm } from 'react-hook-form';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { useModifierRecouvrementMutation } from '@/features/recouvrements/queries/recouvrement.mutation';
 import { usePretListQuery } from '@/features/revenus/queries/prets/pret-list.query';
+import {
+  RecouvrementEditDTO,
+  recouvrementEditSchema,
+} from '@/features/revenus/schemas/recouvrement/recouvrement.schema';
 import { IRecouvrement } from '@/features/revenus/types/recouvrement/recouvrement.types';
-import { RecouvrementForm } from './recouvrement-form';
 import { createUrlFile } from '@/utils/createUrlFile';
 
+import { RecouvrementForm } from './recouvrement-form';
+
 interface ModifierRecouvrementModalProps {
-  recouvrement: IRecouvrement;
-  open: boolean;
   onOpenChange: (open: boolean) => void;
+  open: boolean;
+  recouvrement: IRecouvrement;
 }
 
-export function ModifierRecouvrementModal({ recouvrement, open, onOpenChange }: ModifierRecouvrementModalProps) {
+export function ModifierRecouvrementModal({
+  onOpenChange,
+  open,
+  recouvrement,
+}: ModifierRecouvrementModalProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(recouvrement.dateRecouvrement));
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -27,31 +35,28 @@ export function ModifierRecouvrementModal({ recouvrement, open, onOpenChange }: 
   const form = useForm<RecouvrementEditDTO>({
     resolver: zodResolver(recouvrementEditSchema),
     defaultValues: {
-      montant: recouvrement.montant,
       dateRecouvrement: new Date(recouvrement.dateRecouvrement),
-      restaurantId: recouvrement.restaurantId,
       factureId: '',
+      montant: recouvrement.montant,
       preuve: undefined,
+      restaurantId: recouvrement.restaurantId,
     },
   });
 
   const { handleSubmit, reset, setValue } = form;
-  const { mutateAsync: modifierMutation, isPending: isLoading } = useModifierRecouvrementMutation();
+  const { isPending: isLoading, mutateAsync: modifierMutation } = useModifierRecouvrementMutation();
 
-  const handleDialogOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      reset({
-        montant: 0,
-        dateRecouvrement: new Date(),
-        restaurantId: '',
-        factureId: '',
-        preuve: undefined,
-      });
-      setSelectedDate(new Date());
-      setSelectedFile(null);
-    }
-
-    onOpenChange(nextOpen);
+  const fermer = () => {
+    reset({
+      dateRecouvrement: new Date(),
+      factureId: '',
+      montant: 0,
+      preuve: undefined,
+      restaurantId: '',
+    });
+    setSelectedDate(new Date());
+    setSelectedFile(null);
+    onOpenChange(false);
   };
 
   // Réinitialiser le formulaire à chaque ouverture avec les données du recouvrement
@@ -61,11 +66,11 @@ export function ModifierRecouvrementModal({ recouvrement, open, onOpenChange }: 
       setSelectedDate(date);
       setSelectedFile(null);
       reset({
-        montant: recouvrement.montant,
         dateRecouvrement: date,
-        restaurantId: recouvrement.restaurantId,
         factureId: '',
+        montant: recouvrement.montant,
         preuve: undefined,
+        restaurantId: recouvrement.restaurantId,
       });
     }
   }, [open, recouvrement, reset]);
@@ -73,12 +78,12 @@ export function ModifierRecouvrementModal({ recouvrement, open, onOpenChange }: 
   const onSubmitForm = async (data: RecouvrementEditDTO) => {
     await modifierMutation(
       {
-        id: recouvrement.id,
         data: { ...data, preuve: selectedFile ?? undefined },
+        id: recouvrement.id,
       },
       {
         onSuccess: () => {
-          handleDialogOpenChange(false);
+          fermer();
         },
       },
     );
@@ -88,7 +93,7 @@ export function ModifierRecouvrementModal({ recouvrement, open, onOpenChange }: 
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setValue('preuve', file);
+      setValue('preuve', file, { shouldValidate: true });
     }
   };
 
@@ -99,37 +104,26 @@ export function ModifierRecouvrementModal({ recouvrement, open, onOpenChange }: 
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Modifier le recouvrement</DialogTitle>
-          <DialogDescription>Modifiez les informations du recouvrement</DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
-          <RecouvrementForm
-            form={form}
-            factures={factures}
-            selectedDate={selectedDate}
-            onDateChange={handleDateChange}
-            onFileChange={handleFileChange}
-            selectedFileName={selectedFile?.name}
-            preuveExistanteUrl={recouvrement.preuve ? createUrlFile(recouvrement.preuve, 'backend') : undefined}
-            isEdit
-          />
-
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" type="button">
-                Annuler
-              </Button>
-            </DialogClose>
-            <Button type="submit" variant="secondary" disabled={isLoading}>
-              {isLoading ? 'Enregistrement...' : 'Enregistrer'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FenetreAction
+      enAttente={isLoading}
+      libelleAction="Enregistrer"
+      onAction={handleSubmit(onSubmitForm)}
+      onFermer={fermer}
+      ouvert={open}
+      titre="Modifier le recouvrement"
+    >
+      <RecouvrementForm
+        factures={factures}
+        form={form}
+        isEdit
+        onDateChange={handleDateChange}
+        onFileChange={handleFileChange}
+        preuveExistanteUrl={
+          recouvrement.preuve ? createUrlFile(recouvrement.preuve, 'backend') : undefined
+        }
+        selectedDate={selectedDate}
+        selectedFileName={selectedFile?.name}
+      />
+    </FenetreAction>
   );
 }

@@ -1,12 +1,8 @@
 'use client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Description, FieldError, Label, ListBox, NumberField } from '@heroui-v3/react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useEffect, useState } from 'react';
-import { Save } from 'lucide-react';
 import { PlaceAutocompleteResult } from '@googlemaps/google-maps-services-js';
 import { autocomplete, calculateDistance, geocodeAddressServer, placeDetails } from '@/lib/googlemaps-server';
 import { DeliveryFee } from '@/types/price-list';
@@ -15,9 +11,55 @@ import { useCreateDeliveryFeeMutation, useUpdatePriceListMutation } from '@/feat
 import { useQuery } from '@tanstack/react-query';
 import { getAllRestaurants } from '@/src/restaurants/restaurants.actions';
 import EtatErreur from '@/components/commons/EtatErreur';
-import { cn } from '@/lib/utils';
+import { ChampListe, ChampMontant, ChampTexte } from '@/components/commons/champs-formulaire';
+import { FenetreAction } from '@/components/commons/FenetreAction';
 
 type LatLng = { lat: number; lng: number };
+
+/**
+ * Un nombre a virgule.
+ *
+ * <p>`ChampMontant` arrondit a l'unite : c'est juste pour des francs, mais cela raboterait
+ * une distance que Google rend au dixieme de kilometre, et une commission exprimee en
+ * pourcentage. Tant que le champ partage n'accepte pas de decimales, celui-ci reste ici.</p>
+ */
+function ChampDecimal({
+  aide,
+  decimales = 1,
+  erreur,
+  label,
+  max,
+  onChange,
+  valeur,
+}: {
+  aide?: string;
+  decimales?: number;
+  erreur?: string;
+  label: string;
+  max?: number;
+  onChange: (v: number) => void;
+  valeur: number | undefined;
+}) {
+  return (
+    <NumberField
+      formatOptions={{ maximumFractionDigits: decimales }}
+      isInvalid={Boolean(erreur)}
+      maxValue={max}
+      minValue={0}
+      onChange={onChange}
+      value={valeur ?? Number.NaN}
+    >
+      <Label>{label}</Label>
+      <NumberField.Group>
+        <NumberField.DecrementButton />
+        <NumberField.Input />
+        <NumberField.IncrementButton />
+      </NumberField.Group>
+      {aide && !erreur && <Description>{aide}</Description>}
+      {erreur && <FieldError>{erreur}</FieldError>}
+    </NumberField>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -75,7 +117,13 @@ export default function PriceListFormModal({ open, onClose, mode, initialData }:
   const restaurantHasCoords = !!restaurantLat && !!restaurantLng;
   const restaurantPoint: LatLng = { lat: restaurantLat, lng: restaurantLng };
 
-  const commissionLabel = typeCommission === 'POURCENTAGE' ? 'Commission (%)' : 'Commission (XOF)';
+  const enPourcentage = typeCommission === 'POURCENTAGE';
+  const commissionLabel = enPourcentage ? 'Commission (%) *' : 'Commission (XOF) *';
+
+  const optionsRestaurants = allRestaurants
+    .slice()
+    .sort((a, b) => a.nomEtablissement.localeCompare(b.nomEtablissement))
+    .map((r) => ({ label: r.nomEtablissement, value: r.id }));
 
   // Recalculate distance when restaurant changes after zone is already selected
   useEffect(() => {
@@ -126,7 +174,7 @@ export default function PriceListFormModal({ open, onClose, mode, initialData }:
         setValue('distanceFin', distance ?? 0);
       }
     } catch {
-      // fail silently — user can enter distance manually
+      // echec silencieux : la distance reste saisissable a la main
     } finally {
       setLoadingGeo(false);
     }
@@ -144,77 +192,81 @@ export default function PriceListFormModal({ open, onClose, mode, initialData }:
     console.error('Validation errors:', errors);
   };
 
+  const envoyer = handleSubmit(onSubmit, onError);
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? 'Modifier un frais de livraison' : 'Ajouter un frais de livraison'}
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* On remplace le formulaire entier plutot que le seul selecteur: sans la liste
-            des restaurants, les champs restants sont muets ou absents et une saisie
-            terminee ne pourrait pas etre enregistree. */}
-        {isRestaurantsError ? (
-          <EtatErreur
-            quoi="la liste des restaurants"
-            onReessayer={() => refetchRestaurants()}
-            enCours={isRestaurantsFetching}
-          />
-        ) : (
-        <form id="price-list-form" onSubmit={handleSubmit(onSubmit, onError)} className="flex flex-col gap-4 pt-2">
-
-          {/* Row 1 : nom + restaurant (create) | nom seul (edit) */}
-          <div className={cn(isEdit ? '' : 'grid grid-cols-2 gap-3')}>
-
+    /*
+     * C'etait une coquille de `Dialog` shadcn, avec son propre pied de boutons a
+     * l'interieur du formulaire. `FenetreAction` porte le titre, le retrait et le geste :
+     * l'attente et le libelle destructif y sont dits une fois pour tout l'ERP.
+     * Le geste est retire tant que la liste des restaurants n'a pas pu etre lue : sans
+     * elle, rien de saisi n'est enregistrable.
+     */
+    <FenetreAction
+      enAttente={isPending}
+      libelleAction={isRestaurantsError ? undefined : isEdit ? 'Modifier' : 'Ajouter'}
+      onAction={() => envoyer()}
+      onFermer={onClose}
+      ouvert={open}
+      titre={isEdit ? 'Modifier un frais de livraison' : 'Ajouter un frais de livraison'}
+    >
+      {/* On remplace le formulaire entier plutot que le seul selecteur: sans la liste
+          des restaurants, les champs restants sont muets ou absents et une saisie
+          terminee ne pourrait pas etre enregistree. */}
+      {isRestaurantsError ? (
+        <EtatErreur
+          quoi="la liste des restaurants"
+          onReessayer={() => refetchRestaurants()}
+          enCours={isRestaurantsFetching}
+        />
+      ) : (
+        <form
+          className="flex flex-col gap-4"
+          id="price-list-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            envoyer();
+          }}
+        >
+          {/* Nom + restaurant (creation) | nom seul (modification).
+              L'asterisque du champ obligatoire vit dans le libelle : les champs partages
+              n'exposent pas encore `estRequis`. */}
+          <div className={isEdit ? '' : 'grid gap-3 sm:grid-cols-2'}>
             <Controller
               name="name"
               control={control}
               render={({ field, fieldState }) => (
-                <div className="flex flex-col gap-1.5" data-invalid={fieldState.invalid}>
-                  <Label htmlFor="pl-name">Nom <span className="text-destructive">*</span></Label>
-                  <Input
-                    {...field}
-                    id="pl-name"
-                    aria-invalid={fieldState.invalid}
-                    autoComplete="off"
-                  />
-                  {fieldState.invalid && (
-                    <p className="text-xs text-destructive">{fieldState.error?.message}</p>
-                  )}
-                </div>
+                <ChampTexte
+                  erreur={fieldState.error?.message}
+                  label="Nom *"
+                  onChange={field.onChange}
+                  placeholder="Nom du frais"
+                  valeur={field.value ?? ''}
+                />
               )}
             />
-
 
             {!isEdit && (
               <Controller
                 name="restaurantId"
                 control={control}
                 render={({ field, fieldState }) => (
-                  <div className="flex flex-col gap-1.5" data-invalid={fieldState.invalid}>
-                    <Label>Restaurant <span className="text-destructive">*</span></Label>
-                    <select
-                      value={field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      className={cn(
-                        'w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs',
-                        fieldState.invalid && 'border-destructive',
-                      )}
-                    >
-                      <option value="">Sélectionner un restaurant</option>
-                      {allRestaurants
-                        .slice()
-                        .sort((a, b) => a.nomEtablissement.localeCompare(b.nomEtablissement))
-                        .map((r) => (
-                          <option key={r.id} value={r.id}>{r.nomEtablissement}</option>
-                        ))}
-                    </select>
-                    {fieldState.invalid && (
-                      <p className="text-xs text-destructive">{fieldState.error?.message}</p>
-                    )}
-                  </div>
+                  /*
+                   * C'etait un `<select>` natif habille a la main. La liste porte plusieurs
+                   * centaines d'etablissements : on la CHERCHE, on ne la deroule pas.
+                   */
+                  <ChampListe
+                    erreur={fieldState.error?.message}
+                    estDesactive={isRestaurantsFetching && optionsRestaurants.length === 0}
+                    label="Restaurant *"
+                    messageListeVide={
+                      isRestaurantsFetching ? 'Lecture en cours…' : 'Aucun restaurant'
+                    }
+                    onChange={field.onChange}
+                    options={optionsRestaurants}
+                    placeholder="Rechercher un restaurant"
+                    valeur={field.value ?? ''}
+                  />
                 )}
               />
             )}
@@ -232,36 +284,39 @@ export default function PriceListFormModal({ open, onClose, mode, initialData }:
             name="zone"
             control={control}
             render={({ field, fieldState }) => (
-              <div className="flex flex-col gap-1.5" data-invalid={fieldState.invalid}>
-                <Label htmlFor="pl-zone">Zone <span className="text-destructive">*</span></Label>
-                <div className="relative">
-                  <Input
-                    {...field}
-                    id="pl-zone"
-                    placeholder="Entrez une adresse"
-                    aria-invalid={fieldState.invalid}
-                    autoComplete="off"
-                    onChange={(e) => {
-                      field.onChange(e.target.value);
-                      handleZoneChange(e.target.value);
+              <div className="relative">
+                <ChampTexte
+                  erreur={fieldState.error?.message}
+                  label="Zone *"
+                  onChange={(v) => {
+                    field.onChange(v);
+                    handleZoneChange(v);
+                  }}
+                  placeholder="Entrez une adresse"
+                  valeur={field.value ?? ''}
+                />
+                {/*
+                 * Chaque proposition etait un `<li onClick>` : ni focalisable, ni activable
+                 * au clavier, et rien n'annoncait a un lecteur d'ecran qu'une liste venait
+                 * d'apparaitre sous le champ. La `ListBox` de la v3 se parcourt aux
+                 * fleches, s'active a Entree, et se dit.
+                 */}
+                {!loadingGeo && suggestions.length > 0 && (
+                  <ListBox
+                    aria-label="Adresses proposées"
+                    className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-separator bg-surface shadow-lg"
+                    items={suggestions.map((s) => ({ id: s.place_id, label: s.description }))}
+                    onAction={(cle) => {
+                      const choix = suggestions.find((s) => s.place_id === cle);
+                      if (choix) handleSuggestionClick(choix);
                     }}
-                  />
-                  {!loadingGeo && suggestions.length > 0 && (
-                    <ul className="absolute z-50 w-full bg-surface border border-separator mt-1 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                      {suggestions.map((s) => (
-                        <li
-                          key={s.place_id}
-                          className="px-4 py-2 hover:bg-surface-secondary cursor-pointer text-sm"
-                          onClick={() => handleSuggestionClick(s)}
-                        >
-                          {s.description}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                {fieldState.invalid && (
-                  <p className="text-xs text-destructive">{fieldState.error?.message}</p>
+                  >
+                    {(o: { id: string; label: string }) => (
+                      <ListBox.Item id={o.id} textValue={o.label}>
+                        {o.label}
+                      </ListBox.Item>
+                    )}
+                  </ListBox>
                 )}
               </div>
             )}
@@ -272,25 +327,19 @@ export default function PriceListFormModal({ open, onClose, mode, initialData }:
           <Controller control={control} name="longitude" render={({ field }) => <input type="hidden" {...field} />} />
           <Controller control={control} name="distanceDebut" render={({ field }) => <input type="hidden" {...field} />} />
 
-          {/* Row 2 : distanceFin + prix */}
-          <div className="grid grid-cols-2 gap-3">
-
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* Google rend la distance au dixieme de kilometre : un champ entier
+                l'arrondirait, et le tarif se calerait sur la mauvaise tranche. */}
             <Controller
               name="distanceFin"
               control={control}
               render={({ field, fieldState }) => (
-                <div className="flex flex-col gap-1.5" data-invalid={fieldState.invalid}>
-                  <Label htmlFor="pl-distance">Distance (km) <span className="text-destructive">*</span></Label>
-                  <Input
-                    {...field}
-                    id="pl-distance"
-                    type="number"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && (
-                    <p className="text-xs text-destructive">{fieldState.error?.message}</p>
-                  )}
-                </div>
+                <ChampDecimal
+                  erreur={fieldState.error?.message}
+                  label="Distance (km) *"
+                  onChange={field.onChange}
+                  valeur={field.value}
+                />
               )}
             />
 
@@ -298,43 +347,42 @@ export default function PriceListFormModal({ open, onClose, mode, initialData }:
               name="prix"
               control={control}
               render={({ field, fieldState }) => (
-                <div className="flex flex-col gap-1.5" data-invalid={fieldState.invalid}>
-                  <Label htmlFor="pl-prix">Prix (XOF) <span className="text-destructive">*</span></Label>
-                  <Input
-                    {...field}
-                    id="pl-prix"
-                    type="number"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && (
-                    <p className="text-xs text-destructive">{fieldState.error?.message}</p>
-                  )}
-                </div>
+                <ChampMontant
+                  erreur={fieldState.error?.message}
+                  label="Prix (XOF) *"
+                  onChange={field.onChange}
+                  valeur={field.value}
+                />
               )}
             />
           </div>
 
-          {/* Commission + Seuil — visible uniquement si typeCommission défini.
+          {/* Commission + Seuil : visibles uniquement si typeCommission est defini.
               Le seuil d'application n'est pertinent que pour le montant fixe (SPEC « Seuil »). */}
           {typeCommission && (
-            <div className={cn(typeCommission === 'FIXE' ? 'grid grid-cols-2 gap-3' : '')}>
+            <div className={typeCommission === 'FIXE' ? 'grid gap-3 sm:grid-cols-2' : ''}>
               <Controller
                 name="commission"
                 control={control}
-                render={({ field, fieldState }) => (
-                  <div className="flex flex-col gap-1.5" data-invalid={fieldState.invalid}>
-                    <Label htmlFor="pl-commission">{commissionLabel} <span className="text-destructive">*</span></Label>
-                    <Input
-                      {...field}
-                      id="pl-commission"
-                      type="number"
-                      aria-invalid={fieldState.invalid}
+                render={({ field, fieldState }) =>
+                  enPourcentage ? (
+                    <ChampDecimal
+                      decimales={2}
+                      erreur={fieldState.error?.message}
+                      label={commissionLabel}
+                      max={100}
+                      onChange={field.onChange}
+                      valeur={field.value}
                     />
-                    {fieldState.invalid && (
-                      <p className="text-xs text-destructive">{fieldState.error?.message}</p>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    <ChampMontant
+                      erreur={fieldState.error?.message}
+                      label={commissionLabel}
+                      onChange={field.onChange}
+                      valeur={field.value}
+                    />
+                  )
+                }
               />
 
               {typeCommission === 'FIXE' && (
@@ -342,44 +390,21 @@ export default function PriceListFormModal({ open, onClose, mode, initialData }:
                   name="seuilCommission"
                   control={control}
                   render={({ field, fieldState }) => (
-                    <div className="flex flex-col gap-1.5" data-invalid={fieldState.invalid}>
-                      <Label htmlFor="pl-seuil">Seuil d&apos;application (XOF)</Label>
-                      <Input
-                        {...field}
-                        value={field.value ?? 0}
-                        id="pl-seuil"
-                        type="number"
-                        min={0}
-                        step={1}
-                        aria-invalid={fieldState.invalid}
-                      />
-                      <p className="text-[11px] text-muted-foreground">
-                        Laisser à 0 pour appliquer la commission à toutes les commandes.
-                      </p>
-                      {fieldState.invalid && (
-                        <p className="text-xs text-destructive">{fieldState.error?.message}</p>
-                      )}
-                    </div>
+                    <ChampMontant
+                      aide="Laisser à 0 pour appliquer la commission à toutes les commandes."
+                      erreur={fieldState.error?.message}
+                      label="Seuil d'application (XOF)"
+                      onChange={field.onChange}
+                      valeur={field.value ?? 0}
+                    />
                   )}
                 />
               )}
             </div>
           )}
-
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
-              Annuler
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? 'Enregistrement…' : <><Save size={16} className="mr-1.5" />{isEdit ? 'Modifier' : 'Ajouter'}</>}
-            </Button>
-          </div>
-
         </form>
-        )}
-      </DialogContent>
-    </Dialog>
+      )}
+    </FenetreAction>
   );
 }
 

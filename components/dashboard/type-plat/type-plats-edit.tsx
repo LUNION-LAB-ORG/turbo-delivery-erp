@@ -23,7 +23,7 @@ const TypePlatEdit = ({ typePlat, open, setOpen }: { typePlat: Collection; open:
      * jamais l'envoi en cours et restait cliquable.
      *
      * `SubmitButton` (components/ui/form-ui/submit-button.tsx) fait exactement cela
-     * correctement — il appelle le hook depuis l'interieur du formulaire — et existait
+     * correctement : il appelle le hook depuis l'interieur du formulaire, et il existait
      * deja dans le depot.
      */
     const router = useRouter();

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { X, Paperclip } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Paperclip } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { ChampDate, ChampEnveloppe, ChampMontant } from '@/components/commons/champs-formulaire';
 import type { IAgentFacture as IFactureAgent } from '@/features/agent-recouvreur';
 import { formatMontant } from '@/utils/format.utils';
 
@@ -11,29 +12,36 @@ interface Props {
   open: boolean;
   onClose: () => void;
   facture: IFactureAgent | null;
-  // V52 (2026-05) — data.preuve = data URL base64 du reçu uploadé.
-  // Optional pour rétrocompat avec les callers historiques.
+  // V52 (2026-05) : data.preuve = data URL base64 du recu uploade.
+  // Optional pour retrocompat avec les callers historiques.
   onConfirm: (
     facture: IFactureAgent,
-    data: { montant: number; date: string; preuve?: string }
+    data: { montant: number; date: string; preuve?: string },
   ) => void;
 }
 
+/**
+ * Le versement de l'encaisse au caissier.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le total collecte disponible etait ecrit en `text-red-500` dans le bandeau de titre :
+ * du rouge de marque sur le chiffre de reference du formulaire, qui n'appelle aucun geste
+ * et n'est pas une erreur. Il descend dans le corps, en chasse tabulaire, a cote du
+ * montant saisi, car c'est la comparaison des deux qui compte.</p>
+ *
+ * <p>Le champ « Montant verse » etait un `<input type="number">` nu : sans libelle lie,
+ * sans etat d'erreur, et le bouton de confirmation partait meme a zero. Il reste libre
+ * (un versement partiel est legitime), mais un montant vide est desormais refuse et dit.</p>
+ */
 export default function VerserComptableModal({ open, onClose, facture, onConfirm }: Props) {
   const today = new Date().toISOString().split('T')[0];
-  const [montant, setMontant] = useState(0);
+  const [montant, setMontant] = useState<number | undefined>(undefined);
   const [date, setDate] = useState(today);
   const [fileName, setFileName] = useState<string | null>(null);
-  // V52 — data URL base64 envoyée au backend (avant : seul le nom du
-  // fichier était capturé, le contenu était perdu).
+  // V52 : data URL base64 envoyee au backend (avant : seul le nom du
+  // fichier etait capture, le contenu etait perdu).
   const [preuveDataUrl, setPreuveDataUrl] = useState<string | null>(null);
-  const portalRef = useRef<Element | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    portalRef.current = document.getElementById('modal-portal') ?? document.body;
-    setMounted(true);
-  }, []);
+  const [erreurMontant, setErreurMontant] = useState<string>();
 
   useEffect(() => {
     if (open && facture) {
@@ -41,10 +49,13 @@ export default function VerserComptableModal({ open, onClose, facture, onConfirm
       setDate(today);
       setFileName(null);
       setPreuveDataUrl(null);
+      setErreurMontant(undefined);
     }
-  }, [open, facture]);
+    // `today` est une chaine recalculee a chaque rendu mais de valeur constante :
+    // la lister ne relance pas l'effet, elle evite seulement la dependance manquante.
+  }, [facture, open, today]);
 
-  if (!mounted || !open || !facture) return null;
+  if (!facture) return null;
 
   const totalCollecte = facture.montantRecouvre ?? facture.montant;
 
@@ -65,90 +76,57 @@ export default function VerserComptableModal({ open, onClose, facture, onConfirm
 
   function handleConfirm() {
     if (!facture) return;
-    onConfirm(facture, { montant, date, preuve: preuveDataUrl ?? undefined });
+    if (!montant || montant <= 0) {
+      setErreurMontant('Indiquez le montant versé au caissier.');
+      return;
+    }
+    onConfirm(facture, { date, montant, preuve: preuveDataUrl ?? undefined });
     onClose();
   }
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={onClose} />
-      <div
-        className="relative z-10 w-full max-w-lg mx-4 bg-surface rounded-2xl shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-separator">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Versement au caissier</p>
-            <p className="text-xs mt-0.5">
-              Total collecté disponible :{' '}
-              <span className="text-red-500 font-semibold">{formatMontant(totalCollecte)}</span>
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface-secondary text-muted hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-5 space-y-4">
-          {/* Montant */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Montant versé (F CFA)</label>
-            <input
-              type="number"
-              value={montant}
-              onChange={(e) => setMontant(Number(e.target.value))}
-              className="w-full rounded-lg border border-separator px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-red-400 focus:border-transparent"
-            />
-          </div>
-
-          {/* Date */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Date de versement</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-lg border border-separator px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-red-400 focus:border-transparent"
-            />
-          </div>
-
-          {/* Preuve */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Preuve de versement</label>
-            <label className="flex items-center justify-center gap-2 w-full rounded-lg border border-dashed border-separator bg-surface-secondary px-4 py-4 cursor-pointer hover:bg-surface-secondary transition-colors">
-              <Paperclip className="w-4 h-4 text-muted" />
-              <span className="text-sm text-muted">
-                {fileName ?? 'Téléverser le reçu'}
-              </span>
-              <input
-                type="file"
-                className="hidden"
-                accept="image/*,application/pdf"
-                onChange={handleFileChange}
-              />
-            </label>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-separator">
-          <Button variant="outline" onClick={onClose} className="text-sm">
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            className="bg-red-500 hover:bg-red-600 text-white text-sm"
-          >
-            Confirmer le versement
-          </Button>
-        </div>
+  return (
+    <FenetreAction
+      libelleAction="Confirmer le versement"
+      onAction={handleConfirm}
+      onFermer={onClose}
+      ouvert={open}
+      titre="Versement au caissier"
+    >
+      <div className="flex items-baseline justify-between gap-3 rounded-xl border border-separator bg-surface-secondary px-4 py-3">
+        <span className="text-xs text-muted">Total collecté disponible</span>
+        <span className="text-sm font-bold tabular-nums text-foreground">
+          {formatMontant(totalCollecte)}
+        </span>
       </div>
-    </div>,
-    portalRef.current!,
+
+      <ChampMontant
+        erreur={erreurMontant}
+        label="Montant versé (FCFA)"
+        onChange={(v) => {
+          setMontant(Number.isNaN(v) ? undefined : v);
+          setErreurMontant(undefined);
+        }}
+        valeur={montant}
+      />
+
+      <ChampDate label="Date de versement" onChange={setDate} valeur={date} />
+
+      <ChampEnveloppe label="Preuve de versement">
+        {/*
+         * Le champ de fichier etait `className="hidden"`, donc hors de l'ordre de
+         * tabulation : le recu ne pouvait pas etre joint au clavier.
+         */}
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-separator bg-surface-secondary px-4 py-4 transition-colors hover:bg-surface-tertiary focus-within:border-accent">
+          <Paperclip aria-hidden="true" className="size-4 shrink-0 text-muted" />
+          <span className="truncate text-sm text-muted">{fileName ?? 'Téléverser le reçu'}</span>
+          <input
+            accept="image/*,application/pdf"
+            className="sr-only"
+            onChange={handleFileChange}
+            type="file"
+          />
+        </label>
+      </ChampEnveloppe>
+    </FenetreAction>
   );
 }

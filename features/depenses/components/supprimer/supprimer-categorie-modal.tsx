@@ -1,87 +1,97 @@
-"use client";
+'use client';
 
-import { useCallback } from "react";
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { ICategorieDepense } from "@/features/depenses/types/categorie-depense.type";
-import { useSupprimerCategorieDepenseMutation } from "../../queries/category/categorie-depense-mutation.query";
-import { Trash } from "lucide-react";
+import { Button, Tooltip } from '@heroui-v3/react';
+import { Trash2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import { ICategorieDepense } from '@/features/depenses/types/categorie-depense.type';
+import { formatMontant } from '@/utils/format.utils';
+
+import { useSupprimerCategorieDepenseMutation } from '../../queries/category/categorie-depense-mutation.query';
 
 type Props = {
-    categorieDepense: ICategorieDepense | null;
+  categorieDepense: ICategorieDepense | null;
 };
 
-export default function SupprimerCategorieModal({
-    categorieDepense,
-}: Props) {
-    const { mutateAsync: supprimerCategorieDepenseMutation, isPending } =
-        useSupprimerCategorieDepenseMutation();
+/**
+ * La suppression d'une categorie, et de tout ce qu'elle contient.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>La fenetre restait OUVERTE apres la suppression : la ligne disparaissait derriere
+ * elle, et il fallait fermer a la main pour s'en apercevoir. Elle se ferme quand c'est
+ * fait, et reste ouverte quand cela echoue, pour qu'on puisse reessayer.</p>
+ *
+ * <p>Le declencheur etait un `&lt;button&gt;` nu portant une corbeille peinte
+ * `text-red-500`, avec son libelle cache sous `md` : sur telephone, une icone rouge sans
+ * nom accessible. Le geste detruit, donc le rouge a sa place, mais celui du theme.</p>
+ *
+ * <p>L'avertissement, qui dit que la suppression emporte toutes les depenses de la
+ * categorie, etait un `&lt;strong&gt;` rouge au milieu d'un paragraphe. C'est pourtant la
+ * seule chose a lire ici :
+ * il est dans un encart, et le montant que ces depenses representent y est dit, parce
+ * qu'une categorie a 340 000 FCFA ne se supprime pas comme une categorie vide.</p>
+ */
+export default function SupprimerCategorieModal({ categorieDepense }: Props) {
+  const [ouvert, setOuvert] = useState(false);
+  const { isPending, mutate: supprimerCategorie } = useSupprimerCategorieDepenseMutation();
 
-    const handleDelete = useCallback(async () => {
-        try {
-            await supprimerCategorieDepenseMutation(categorieDepense?.id || "");
-            toast.success("Catégorie et toutes ses dépenses supprimées avec succès.");
-        } catch (error) {
-            toast.error("Erreur lors de la suppression de la catégorie", {
-                description:
-                    error instanceof Error ? error.message : "Une erreur est survenue",
-            });
-        }
-    }, [supprimerCategorieDepenseMutation, categorieDepense]);
+  // La mutation dit deja la reussite et l'echec : un second message ici en affichait
+  // DEUX, mot pour mot, pour une seule suppression.
+  const supprimer = useCallback(() => {
+    if (!categorieDepense?.id) {
+      toast.error('Catégorie introuvable');
+      return;
+    }
 
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <button className="flex items-center gap-2 cursor-pointer hover:text-blue-800 transition-colors">
-                    <Trash className="h-5 w-5 text-red-500" />
-                    <span className="hidden md:flex text-sm font-medium">Supprimer</span>
-                </button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>
-                        {`Supprimer ${categorieDepense?.nomCategorie} ?`}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Êtes-vous sûr de vouloir supprimer cette catégorie ?
-                        <br />
-                        <strong className="text-red-500">
-                            Cette action supprimera automatiquement toutes les dépenses associées à cette catégorie.
-                        </strong>
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="mt-4 sm:justify-end">
-                    <DialogClose asChild>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="cursor-pointer"
-                            disabled={isPending}
-                        >
-                            Annuler
-                        </Button>
-                    </DialogClose>
-                    <Button
-                        type="button"
-                        variant="destructive"
-                        className="cursor-pointer"
-                        onClick={handleDelete}
-                        disabled={isPending}
-                    >
-                        {isPending ? "Suppression..." : "Supprimer"}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
+    supprimerCategorie(categorieDepense.id, {
+      onSuccess: () => setOuvert(false),
+    });
+  }, [categorieDepense, supprimerCategorie]);
+
+  return (
+    <>
+      <Tooltip>
+        <Button
+          aria-label={`Supprimer la catégorie ${categorieDepense?.nomCategorie ?? ''}`.trim()}
+          isIconOnly
+          onPress={() => setOuvert(true)}
+          size="sm"
+          variant="danger-soft"
+        >
+          <Trash2 aria-hidden="true" className="size-4" />
+        </Button>
+        <Tooltip.Content>Supprimer</Tooltip.Content>
+      </Tooltip>
+
+      <FenetreAction
+        destructif
+        enAttente={isPending}
+        libelleAction={isPending ? 'Suppression…' : 'Supprimer'}
+        onAction={supprimer}
+        onFermer={() => setOuvert(false)}
+        ouvert={ouvert}
+        titre={`Supprimer ${categorieDepense?.nomCategorie ?? 'la catégorie'} ?`}
+      >
+        <p className="text-sm text-muted">
+          Êtes-vous sûr de vouloir supprimer cette catégorie ? Cette action est irréversible.
+        </p>
+
+        <div className="rounded-lg border border-danger/25 bg-danger-soft p-3 text-sm text-danger-soft-foreground">
+          Toutes les dépenses rattachées à cette catégorie seront supprimées en même temps.
+          {typeof categorieDepense?.totalDepense === 'number' && (
+            <>
+              {' '}
+              Elles totalisent{' '}
+              <span className="font-semibold tabular-nums">
+                {formatMontant(categorieDepense.totalDepense)}
+              </span>
+              .
+            </>
+          )}
+        </div>
+      </FenetreAction>
+    </>
+  );
 }

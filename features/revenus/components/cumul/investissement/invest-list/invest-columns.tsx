@@ -1,86 +1,147 @@
-﻿import { ColumnDef } from '@tanstack/react-table';
+'use client';
+
+import { Button, Dropdown, Label } from '@heroui-v3/react';
+import { ColumnDef } from '@tanstack/react-table';
+import { differenceInDays } from 'date-fns';
+import { MoreHorizontal } from 'lucide-react';
+import { useState } from 'react';
+
 import { IInvestissement } from '@/features/revenus/types/revenus.types';
 import { formatCFA, formatDateFR } from '@/src/actions/bonLivraison.mapper';
-import { MoreHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 import { InvestDetailModal } from './invest-detail-modal';
 import { ModifierInvestModal } from '../modifier/modifier-invest-modal';
 import SupprimerInvestModal from '../supprimer/supprimer-invest-modal';
-import { differenceInDays } from 'date-fns';
 
-// Fonction pour déterminer la couleur de l'échéance — partagée colonne + carte mobile.
+/**
+ * La couleur d'une echeance, partagee par la colonne et la carte tactile.
+ *
+ * <p>C'etait `text-red-600`, `text-orange-600`, `text-green-600` : de la palette brute,
+ * identique dans les deux themes. Ces classes passent par les jetons, qui portent le mode
+ * sombre.</p>
+ *
+ * <p>Le vert a disparu : il peignait l'etat NORMAL, celui de la plupart des lignes, et une
+ * colonne entierement verte ne distingue plus rien. La couleur ne marque que ce qui appelle
+ * un geste : l'echeance passee ou proche. La date, elle, reste lisible dans tous les cas.</p>
+ */
 export const getDeadlineColor = (deadline: string): string => {
-  const deadlineDate = new Date(deadline);
-  const today = new Date();
-  const daysUntilDeadline = differenceInDays(deadlineDate, today);
+  const daysUntilDeadline = differenceInDays(new Date(deadline), new Date());
 
-  if (daysUntilDeadline < 7) {
-    return 'text-red-600 font-bold'; // Rouge si moins d'une semaine
-  } else if (daysUntilDeadline < 30) {
-    return 'text-orange-600 font-semibold'; // Orange si moins d'un mois
-  } else {
-    return 'text-green-600'; // Vert sinon
-  }
+  if (daysUntilDeadline < 7) return 'font-bold text-danger-soft-foreground';
+  if (daysUntilDeadline < 30) return 'font-semibold text-warning-soft-foreground';
+  return 'text-foreground';
 };
+
+type Geste = 'details' | 'modifier' | 'supprimer';
+
+/**
+ * Les trois gestes d'une ligne d'investissement.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Chaque element du menu contenait une fenetre COMPLETE, avec son propre declencheur :
+ * un `<button>` nu place a l'interieur de l'element de menu. Un element interactif dans un
+ * autre element interactif n'a pas de comportement defini : le clavier n'atteignait le
+ * bouton interne sur aucun des trois, et il fallait un `onSelect={(e) => e.preventDefault()}`
+ * sur chaque element pour empecher le menu de se fermer avant l'ouverture de la fenetre.</p>
+ *
+ * <p>Ici le menu ne porte que des libelles, et c'est la LIGNE qui ouvre la fenetre choisie.
+ * Le meme composant sert au tableau et aux cartes tactiles, qui recopiaient ce montage a
+ * l'identique, donc deux fois la meme correction a faire, ou a oublier.</p>
+ */
+export function ActionsInvestissement({ investissement }: { investissement: IInvestissement }) {
+  const [geste, setGeste] = useState<Geste | null>(null);
+
+  return (
+    <>
+      <Dropdown>
+        <Button
+          aria-label={`Actions sur l'investissement de ${investissement.nomInvestisseur}`}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <MoreHorizontal aria-hidden="true" className="size-4" />
+        </Button>
+        <Dropdown.Popover placement="bottom end">
+          <Dropdown.Menu onAction={(cle) => setGeste(cle as Geste)}>
+            <Dropdown.Item id="details" textValue="Voir détails">
+              <Label>Voir détails</Label>
+            </Dropdown.Item>
+            <Dropdown.Item id="modifier" textValue="Modifier">
+              <Label>Modifier</Label>
+            </Dropdown.Item>
+            <Dropdown.Item id="supprimer" textValue="Supprimer" variant="danger">
+              <Label>Supprimer</Label>
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown.Popover>
+      </Dropdown>
+
+      <InvestDetailModal
+        investissement={investissement}
+        onFermer={() => setGeste(null)}
+        ouvert={geste === 'details'}
+      />
+      <ModifierInvestModal
+        investissement={investissement}
+        onFermer={() => setGeste(null)}
+        ouvert={geste === 'modifier'}
+      />
+      <SupprimerInvestModal
+        investissement={investissement}
+        onFermer={() => setGeste(null)}
+        ouvert={geste === 'supprimer'}
+      />
+    </>
+  );
+}
+
+/**
+ * Les colonnes qui portent un NOMBRE.
+ *
+ * <p>Un montant se compare d'une ligne a l'autre : chasse tabulaire et alignement a droite,
+ * sans quoi les milliers ne tombent pas les uns sous les autres et l'oeil doit relire chaque
+ * chiffre. Le tableau lit cette liste pour habiller l'en-tete ET la cellule, qui sont rendus
+ * a deux endroits differents.</p>
+ */
+export const COLONNES_NOMBRE: readonly string[] = ['montant'];
 
 export const investissementColumns: ColumnDef<IInvestissement>[] = [
   {
     accessorKey: 'dateInvestissement',
+    cell: (info) => (
+      <span className="font-medium tabular-nums">{formatDateFR(info.getValue() as string)}</span>
+    ),
     header: 'Date',
-    cell: (info) => <div className="font-medium">{formatDateFR(info.getValue() as string)}</div>,
   },
   {
     accessorKey: 'nomInvestisseur',
+    // Le nom portait `rounded-full px-2 py-1` : le dessin d'une pastille, sans fond ni
+    // bordure, donc rien qu'un decalage horizontal qui desalignait la colonne.
+    cell: (info) => <span className="font-semibold">{info.getValue() as string}</span>,
     header: 'Investisseur',
-    cell: (info) => (
-      <div>
-        <span className="font-semibold rounded-full px-2 py-1">{info.getValue() as string}</span>
-      </div>
-    ),
   },
   {
     accessorKey: 'montant',
-    header: 'Montant du prêt',
     cell: (info) => formatCFA(info.getValue() as number),
+    header: 'Montant du prêt',
   },
   {
     accessorKey: 'deadline',
-    header: 'Échéance',
     cell: (info) => {
       const deadline = info.getValue() as string;
-      const colorClass = getDeadlineColor(deadline);
-      return <div className={colorClass}>{formatDateFR(deadline)}</div>;
+      return <span className={`tabular-nums ${getDeadlineColor(deadline)}`}>{formatDateFR(deadline)}</span>;
     },
+    header: 'Échéance',
   },
   {
     accessorKey: 'actions',
+    cell: (info) => (
+      <div className="text-center">
+        <ActionsInvestissement investissement={info.row.original} />
+      </div>
+    ),
+    enableSorting: false,
     header: 'Actions',
-    cell: (info) => {
-      const investissement = info.row.original;
-      return (
-        <div className="text-center">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4 cursor-pointer" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <InvestDetailModal investissement={investissement} />
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <ModifierInvestModal investissement={investissement} />
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <SupprimerInvestModal investissement={investissement} />
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      );
-    },
   },
 ];
-

@@ -1,105 +1,73 @@
 'use client';
 
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { UseFormRegister, FieldErrors } from 'react-hook-form';
+import { UseFormReturn } from 'react-hook-form';
 
-type InvestissementFormData = {
-  nomInvestisseur: string;
-  montant: number;
-  dateInvestissement: string;
-  deadline: string;
-};
+import { ChampDate, ChampMontant, ChampTexte } from '@/components/commons/champs-formulaire';
 
 interface InvestissementFormProps {
-  register: UseFormRegister<any>;
-  errors: FieldErrors<any>;
-  defaultValues?: Partial<InvestissementFormData>;
+  form: UseFormReturn<any>;
 }
 
-export function InvestissementForm({ register, errors, defaultValues }: InvestissementFormProps) {
+/**
+ * Les quatre champs d'un investissement, partages par la creation et la modification.
+ *
+ * <p>Le formulaire prend maintenant le `form` entier au lieu de `register` seul : les
+ * champs partages du projet sont PILOTES (une valeur, un `onChange`) la ou `register`
+ * pose un champ libre. Les deux seules fenetres qui rendent ce formulaire construisent
+ * deja leur `useForm`, il n'y a pas d'autre appelant a suivre.</p>
+ *
+ * <p>Le `defaultValues` que prenait ce composant a disparu : il recopiait ce que les deux
+ * appelants passaient DEJA a `useForm`, et seul celui de `useForm` etait lu par la
+ * validation. Deux sources pour une meme valeur, dont une morte.</p>
+ */
+export function InvestissementForm({ form }: InvestissementFormProps) {
+  const {
+    formState: { errors },
+    setValue,
+    watch,
+  } = form;
+
+  const erreur = (champ: string) => {
+    const message = errors[champ]?.message;
+    return message ? String(message) : undefined;
+  };
+
   return (
-    <div className="grid gap-6">
-      {/* Nom et Montant sur la même ligne - EN HAUT */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Nom de l'investisseur avec autofocus */}
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="nomInvestisseur" className="text-sm font-medium">
-            Nom de l&apos;investisseur
-          </Label>
-          <Input
-            id="nomInvestisseur"
-            placeholder="Ex: Jean Dupont"
-            type="text"
-            {...register('nomInvestisseur')}
-            className="h-10"
-            autoFocus
-          />
-          {errors.nomInvestisseur && (
-            <p className="text-red-500 text-sm">{String(errors.nomInvestisseur.message || '')}</p>
-          )}
-        </div>
+    <div className="grid gap-4 md:grid-cols-2">
+      <ChampTexte
+        erreur={erreur('nomInvestisseur')}
+        label="Nom de l'investisseur"
+        onChange={(v) => setValue('nomInvestisseur', v, { shouldValidate: true })}
+        placeholder="Ex: Jean Dupont"
+        valeur={watch('nomInvestisseur') ?? ''}
+      />
 
-        {/* Montant */}
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="montant" className="text-sm font-medium">
-            Montant de l&apos;investissement
-          </Label>
-          <div className="relative">
-            <Input
-              id="montant"
-              placeholder="0"
-              type="number"
-              step="0.01"
-              {...register('montant', { valueAsNumber: true })}
-              className="h-10 pr-16"
-            />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-              <span className="text-muted text-sm">FCFA</span>
-            </div>
-          </div>
-          {errors.montant && (
-            <p className="text-red-500 text-sm">{String(errors.montant.message || '')}</p>
-          )}
-        </div>
-      </div>
+      {/*
+       * « FCFA » etait un `<span>` pose en position absolue PAR-DESSUS le champ : des que
+       * le montant depassait six chiffres, le nombre passait dessous et devenait illisible
+       * au moment precis ou il compte le plus. La devise se lit maintenant sous le champ.
+       */}
+      <ChampMontant
+        aide="En FCFA"
+        erreur={erreur('montant')}
+        label="Montant de l'investissement"
+        onChange={(v) => setValue('montant', Number.isNaN(v) ? 0 : v, { shouldValidate: true })}
+        valeur={watch('montant')}
+      />
 
-      {/* Dates sur la même ligne */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Date de l'investissement */}
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="dateInvestissement" className="text-sm font-medium">
-            Date de l&apos;investissement
-          </Label>
-          <Input
-            id="dateInvestissement"
-            type="date"
-            {...register('dateInvestissement')}
-            className="h-10"
-            defaultValue={defaultValues?.dateInvestissement}
-          />
-          {errors.dateInvestissement && (
-            <p className="text-red-500 text-sm">{String(errors.dateInvestissement.message || '')}</p>
-          )}
-        </div>
+      <ChampDate
+        erreur={erreur('dateInvestissement')}
+        label="Date de l'investissement"
+        onChange={(v) => setValue('dateInvestissement', v, { shouldValidate: true })}
+        valeur={watch('dateInvestissement')}
+      />
 
-        {/* Échéance */}
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="deadline" className="text-sm font-medium">
-            Échéance
-          </Label>
-          <Input
-            id="deadline"
-            type="date"
-            {...register('deadline')}
-            className="h-10"
-            defaultValue={defaultValues?.deadline}
-          />
-          {errors.deadline && (
-            <p className="text-red-500 text-sm">{String(errors.deadline.message || '')}</p>
-          )}
-        </div>
-      </div>
+      <ChampDate
+        erreur={erreur('deadline')}
+        label="Échéance"
+        onChange={(v) => setValue('deadline', v, { shouldValidate: true })}
+        valeur={watch('deadline')}
+      />
     </div>
   );
 }

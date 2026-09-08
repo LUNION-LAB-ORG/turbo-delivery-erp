@@ -1,18 +1,29 @@
-﻿'use client';
+'use client';
 
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { Button } from '@heroui-v3/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { RecouvrementCreateDTO, recouvrementFormSchema } from '@/features/revenus/schemas/recouvrement/recouvrement.schema';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { useAjouterRecouvrementMutation } from '@/features/recouvrements/queries/recouvrement.mutation';
 import { usePretListQuery } from '@/features/revenus/queries/prets/pret-list.query';
+import {
+  RecouvrementCreateDTO,
+  recouvrementFormSchema,
+} from '@/features/revenus/schemas/recouvrement/recouvrement.schema';
+
 import { RecouvrementForm } from './recouvrement-form';
 
-export function CreerRecouvrementModal({ restaurantId, variant = 'ghost' }: { restaurantId?: string; variant?: 'ghost' | 'outline' }) {
+export function CreerRecouvrementModal({
+  restaurantId,
+  variant = 'ghost',
+}: {
+  restaurantId?: string;
+  variant?: 'ghost' | 'outline';
+}) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [open, setOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -22,35 +33,30 @@ export function CreerRecouvrementModal({ restaurantId, variant = 'ghost' }: { re
   const form = useForm<RecouvrementCreateDTO>({
     resolver: zodResolver(recouvrementFormSchema),
     defaultValues: {
-      montant: 0,
       dateRecouvrement: new Date(),
-      restaurantId: restaurantId || '',
       factureId: '',
+      montant: 0,
       preuve: undefined,
+      restaurantId: restaurantId || '',
     },
   });
 
   const { handleSubmit, reset, setValue } = form;
 
-  const { mutateAsync: recouvrementCreateMutation, isPending: isLoading } = useAjouterRecouvrementMutation();
+  const { isPending: isLoading, mutateAsync: recouvrementCreateMutation } =
+    useAjouterRecouvrementMutation();
 
-  const resetFormState = () => {
+  const fermer = () => {
     reset({
-      montant: 0,
       dateRecouvrement: new Date(),
-      restaurantId: restaurantId || '',
       factureId: '',
+      montant: 0,
       preuve: undefined,
+      restaurantId: restaurantId || '',
     });
     setSelectedDate(new Date());
     setSelectedFile(null);
-  };
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      resetFormState();
-    }
-    setOpen(nextOpen);
+    setOpen(false);
   };
 
   const onSubmitForm = async (data: RecouvrementCreateDTO) => {
@@ -63,7 +69,7 @@ export function CreerRecouvrementModal({ restaurantId, variant = 'ghost' }: { re
       { ...data, preuve: selectedFile },
       {
         onSuccess: () => {
-          handleOpenChange(false);
+          fermer();
         },
       },
     );
@@ -73,7 +79,7 @@ export function CreerRecouvrementModal({ restaurantId, variant = 'ghost' }: { re
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setValue('preuve', file);
+      setValue('preuve', file, { shouldValidate: true });
     }
   };
 
@@ -83,41 +89,30 @@ export function CreerRecouvrementModal({ restaurantId, variant = 'ghost' }: { re
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant={variant}>
-          <Plus size={18} />
-          Effectuer un recouvrement
-        </Button>
-      </DialogTrigger>
+    <>
+      <Button onPress={() => setOpen(true)} variant={variant}>
+        <Plus aria-hidden="true" className="size-4" />
+        Effectuer un recouvrement
+      </Button>
 
-      <DialogContent className="max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Ajouter un recouvrement</DialogTitle>
-          <DialogDescription>Ajoutez un nouveau recouvrement</DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
-          <RecouvrementForm
-            form={form}
-            factures={factures}
-            selectedDate={selectedDate}
-            onDateChange={handleDateChange}
-            onFileChange={handleFileChange}
-            selectedFileName={selectedFile?.name}
-            disableRestaurant={!!restaurantId}
-          />
-
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Annuler</Button>
-            </DialogClose>
-            <Button type="submit" variant="secondary" disabled={isLoading}>
-              {isLoading ? 'Création...' : 'Ajouter'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <FenetreAction
+        enAttente={isLoading}
+        libelleAction="Ajouter"
+        onAction={handleSubmit(onSubmitForm)}
+        onFermer={fermer}
+        ouvert={open}
+        titre="Ajouter un recouvrement"
+      >
+        <RecouvrementForm
+          factures={factures}
+          form={form}
+          onDateChange={handleDateChange}
+          onFileChange={handleFileChange}
+          selectedDate={selectedDate}
+          selectedFileName={selectedFile?.name}
+          disableRestaurant={!!restaurantId}
+        />
+      </FenetreAction>
+    </>
   );
 }

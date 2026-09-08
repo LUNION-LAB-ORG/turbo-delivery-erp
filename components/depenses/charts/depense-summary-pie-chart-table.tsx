@@ -1,60 +1,71 @@
 'use client';
 
-import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, Spinner } from '@heroui-v3/react';
+import { TrendingUp } from 'lucide-react';
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+
+import EtatErreur from '@/components/commons/EtatErreur';
 import { useDepenseSummaryQuery } from '@/features/depenses/queries/depense-summary.query';
 import { formatCFA } from '@/src/actions/bonLivraison.mapper';
-import { TrendingUp } from 'lucide-react';
-import EtatErreur from '@/components/commons/EtatErreur';
+
+/*
+ * Les deux parts etaient peintes en VERT et en ORANGE. Le vert de cet ERP dit « c'est
+ * bon », l'orange « attention » : une depense recurrente n'est ni l'un ni l'autre, c'est
+ * une categorie comptable. Deux teintes distinctes restent necessaires,
+ * puisque c'est la seule clef qui relie une part a son libelle, mais elles ne portent
+ * plus de verdict.
+ */
+const TEINTES = {
+  nonRecurrentes: '#8b5cf6',
+  recurrentes: '#3b82f6',
+} as const;
 
 interface DepenseSummaryPieChartTableProps {
+  categoriesDepense?: string[] | null;
   className?: string;
-  // Props pour utiliser les filtres du tableau
   debut?: Date;
   fin?: Date;
-  categoriesDepense?: string[] | null;
 }
 
-export function DepenseSummaryPieChartTable({ 
-  className, 
-  debut, 
-  fin, 
-  categoriesDepense 
+/**
+ * La part des depenses recurrentes sur la periode.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Les deux totaux sous le graphique tenaient dans des pastilles `bg-green-50` et
+ * `bg-amber-50`, avec trois nuances de texte chacune et AUCUNE variante sombre : en theme
+ * sombre, du texte vert clair sur un fond vert tres clair, illisible. Les totaux se posent
+ * sur la surface du theme ; la couleur ne subsiste que sur la pastille qui relie la ligne
+ * a sa part du camembert.</p>
+ *
+ * <p>Les deux montants etaient centres, en chasse proportionnelle. Ils existent pour etre
+ * COMPARES l'un a l'autre : ils sont alignes a droite, en chasse tabulaire, et le
+ * pourcentage se lit sous eux.</p>
+ */
+export function DepenseSummaryPieChartTable({
+  categoriesDepense,
+  className,
+  debut,
+  fin,
 }: DepenseSummaryPieChartTableProps) {
-  // âœ… Utiliser les filtres du tableau
-  const currentSearchParams = {
+  const { data, error, isError, isFetching, isLoading, refetch } = useDepenseSummaryQuery({
+    categoriesDepense: categoriesDepense || undefined,
     debut,
     fin,
-    categoriesDepense: categoriesDepense || undefined,
-  };
+  });
 
-  const { data, isLoading, error, isError, isFetching, refetch } = useDepenseSummaryQuery(currentSearchParams);
+  const donneesGraphique = data
+    ? [
+        { color: TEINTES.recurrentes, name: 'Récurrentes', value: data.totalRecurrentes },
+        { color: TEINTES.nonRecurrentes, name: 'Non Récurrentes', value: data.totalNonRecurrentes },
+      ]
+    : [];
 
-  const COLORS = {
-    recurrentes: '#10b981', // green-500
-    nonRecurrentes: '#f59e0b', // amber-500
-  };
-
-  const dataForChart = data ? [
-    {
-      name: 'Récurrentes',
-      value: data.totalRecurrentes,
-      color: COLORS.recurrentes,
-    },
-    {
-      name: 'Non Récurrentes',
-      value: data.totalNonRecurrentes,
-      color: COLORS.nonRecurrentes,
-    },
-  ] : [];
-
-  const CustomTooltip = ({ active, payload }: any) => {
+  const InfoBulle = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-surface p-3 border border-separator rounded-lg shadow-lg">
+        <div className="rounded-lg border border-separator bg-surface p-3 shadow-lg">
           <p className="font-medium text-foreground">{payload[0].name}</p>
-          <p className="text-sm font-bold" style={{ color: payload[0].payload.color }}>
+          <p className="text-sm font-bold tabular-nums" style={{ color: payload[0].payload.color }}>
             {formatCFA(payload[0].value)}
           </p>
         </div>
@@ -63,42 +74,47 @@ export function DepenseSummaryPieChartTable({
     return null;
   };
 
-  const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+  const Etiquette = ({ cx, cy, innerRadius, midAngle, outerRadius, percent }: any) => {
     const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const rayon = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + rayon * Math.cos(-midAngle * RADIAN);
+    const y = cy + rayon * Math.sin(-midAngle * RADIAN);
 
-    if (percent < 0.05) return null; // Ne pas afficher si < 5%
+    // Sous 5 %, l'etiquette deborde de sa part et se pose sur la voisine.
+    if (percent < 0.05) return null;
 
     return (
       <text
-        x={x}
-        y={y}
+        className="text-sm font-semibold"
+        dominantBaseline="central"
         fill="white"
         textAnchor={x > cx ? 'start' : 'end'}
-        dominantBaseline="central"
-        className="font-semibold text-sm"
+        x={x}
+        y={y}
       >
         {`${(percent * 100).toFixed(0)}%`}
       </text>
     );
   };
 
+  const entete = (
+    <Card.Header>
+      <Card.Title className="flex items-center gap-2">
+        <TrendingUp aria-hidden="true" className="size-5 text-muted" />
+        Répartition des dépenses
+      </Card.Title>
+    </Card.Header>
+  );
+
   if (isLoading) {
     return (
       <Card className={className}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Répartition des Dépenses
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        {entete}
+        <Card.Content>
+          <div className="flex h-80 items-center justify-center">
+            <Spinner size="lg" />
           </div>
-        </CardContent>
+        </Card.Content>
       </Card>
     );
   }
@@ -106,100 +122,89 @@ export function DepenseSummaryPieChartTable({
   if (error || !data) {
     return (
       <Card className={className}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Répartition des Dépenses
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        {entete}
+        <Card.Content>
           {/* Le message gris precedent n'offrait aucune reprise : l'operateur restait
               devant un graphique absent sans savoir quoi en faire. */}
           <div className="flex h-80 items-center justify-center">
             <EtatErreur
-              quoi="la répartition des dépenses"
-              onReessayer={() => refetch()}
-              enCours={isFetching}
               detail={isError && error instanceof Error ? error.message : undefined}
+              enCours={isFetching}
+              onReessayer={() => refetch()}
+              quoi="la répartition des dépenses"
             />
           </div>
-        </CardContent>
+        </Card.Content>
       </Card>
     );
   }
 
   const total = data.totalRecurrentes + data.totalNonRecurrentes;
+  const part = (valeur: number) => (total > 0 ? ((valeur / total) * 100).toFixed(1) : '0');
 
   return (
     <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Répartition des Dépenses
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+      {entete}
+      <Card.Content>
         <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer height="100%" width="100%">
             <PieChart>
               <Pie
-                data={dataForChart}
+                aria-label="Répartition des dépenses entre récurrentes et non récurrentes"
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={CustomLabel}
-                outerRadius={100}
-                fill="#8884d8"
+                data={donneesGraphique}
                 dataKey="value"
-                aria-label="Répartition des dépenses entre récurrentes et non récurrentes"
+                label={Etiquette}
+                labelLine={false}
+                outerRadius={100}
                 role="img"
               >
-                {dataForChart.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.color} 
-                    aria-label={`${entry.name}: ${formatCFA(entry.value)}`}
+                {donneesGraphique.map((tranche) => (
+                  <Cell
+                    aria-label={`${tranche.name}: ${formatCFA(tranche.value)}`}
+                    fill={tranche.color}
+                    key={tranche.name}
                   />
                 ))}
               </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                verticalAlign="bottom" 
-                height={36}
+              <Tooltip content={<InfoBulle />} />
+              <Legend
+                aria-label="Légende du graphique de répartition des dépenses"
                 formatter={(value, entry: any) => (
-                  <span style={{ color: entry.color }}>
-                    {value}: {formatCFA(entry.payload.value)}
+                  <span className="text-foreground">
+                    {value}: <span className="tabular-nums">{formatCFA(entry.payload.value)}</span>
                   </span>
                 )}
-                aria-label="Légende du graphique de répartition des dépenses"
+                height={36}
+                verticalAlign="bottom"
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
-        
-        {/* Résumé des montants */}
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <p className="text-sm text-green-600 font-medium">Récurrentes</p>
-            <p className="text-lg font-bold text-green-700">
-              {formatCFA(data.totalRecurrentes)}
-            </p>
-            <p className="text-xs text-green-600">
-              {total > 0 ? ((data.totalRecurrentes / total) * 100).toFixed(1) : 0}%
-            </p>
-          </div>
-          <div className="text-center p-3 bg-amber-50 rounded-lg">
-            <p className="text-sm text-amber-600 font-medium">Non Récurrentes</p>
-            <p className="text-lg font-bold text-amber-700">
-              {formatCFA(data.totalNonRecurrentes)}
-            </p>
-            <p className="text-xs text-amber-600">
-              {total > 0 ? ((data.totalNonRecurrentes / total) * 100).toFixed(1) : 0}%
-            </p>
-          </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {donneesGraphique.map((ligne) => (
+            <div
+              className="rounded-lg border border-separator bg-surface-secondary p-3"
+              key={ligne.name}
+            >
+              <p className="flex items-center gap-2 text-sm text-muted">
+                <span
+                  aria-hidden="true"
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: ligne.color }}
+                />
+                {ligne.name}
+              </p>
+              <p className="mt-1 text-right text-lg font-semibold tabular-nums text-foreground">
+                {formatCFA(ligne.value)}
+              </p>
+              <p className="text-right text-xs tabular-nums text-muted">{part(ligne.value)}%</p>
+            </div>
+          ))}
         </div>
-      </CardContent>
+      </Card.Content>
     </Card>
   );
 }
-

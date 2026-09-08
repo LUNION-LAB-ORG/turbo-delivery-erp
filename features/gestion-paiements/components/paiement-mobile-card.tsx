@@ -1,9 +1,8 @@
 'use client';
 
 import type { Row } from '@tanstack/react-table';
-import { Button, Card, Chip } from '@heroui-v3/react';
+import { Button, Card, Checkbox, Chip } from '@heroui-v3/react';
 import { FileText, Trash2, Wallet } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Can } from '@/components/auth/Can';
 import { IChargeFixe } from '@/features/charges/types/charge-fixe.type';
 import { getPaiementStatutConfig, isDecaisse } from '../columns/paiements.columns';
@@ -43,7 +42,24 @@ export default function PaiementMobileCard({
       <Card.Content className="gap-2 p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2 min-w-0">
-            <Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} disabled={decaisse} aria-label="Sélectionner la charge" className="mt-0.5" />
+            {/* La case fait 16 px de cote, sur une carte tactile ou la regle des cibles
+                en demande 44. C'est `Checkbox.Content` qui porte la cible — c'est lui le
+                `<label>` cliquable — et la marge negative la rend sans changer d'un pixel
+                ce qui est dessine, ni la place prise dans la rangee. */}
+            <Checkbox
+              aria-label={`Sélectionner ${charge.designation}`}
+              className="mt-0.5 shrink-0"
+              isDisabled={decaisse}
+              isSelected={row.getIsSelected()}
+              onChange={(coche) => row.toggleSelected(coche)}
+              slot={null}
+            >
+              <Checkbox.Content className="-m-3.5 size-11 justify-center">
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+              </Checkbox.Content>
+            </Checkbox>
             <p className="text-sm font-semibold text-foreground min-w-0 wrap-break-word">{charge.designation}</p>
           </div>
           <Chip className="shrink-0" color={config.color} size="sm" variant="soft">
@@ -57,7 +73,7 @@ export default function PaiementMobileCard({
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-muted">Montant</span>
-          <span className="text-sm font-medium text-foreground">{formatMontant(charge.montant)}</span>
+          <span className="text-sm font-medium text-foreground tabular-nums">{formatMontant(charge.montant)}</span>
         </div>
 
         {(!decaisse || (decaisse && charge.codeSysteme === 'MASSE_SALARIALE_NETTE') || onDelete || onDeleteFixe) && (

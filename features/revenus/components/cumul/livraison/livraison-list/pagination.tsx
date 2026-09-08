@@ -1,95 +1,83 @@
-"use client"
+'use client';
 
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ToggleButton, ToggleButtonGroup } from '@heroui-v3/react';
+
+import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
 
 interface PaginationProps {
-    currentPage: number
-    totalPages: number
-    itemsPerPage: number
-    totalItems: number
-    onPageChange: (page: number) => void
-    onItemsPerPageChange: (value: number) => void
+  currentPage: number;
+  totalPages: number;
+  itemsPerPage: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+  onItemsPerPageChange: (value: number) => void;
 }
 
-export function Pagination({ currentPage, totalPages, itemsPerPage, totalItems, onPageChange, onItemsPerPageChange }: PaginationProps) {
-    const startIndex = (currentPage - 1) * itemsPerPage
+const TAILLES_DE_PAGE = [5, 10, 20, 50] as const;
 
-    return (
-        <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-t bg-surface-secondary">
-            <p className="text-sm text-muted mb-2 sm:mb-0">
-                Affichage de {startIndex + 1} à {Math.min(startIndex + itemsPerPage, totalItems)} sur {totalItems} dépenses
-            </p>
+/**
+ * La barre de pagination de la liste des livraisons.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Elle annoncait « sur N depenses » sur un ecran de LIVRAISONS : la phrase avait ete
+ * recopiee depuis le module des depenses, comme dans le module des commissions ou elle
+ * subsiste encore.</p>
+ *
+ * <p>Elle n'offrait par ailleurs que les CINQ PREMIERES pages, quel qu'en soit le
+ * nombre : au-dela, seul « suivant » permettait d'avancer, une page a la fois, et la
+ * derniere etait hors d'atteinte en un geste. `PaginationTableau`, deja monte partout
+ * ailleurs dans l'ERP, garde toujours la premiere et la derniere et replie le milieu.</p>
+ *
+ * <p>Le nombre de lignes par page passait par un `Select` de shadcn, dont le texte de
+ * substitution invitait a « Sélectionnez une catégorie ». Quatre valeurs courtes se
+ * choisissent d'un clic, sans liste deroulante a ouvrir.</p>
+ */
+export function Pagination({
+  currentPage,
+  itemsPerPage,
+  onItemsPerPageChange,
+  onPageChange,
+  totalItems,
+  totalPages,
+}: PaginationProps) {
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  // Sur une liste vide, la barre affirmait « Affichage de 1 à 0 sur 0 ».
+  const premier = totalItems === 0 ? 0 : startIndex + 1;
+  const dernier = Math.min(startIndex + itemsPerPage, totalItems);
 
-            <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted">Lignes/page:</span>
-                    {/* <select
-            value={itemsPerPage}
-            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-            className="border rounded px-2 py-1 text-sm"
+  return (
+    <div className="flex flex-col items-center justify-between gap-3 border-t border-separator bg-surface-secondary p-4 md:flex-row">
+      <p className="text-sm tabular-nums text-muted">
+        Affichage de {premier} à {dernier} sur {totalItems} livraison
+        {totalItems > 1 ? 's' : ''}
+      </p>
+
+      <div className="flex flex-wrap items-center justify-end gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted" id="lignes-par-page">
+            Lignes par page
+          </span>
+          <ToggleButtonGroup
+            aria-labelledby="lignes-par-page"
+            disallowEmptySelection
+            onSelectionChange={(cles) => {
+              const choisie = Array.from(cles)[0];
+              if (choisie != null) onItemsPerPageChange(Number(choisie));
+            }}
+            selectedKeys={new Set([String(itemsPerPage)])}
+            selectionMode="single"
+            size="sm"
           >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select> */}
-                    <Select
-                        value={itemsPerPage.toString()}
-                        onValueChange={(value) => onItemsPerPageChange(Number(value))}
-                    >
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Sélectionnez une catégorie" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectGroup>
-                                <SelectItem value="5">5</SelectItem>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="20">20</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                            </SelectGroup>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="flex gap-1">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
-                        disabled={currentPage === 1}
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        const pageNum = i + 1
-                        return (
-                            <Button
-                                key={pageNum}
-                                variant={currentPage === pageNum ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => onPageChange(pageNum)}
-                                className="h-8 w-8 p-0"
-                            >
-                                {pageNum}
-                            </Button>
-                        )
-                    })}
-
-                    {totalPages > 5 && <span className="px-2 text-sm text-muted">...</span>}
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                    >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+            {TAILLES_DE_PAGE.map((taille) => (
+              <ToggleButton id={String(taille)} key={taille}>
+                {taille}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
         </div>
-    )
+
+        <PaginationTableau onPage={onPageChange} page={currentPage} total={totalPages} />
+      </div>
+    </div>
+  );
 }

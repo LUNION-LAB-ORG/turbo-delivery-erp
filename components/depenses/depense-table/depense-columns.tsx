@@ -1,56 +1,77 @@
+import { Chip } from '@heroui-v3/react';
 import { ColumnDef } from '@tanstack/react-table';
-import { IDepense } from '@/features/depenses/types/depense.type';
 import { format } from 'date-fns';
-import { MoreHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import React from 'react';
+
 import { ModifierDepenseModal } from '@/features/depenses/components/modifier/modifier-depenses-modal';
 import SupprimerDepenseModal from '@/features/depenses/components/supprimer/suprime-depense';
-import React from 'react';
-import { Badge } from '@/components/ui/badge';
+import { IDepense } from '@/features/depenses/types/depense.type';
+import { formatCFA } from '@/src/actions/bonLivraison.mapper';
 
-// Fonction pour formater le type de dépense
-export const formatTypeDepense = (typeDepense: string | null | undefined): {
-  label: string;
-  variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'square' | null | undefined;
-} => {
-  if (!typeDepense) return { label: 'Variable', variant: 'outline' };
+/**
+ * Le libelle du rythme d'une depense.
+ *
+ * <p>Il rendait aussi une COULEUR : le quotidien en rouge de marque, l'hebdomadaire en
+ * teinte pleine, le mensuel en gris, l'annuel dans une variante « square » propre a
+ * l'ancienne bibliotheque. Une periodicite n'appelle aucun geste et rien n'y va bien ni
+ * mal ; le rouge de cet ERP est reserve a ce qu'on doit traiter. Les quatre rythmes se
+ * lisent maintenant dans la meme etiquette neutre, et seul le mot les distingue.</p>
+ */
+export const formatTypeDepense = (typeDepense: string | null | undefined): { label: string } => {
+  if (!typeDepense) return { label: 'Variable' };
 
   switch (typeDepense.toUpperCase()) {
     case 'QUOTIDIEN':
-      return { label: 'Quotidien', variant: 'destructive' };
+      return { label: 'Quotidien' };
     case 'HEBDOMADAIRE':
-      return { label: 'Hebdomadaire', variant: 'default' };
+      return { label: 'Hebdomadaire' };
     case 'MENSUEL':
-      return { label: 'Mensuel', variant: 'secondary' };
+      return { label: 'Mensuel' };
     case 'ANNUEL':
-      return { label: 'Annuel', variant: 'square' };
+      return { label: 'Annuel' };
     default:
-      return { label: typeDepense, variant: 'secondary' };
+      return { label: typeDepense };
   }
 };
 
-// Composant mémorisé pour les actions — partagé entre la colonne (desktop) et la carte mobile.
+/**
+ * Une date de la ligne, ou un tiret quand elle est illisible.
+ *
+ * <p>`new Date(undefined)` rend « Invalid Date » a l'ecran ; un tiret dit la meme chose
+ * sans faire croire a une valeur.</p>
+ */
+export const formatDateDepense = (valeur: string | null | undefined): string => {
+  if (!valeur) return '-';
+  const date = new Date(valeur);
+  return Number.isNaN(date.getTime()) ? '-' : format(date, 'dd/MM/yyyy');
+};
+
+/**
+ * L'etiquette de rythme, partagee par le tableau et la carte tactile.
+ */
+export function EtiquetteTypeDepense({ typeDepense }: { typeDepense: string | null | undefined }) {
+  return (
+    <Chip size="sm" variant="soft">
+      <Chip.Label>{formatTypeDepense(typeDepense).label}</Chip.Label>
+    </Chip>
+  );
+}
+
+/**
+ * Les gestes d'une depense : modifier, supprimer.
+ *
+ * <p>Ils vivaient dans un menu deroulant dont chaque entree CONTENAIT une fenetre de
+ * dialogue entiere, neutralisee par un `onSelect` qui annulait la selection. Deux gestes
+ * derriere un menu, c'est un clic de plus a chaque ligne pour n'y trouver que deux
+ * lignes. Ils sont poses cote a cote, chacun avec son infobulle : le libelle reste lisible
+ * sans occuper la largeur d'une colonne sur une fenetre de 1000 px.</p>
+ */
 export const DepenseActions = React.memo(({ depense }: { depense: IDepense }) => {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="outline">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {/*<DropdownMenuItem onSelect={(e) => e.preventDefault()}>*/}
-        {/*  <DepenseDetailModal depense={depense} />*/}
-        {/*</DropdownMenuItem>*/}
-        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-          <ModifierDepenseModal depense={depense} />
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-          <SupprimerDepenseModal depense={depense} />
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center justify-end gap-1">
+      <ModifierDepenseModal depense={depense} />
+      <SupprimerDepenseModal depense={depense} />
+    </div>
   );
 });
 
@@ -61,20 +82,19 @@ export const depenseColumns: ColumnDef<IDepense>[] = [
     id: 'date_ajout',
     accessorKey: 'createdAt',
     header: 'Date d\'ajout',
-    cell: ({ row }) => {
-      const date = new Date(row.original.dateDepense);
-      return format(date, 'dd/MM/yyyy');
-    },
+    /*
+     * Cette colonne annonce la date d'AJOUT et rendait `dateDepense`, celle de la colonne
+     * suivante : les deux dates etaient donc toujours identiques a l'ecran, alors que
+     * l'export CSV, lui, sortait bien `createdAt` sous « Ajoute le ».
+     */
+    cell: ({ row }) => formatDateDepense(row.original.createdAt),
     enableSorting: false,
   },
   {
     id: 'date_depense',
     accessorKey: 'dateDepense',
     header: 'Date de comptabilisation',
-    cell: ({ row }) => {
-      const date = new Date(row.original.dateDepense);
-      return format(date, 'dd/MM/yyyy');
-    },
+    cell: ({ row }) => formatDateDepense(row.original.dateDepense),
     enableSorting: false,
   },
   {
@@ -95,30 +115,26 @@ export const depenseColumns: ColumnDef<IDepense>[] = [
     id: 'typeDepense',
     accessorKey: 'typeDepense',
     header: 'Type de dépense',
-    cell: ({ row }) => {
-      const typeInfo = formatTypeDepense(row.original.typeDepense);
-      return (
-        <Badge variant={typeInfo.variant}>
-          {typeInfo.label}
-        </Badge>
-      );
-    },
+    cell: ({ row }) => <EtiquetteTypeDepense typeDepense={row.original.typeDepense} />,
     enableSorting: false,
   },
   {
     id: 'montant',
     accessorKey: 'montant',
-    header: 'Montant',
-    cell: ({ row }) => {
-      const montant = row.original.montant;
-      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(montant);
-    },
+    /*
+     * L'en-tete et la cellule portent l'alignement : la cellule du tableau est rendue par
+     * `depense-table/index.tsx`, qui ne connait pas les colonnes une a une.
+     */
+    header: () => <span className="block text-right">Montant</span>,
+    cell: ({ row }) => (
+      <span className="block text-right tabular-nums">{formatCFA(row.original.montant)}</span>
+    ),
     enableSorting: false,
   },
   {
     id: 'actions',
+    header: () => <span className="sr-only">Actions</span>,
     cell: ({ row }) => <DepenseActions depense={row.original} />,
     enableSorting: false,
   },
 ];
-

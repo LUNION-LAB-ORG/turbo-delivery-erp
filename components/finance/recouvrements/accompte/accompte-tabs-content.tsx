@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, DollarSign, TrendingUp, Users } from 'lucide-react';
 import { formatCFA } from '@/src/actions/bonLivraison.mapper';
 import { RestaurantSelect } from '../common/restaurant-select';
 import { useAccompteQuery } from '@/features/recouvrements/queries/accompte.query';
-import { Table } from '@heroui-v3/react';
+import { Card, Table } from '@heroui-v3/react';
 
 import { cn } from '@/lib/utils';
 
@@ -118,12 +117,12 @@ export function AccompteTabsContent({ restoOpts, isOptionsLoading }: AccompteTab
         />
       </div>
 
-      {/* Bandeau de statistiques — CarteStat, la carte unique de l'ERP.
+      {/* Bandeau de statistiques : CarteStat, la carte unique de l'ERP.
           Il etait ecrit a la main dans le style shadcn (Card + CardContent, chiffre en
           text-2xl font-bold, icone h-8 w-8), seul rescape de ce dessin dans l'ERP.
 
           Les couleurs changent, et elles VEULENT desormais dire quelque chose. Elles
-          etaient decoratives et arbitraires — vert, bleu, violet, orange — sans rapport
+          etaient decoratives et arbitraires (vert, bleu, violet, orange), sans rapport
           avec ce que le chiffre raconte. Elles suivent maintenant les jetons du theme :
           le total porte l'accent, un simple comptage est neutre, ce qui est valide est
           au succes, ce qui attend est a l'attention. Le violet disparait : il n'a pas de
@@ -160,13 +159,16 @@ export function AccompteTabsContent({ restoOpts, isOptionsLoading }: AccompteTab
         </GrilleStats>
       )}
 
-      {/* Tableau des acomptes */}
+      {/* Tableau des acomptes.
+          La carte venait de shadcn, la derniere bibliotheque doublonnee du projet : deux
+          cartes de dessins differents se cotoyaient sur le meme ecran, celle-ci et le
+          bandeau de statistiques juste au-dessus. */}
       <Card>
-        <CardHeader>
-          <CardTitle>Liste des Accomptes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Tableau — desktop uniquement (≥ md) */}
+        <Card.Header>
+          <Card.Title className="text-lg">Liste des Accomptes</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          {/* Tableau : desktop uniquement (≥ md) */}
           <div className="hidden md:block">
             <Table>
               <Table.ScrollContainer>
@@ -238,7 +240,7 @@ export function AccompteTabsContent({ restoOpts, isOptionsLoading }: AccompteTab
                * UNE seule pagination.
                *
                * <p>Il y en avait DEUX sous ce tableau. La seconde passait
-               * `accomptesData.totalElements` — le nombre d'acomptes — dans `total`, qui
+               * `accomptesData.totalElements` (le nombre d'acomptes) dans `total`, qui
                * attend un nombre de PAGES : elle affichait donc cent trente-sept pages
                * pour cent trente-sept lignes. Et elle changeait l'URL par un
                * `window.history.pushState` direct, que React ne voit pas : cliquer une
@@ -256,7 +258,7 @@ export function AccompteTabsContent({ restoOpts, isOptionsLoading }: AccompteTab
             </Table>
           </div>
 
-          {/* Mobile — cartes tactiles (remplace le tableau < md) */}
+          {/* Mobile : cartes tactiles (remplace le tableau < md) */}
           <div className={`md:hidden space-y-3 ${isFetching ? 'opacity-70' : ''}`}>
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => <div key={`m-skel-${i}`} className="h-24 rounded-xl bg-surface-secondary animate-pulse" />)
@@ -277,7 +279,7 @@ export function AccompteTabsContent({ restoOpts, isOptionsLoading }: AccompteTab
               </div>
             )}
           </div>
-        </CardContent>
+        </Card.Content>
       </Card>
     </div>
   );

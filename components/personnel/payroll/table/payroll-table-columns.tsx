@@ -1,9 +1,10 @@
-import { Chip } from '@heroui-v3/react';
+'use client';
+
+import { Button, Chip } from '@heroui-v3/react';
 import { ColumnDef } from '@tanstack/react-table';
 import { format, isValid, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-import { Button } from '@/components/ui/button';
 import { IPayroll } from '@/features/personnel/types/payroll.types';
 
 const toDate = (value: unknown): Date | null => {
@@ -33,6 +34,31 @@ export const formatCfa = (amount: number): string => {
 };
 
 export { formatDateFr };
+
+/**
+ * Une colonne d'argent.
+ *
+ * <p>Les quatre colonnes de francs de cet ecran se lisaient calees a GAUCHE, et trois
+ * d'entre elles en chasse proportionnelle : deux montants du meme ordre de grandeur
+ * n'avaient ni la meme largeur ni le meme point de depart, et un salaire brut ne se
+ * comparait pas d'un coup d'oeil au net qui en decoule. Toutes quatre sont desormais en
+ * chasse tabulaire, alignees a droite.</p>
+ */
+const CelluleMontant = ({ epais, montant }: { epais?: boolean; montant: number }) => (
+  <span className={`block text-right tabular-nums ${epais ? 'font-semibold' : ''}`}>
+    {formatCfa(montant)}
+  </span>
+);
+
+/**
+ * L'en-tete d'une colonne d'argent.
+ *
+ * <p>Le tableau enveloppe chaque en-tete dans le bandeau triable de la bibliotheque, une
+ * boite en `flex` occupant toute la cellule : `ml-auto` y pousse le libelle du cote des
+ * chiffres. Sans lui, l'intitule reste a gauche pendant que la colonne se lit a droite,
+ * et l'oeil ne sait plus quel nombre appartient a quel titre.</p>
+ */
+const enTeteNombre = (libelle: string) => () => <span className="ml-auto text-right">{libelle}</span>;
 
 type TonPaie = 'danger' | 'default' | 'success';
 
@@ -90,26 +116,28 @@ export const createPayrollTableColumns = (onPayClick?: (payroll: IPayroll) => vo
   },
   {
     accessorKey: 'salaryBrut',
-    header: 'Salaire brut',
-    cell: ({ row }) => <span className="font-medium">{formatCfa(row.original.salaryBrut)}</span>,
+    header: enTeteNombre('Salaire brut'),
+    cell: ({ row }) => <CelluleMontant epais montant={row.original.salaryBrut} />,
   },
   {
     accessorKey: 'totalDeductionsPending',
-    header: 'Déductions en attente',
-    cell: ({ row }) => <span className="text-amber-700">{formatCfa(row.original.totalDeductionsPending)}</span>,
+    header: enTeteNombre('Déductions en attente'),
+    /* L'ambre peignait ici une CATEGORIE, pas un retard : une deduction en attente est
+       l'etat de depart de toute deduction du mois en cours. */
+    cell: ({ row }) => <CelluleMontant montant={row.original.totalDeductionsPending} />,
   },
   {
     accessorKey: 'totalDeductionsPaid',
-    header: 'Déductions payées',
+    header: enTeteNombre('Déductions payées'),
     /* Un montant deduit n'est pas une bonne nouvelle : le vert n'y disait rien. */
-    cell: ({ row }) => (
-      <span className="tabular-nums text-foreground">{formatCfa(row.original.totalDeductionsPaid)}</span>
-    ),
+    cell: ({ row }) => <CelluleMontant montant={row.original.totalDeductionsPaid} />,
   },
   {
     accessorKey: 'netToPay',
-    header: 'Net a payer',
-    cell: ({ row }) => <span className="font-semibold">{formatCfa(row.original.netToPay)}</span>,
+    /* L'en-tete du tableau perdait l'accent grave du mot « a », que la carte tactile
+       du meme ecran portait : deux orthographes pour la meme colonne. */
+    header: enTeteNombre('Net à payer'),
+    cell: ({ row }) => <CelluleMontant epais montant={row.original.netToPay} />,
   },
   {
     accessorKey: 'salary_status',
@@ -141,18 +169,23 @@ export const createPayrollTableColumns = (onPayClick?: (payroll: IPayroll) => vo
   {
     id: 'actions',
     header: 'Actions',
+    /*
+     * LE BOUTON DE PAIEMENT ECOUTE `onPress`.
+     *
+     * <p>Il venait de shadcn et ecoutait `onClick`, que le `Button` de la v3 ignore EN
+     * SILENCE : repris tel quel, il se serait affiche, survole et enfonce sans jamais
+     * declencher le paiement. Meme chose pour `disabled`, devenu `isDisabled` : un
+     * bulletin deja paye redevenait payable.</p>
+     */
     cell: ({ row }) => (
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          variant={row.original.salary_status === 'PAID' ? 'outline' : 'default'}
-          disabled={row.original.salary_status === 'PAID'}
-          onClick={() => onPayClick?.(row.original)}
-        >
-          {row.original.salary_status === 'PAID' ? 'Payé' : 'Payer'}
-        </Button>
-      </div>
+      <Button
+        isDisabled={row.original.salary_status === 'PAID'}
+        onPress={() => onPayClick?.(row.original)}
+        size="sm"
+        variant={row.original.salary_status === 'PAID' ? 'outline' : 'primary'}
+      >
+        {row.original.salary_status === 'PAID' ? 'Payé' : 'Payer'}
+      </Button>
     ),
   },
 ];
-

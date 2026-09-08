@@ -1,221 +1,222 @@
-import { Card, CardContent } from '@/components/ui/card';
+'use client';
+
+import { Card, Chip } from '@heroui-v3/react';
 import { AlertTriangle } from 'lucide-react';
-import { useEligibleEmployeeQuery, useCongesQuery } from '@/features/conge/queries/conge.query';
-import { IEmployee } from '@/features/personnel/types/types';
+
+import { TableauResponsive, type ColonneResponsive } from '@/components/commons/TableauResponsive';
+import { useCongesQuery, useEligibleEmployeeQuery } from '@/features/conge/queries/conge.query';
 import { CongeStatut, IConge } from '@/features/conge/types/conge.type';
-import EtatErreur from '@/components/commons/EtatErreur';
+import { IEmployee } from '@/features/personnel/types/types';
 
-// Fonction pour calculer l'ancienneté
-const calculateSeniority = (entryDate: string): { years: number; months: number; label: string } => {
-  const entry = new Date(entryDate);
-  const today = new Date();
+/** L'anciennete, en annees et mois pleins depuis la date d'embauche. */
+const calculerAnciennete = (dateEntree: string): { annees: number; mois: number; libelle: string } => {
+  const entree = new Date(dateEntree);
+  const aujourdhui = new Date();
 
-  // Calculer les années et les mois
-  let years = today.getFullYear() - entry.getFullYear();
-  let months = today.getMonth() - entry.getMonth();
+  let annees = aujourdhui.getFullYear() - entree.getFullYear();
+  let mois = aujourdhui.getMonth() - entree.getMonth();
 
-  // Ajuster si le mois actuel est avant le mois d'entrée
-  if (months < 0) {
-    years--;
-    months += 12;
+  // Le mois d'anniversaire n'est pas encore passe cette annee.
+  if (mois < 0) {
+    annees--;
+    mois += 12;
   }
 
-  console.log('Date entrée:', entry, "Aujourd'hui:", today, 'Années:', years, 'Mois:', months);
-
   return {
-    years,
-    months,
-    label: years === 0 ? `${months} mois` : `${years} an${years > 1 ? 's' : ''}`,
+    annees,
+    mois,
+    libelle: annees === 0 ? `${mois} mois` : `${annees} an${annees > 1 ? 's' : ''}`,
   };
 };
 
-// Fonction pour calculer les droits de congés
-const calculateLeaveRights = (years: number, months: number): number => {
-  console.log('Calcul droits pour ancienneté:', years, 'ans', months, 'mois');
+/** Les droits acquis : 30 jours des un an plein, proratises a 2,5 jours par mois avant. */
+const calculerDroits = (annees: number, mois: number): number =>
+  annees >= 1 ? 30 : Math.floor(mois * 2.5);
 
-  if (years >= 1) {
-    return 30; // 30 jours après 1 an complet
-  } else {
-    // Calcul proratisé : 2.5 jours par mois travaillé
-    const proratedRights = Math.floor(months * 2.5);
-    console.log('Droits proratisés:', proratedRights, 'jours pour', months, 'mois');
-    return proratedRights;
-  }
+/** La date d'embauche est courte : dans une colonne, « 8 septembre 2026 » ne se compare pas. */
+const formaterDate = (valeur: string): string => {
+  const date = new Date(valeur);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString('fr-FR');
 };
 
-// Interface pour les statuts de congé
-interface CongeStatusEntry {
+type TonSituation = 'danger' | 'default' | 'warning';
+
+/** La couleur ne sert qu'a separer ce qui presse de ce qui informe. */
+const TON_SITUATION: Record<TonSituation, string> = {
+  danger: 'text-danger-soft-foreground',
+  default: 'text-muted',
+  warning: 'text-warning-soft-foreground',
+};
+
+type SituationConge = { texte: string; ton: TonSituation } | null;
+
+interface LigneConge {
+  anciennete: string;
+  droits: number;
+  embauche: string;
+  enConge: boolean;
   id: string;
-  statut: string;
-  statutType: string;
-  statutString: string;
-  statutValue: string;
+  nom: string;
+  pris: number;
+  restant: number;
+  situation: SituationConge;
 }
 
-// Fonction pour extraire les statuts disponibles des congés d'un employé
-const getAvailableStatuses = (employeeConges: IConge[]): CongeStatusEntry[] => {
-  return employeeConges.map((c) => ({
-    id: c.id,
-    statut: c.statut,
-    statutType: typeof c.statut,
-    statutString: String(c.statut),
-    statutValue: c.statut,
-  }));
-};
-
-// Fonction pour formater la date
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-};
-
 export default function AutomatisationConges() {
-  console.log('🚀 AutomatisationConges component mounted');
-
   const employesQuery = useEligibleEmployeeQuery({ limit: 1000 });
   const congesQuery = useCongesQuery({ limit: 1000 });
   const { data: employeesData } = employesQuery;
   const { data: congesData } = congesQuery;
-  // Les deux lectures comptent : sans les employes la grille est vide, sans les
-  // conges chaque carte annonce « 0 jour pris », ce qui est faux et invisible.
+  // Les deux lectures comptent : sans les employes la liste est vide, sans les
+  // conges chaque ligne annonce « 0 jour pris », ce qui est faux et invisible.
   const lectureEnEchec = employesQuery.isError || congesQuery.isError;
 
   const employees = Array.isArray(employeesData) ? employeesData : [];
-  console.log('Employés éligibles reçus pour les congés:', employees);
   const conges = congesData?.content || [];
-  console.log('Congés reçus:', conges);
-  console.log('Pagination congés - Total:', congesData?.totalElements, 'Page:', congesData?.number, 'Taille:', congesData?.size);
 
-  // Préparer les données des employés avec calculs
-  const employeesWithLeaveData = employees.map((employee: IEmployee) => {
-    console.log('Traitement employé:', employee.name, 'ID:', employee.id);
-    const seniority = calculateSeniority(employee.entryDate);
-    const rights = calculateLeaveRights(seniority.years, seniority.months);
+  const lignes: LigneConge[] = employees.map((employee: IEmployee) => {
+    const anciennete = calculerAnciennete(employee.entryDate);
+    const droits = calculerDroits(anciennete.annees, anciennete.mois);
 
-    // Calculer les congés pris pour cet employé
-    const employeeConges = conges.filter((conge: IConge) => conge.employeeId === employee.id);
-    console.log('Congés trouvés pour', employee.name, ':', employeeConges);
+    const congesEmploye = conges.filter((conge: IConge) => conge.employeeId === employee.id);
+    const pris = congesEmploye.reduce((total: number, conge: IConge) => total + (conge.duration || 0), 0);
+    const restant = Math.max(0, droits - pris);
 
-    // Extraire les statuts disponibles avec la fonction dédiée
-    const availableStatuses = getAvailableStatuses(employeeConges);
-    console.log('Statuts disponibles pour', employee.name, ':', availableStatuses);
+    const enConge = congesEmploye.some(
+      (conge: IConge) => conge.statut === CongeStatut.EN_COURS || String(conge.statut).toLowerCase().includes('cours'),
+    );
 
-    const pris = employeeConges.reduce((total: number, conge: IConge) => total + (conge.duration || 0), 0);
-    const restant = Math.max(0, rights - pris);
-
-    // Vérifier si l'employé est actuellement en congé
-    const currentLeave = employeeConges.find((conge: IConge) => conge.statut === CongeStatut.EN_COURS || String(conge.statut).toLowerCase().includes('cours'));
-
-    const isOnLeave = !!currentLeave;
-
-    // Alerte uniquement si :
-    // 1. L'employé a des droits de congés (>= 5 jours)
-    // 2. ET il lui reste peu de jours (<= 5 jours restants)
-    // 3. OU il a pris beaucoup de jours (>= 25 jours pris)
-    const warning = rights >= 5 && (restant <= 5 || pris >= 25);
-
-    // Message spécial pour les employés non éligibles
-    const notEligible = rights < 5;
+    /*
+     * LES TROIS SITUATIONS S'EXCLUENT, ELLES SE LISENT DONC EN UNE COLONNE.
+     *
+     * <p>L'ecran empilait trois encarts independants sous chaque carte. Ils ne peuvent
+     * pourtant jamais coexister : « rapidement » demande droits >= 5, ce qu'un employe
+     * en periode d'eligibilite (droits < 5) n'a pas ; et il demande restant <= 5 ou
+     * pris >= 25, quand « cette annee » demande restant >= 20 ; les deux ensemble
+     * exigeraient 45 jours de droits, le maximum etant 30. La chaine ne perd donc
+     * aucun message.</p>
+     *
+     * <p>Le rouge ne peint plus que le retard reel : les deux autres etats informent.</p>
+     */
+    const doitPartirVite = droits >= 5 && (restant <= 5 || pris >= 25);
+    const situation: SituationConge = doitPartirVite
+      ? { texte: 'Doit prendre des congés rapidement', ton: 'danger' }
+      : restant >= 20
+        ? { texte: 'Doit prendre ses congés cette année', ton: 'warning' }
+        : droits < 5
+          ? { texte: `En période d'éligibilité (${anciennete.libelle})`, ton: 'default' }
+          : null;
 
     return {
-      name: employee.name,
-      embauche: formatDate(employee.entryDate),
-      anciennete: seniority.label,
-      droits: rights,
-      pris: pris,
-      restant: restant,
-      warning: warning,
-      notEligible: notEligible,
-      isOnLeave: isOnLeave,
+      anciennete: anciennete.libelle,
+      droits,
+      embauche: formaterDate(employee.entryDate),
+      enConge,
+      id: employee.id,
+      nom: employee.name,
+      pris,
+      restant,
+      situation,
     };
   });
 
-  return (
-    <div className="p-6 bg-surface-secondary">
-      {/* Header */}
-      <div className="bg-surface-tertiary rounded-xl p-4 mb-6">
-        <h1 className="text-lg font-semibold mb-1">Automatisation des congés</h1>
-        <p className="text-sm text-muted">Le système calcule automatiquement les droits aux congés basé sur la date d&#39;embauche :</p>
-        <ul className="text-sm text-foreground mt-2 list-disc ml-5">
-          <li>
-            <strong>Après 1 an d&#39;ancienneté :</strong> 30 jours de congés annuels
-          </li>
-          <li>
-            <strong>Première année :</strong> 2,5 jours par mois travaillé (proratisé)
-          </li>
-        </ul>
-      </div>
-
-      {/* Grid — l'echec remplace la grille : sans cela l'ecran se contentait de
-          n'afficher aucune carte, ce qui se lit comme « aucun employe ». */}
-      {lectureEnEchec ? (
-        <EtatErreur
-          quoi="les droits aux congés"
-          onReessayer={() => {
-            employesQuery.refetch();
-            congesQuery.refetch();
-          }}
-          enCours={employesQuery.isFetching || congesQuery.isFetching}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {employeesWithLeaveData.map((emp, index) => (
-            <Card key={index} className="rounded-2xl shadow-xs">
-              <CardContent className="p-4">
-                <h2 className="font-semibold mb-2 flex items-center gap-2">
-                  {emp.name}
-                  {emp.isOnLeave && <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">🏖️ En congé</span>}
-                </h2>
-
-                <div className="text-sm text-muted space-y-1 mb-3">
-                  <p>📅 Embauche: {emp.embauche}</p>
-                  <p>Ancienneté: {emp.anciennete}</p>
-                </div>
-
-                <div className="bg-surface-secondary rounded-lg p-3 text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span>Droits congés</span>
-                    <span className="font-medium">{emp.droits} jours</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Pris</span>
-                    <span>{emp.pris} jours</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Restant</span>
-                    <span className={`font-semibold ${emp.restant <= 5 ? 'text-green-600' : emp.warning ? 'text-red-500' : 'text-orange-500'}`}>{emp.restant} jours</span>
-                  </div>
-                </div>
-
-                {emp.warning && (
-                  <div className="mt-3 flex items-center gap-2 bg-red-100 text-red-600 text-xs px-3 py-2 rounded-lg">
-                    <AlertTriangle size={14} />
-                    Doit prendre des congés rapidement
-                  </div>
-                )}
-
-                {emp.restant >= 20 && (
-                  <div className="mt-3 flex items-center gap-2 bg-blue-100 text-blue-600 text-xs px-3 py-2 rounded-lg">
-                    <AlertTriangle size={14} />
-                    Doit prendre ses congés cette année
-                  </div>
-                )}
-
-                {emp.notEligible && (
-                  <div className="mt-3 flex items-center gap-2 bg-blue-100 text-blue-600 text-xs px-3 py-2 rounded-lg">
-                    <AlertTriangle size={14} />
-                    En période d&#39;éligibilité ({emp.anciennete})
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+  /*
+   * LES DROITS SE COMPARENT ENTRE EMPLOYES.
+   *
+   * <p>C'etait une grille de cartes a quatre colonnes : pour savoir qui doit partir en
+   * premier, il fallait lire quarante encarts un par un. Trois nombres par employe, la
+   * meme unite, la meme echelle : cela se lit en colonnes alignees. L'unite passe dans
+   * l'en-tete plutot que d'etre repetee sur chaque ligne.</p>
+   *
+   * <p>« Restant » etait peint en vert quand il tombait sous cinq jours et en orange
+   * partout ailleurs, c'est-a-dire vert au moment precis ou l'encart rouge d'a cote
+   * reclamait un depart. Le nombre est neutre ; c'est la colonne Situation qui alerte.</p>
+   */
+  const colonnes: ColonneResponsive<LigneConge>[] = [
+    {
+      cle: 'employe',
+      identite: true,
+      libelle: 'Employé',
+      rendu: (ligne) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-foreground">{ligne.nom}</span>
+          {/* Etre en conge est l'aboutissement normal de la regle, pas une alerte : neutre. */}
+          {ligne.enConge && (
+            <Chip color="default" size="sm" variant="soft">
+              <Chip.Label>En congé</Chip.Label>
+            </Chip>
+          )}
         </div>
-      )}
+      ),
+    },
+    { cle: 'embauche', libelle: 'Embauche', rendu: (ligne) => ligne.embauche },
+    { cle: 'anciennete', libelle: 'Ancienneté', rendu: (ligne) => ligne.anciennete },
+    { cle: 'droits', libelle: 'Droits (jours)', nombre: true, rendu: (ligne) => ligne.droits },
+    { cle: 'pris', libelle: 'Pris (jours)', nombre: true, rendu: (ligne) => ligne.pris },
+    {
+      cle: 'restant',
+      libelle: 'Restant (jours)',
+      nombre: true,
+      rendu: (ligne) => <span className="font-semibold">{ligne.restant}</span>,
+    },
+    {
+      cle: 'situation',
+      libelle: 'Situation',
+      /*
+       * Une phrase n'entre pas dans une pastille : « Doit prendre des conges
+       * rapidement » est une consigne, pas un etat. Elle se lit en toutes lettres,
+       * precedee du triangle que l'ecran portait deja quand elle appelle un geste.
+       */
+      rendu: (ligne) =>
+        ligne.situation ? (
+          <span className={`flex items-start gap-1.5 text-sm ${TON_SITUATION[ligne.situation.ton]}`}>
+            {ligne.situation.ton !== 'default' && (
+              <AlertTriangle aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+            )}
+            {ligne.situation.texte}
+          </span>
+        ) : (
+          <span className="text-muted">-</span>
+        ),
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <Card.Header>
+          <Card.Title className="text-base">Automatisation des congés</Card.Title>
+          <Card.Description>
+            Les droits sont calculés à partir de la date d&#39;embauche.
+          </Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <ul className="ml-5 list-disc space-y-1 text-sm text-foreground">
+            <li>
+              <strong>Après 1 an d&#39;ancienneté :</strong> 30 jours de congés annuels
+            </li>
+            <li>
+              <strong>Première année :</strong> 2,5 jours par mois travaillé (proratisé)
+            </li>
+          </ul>
+        </Card.Content>
+      </Card>
+
+      <TableauResponsive
+        cleLigne={(ligne) => ligne.id}
+        colonnes={colonnes}
+        enChargement={employesQuery.isLoading || congesQuery.isLoading}
+        enCoursDeRelance={employesQuery.isFetching || congesQuery.isFetching}
+        erreur={lectureEnEchec}
+        libelle="Droits aux congés par employé"
+        lignes={lignes}
+        onReessayer={() => {
+          employesQuery.refetch();
+          congesQuery.refetch();
+        }}
+        quoi="les droits aux congés"
+        vide="Aucun employé éligible"
+      />
     </div>
   );
 }

@@ -6,7 +6,18 @@ import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Button, Card, Chip, ToggleButton, ToggleButtonGroup } from '@heroui-v3/react';
+import {
+  Button,
+  Card,
+  Chip,
+  ComboBox,
+  FieldError,
+  Input,
+  Label,
+  ListBox,
+  ToggleButton,
+  ToggleButtonGroup,
+} from '@heroui-v3/react';
 
 import { LienBouton } from '@/components/commons/LienBouton';
 import { TitreSection } from '@/components/commons/TitreSection';
@@ -17,8 +28,6 @@ import {
   ChampTexte,
   ChampZoneTexte,
 } from '@/components/commons/champs-formulaire';
-import { Input as AddressInput } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   ArrowLeft,
   Building2,
@@ -167,6 +176,30 @@ export default function Content({ restaurant }: { restaurant: IRestaurant }) {
 
   const typeCommission = watch('typeCommission');
 
+  // Les propositions de Google, sous la forme attendue par la liste. Videes pendant la
+  // lecture des coordonnees, comme avant : la liste ne survit pas au choix.
+  const propositionsAdresse = loadingGeo
+    ? []
+    : localisationSuggestions.map((s) => ({ id: s.place_id, label: s.description }));
+
+  async function choisirAdresse(placeId: string, poserAdresse: (v: string) => void) {
+    const choix = localisationSuggestions.find((s) => s.place_id === placeId);
+    if (!choix) return;
+    poserAdresse(choix.description);
+    setLocalisationSuggestions([]);
+    setLoadingGeo(true);
+    try {
+      const details = await placeDetails(placeId);
+      setValue('latitude', details.result.geometry?.location.lat ?? 0);
+      setValue('longitude', details.result.geometry?.location.lng ?? 0);
+    } catch {
+      // Une adresse dont on ne sait pas lire les coordonnees reste une adresse : on garde
+      // la saisie plutot que de la rejeter, c'etait deja le choix d'avant.
+    } finally {
+      setLoadingGeo(false);
+    }
+  }
+
   async function onSubmit(values: UpdateRestaurantDTO) {
     setIsSubmitting(true);
     const fd = new FormData();
@@ -306,57 +339,51 @@ export default function Content({ restaurant }: { restaurant: IRestaurant }) {
                     />
                   )}
                 />
+                {/*
+                 * L'adresse etait un `Input` de shadcn double d'une `<ul>` maison : les
+                 * propositions de Google ne repondaient qu'a la souris (`onMouseDown` sur
+                 * un `<li>` sans role), le clavier ne pouvait pas les atteindre et rien ne
+                 * les annoncait. Le `ComboBox` de la v3 est cette meme liste, navigable aux
+                 * fleches et annoncee. `allowsCustomValue` parce qu'une adresse absente du
+                 * catalogue Google reste une adresse : la saisie libre n'est pas perdue.
+                 * `items` passe a la RACINE coupe le filtre client de React Aria, qui
+                 * sinon masquerait les propositions ne contenant pas la chaine tapee.
+                 */}
                 <Controller
-                  name="localisation"
                   control={control}
+                  name="localisation"
                   render={({ field, fieldState }) => (
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="rest-localisation">Localisation</Label>
-                      <div className="relative">
-                        <AddressInput
-                          {...field}
-                          id="rest-localisation"
-                          placeholder="Adresse complète"
-                          aria-invalid={fieldState.invalid}
-                          autoComplete="off"
-                          onChange={(e) => {
-                            field.onChange(e.target.value);
-                            handleLocalisationChange(e.target.value);
-                          }}
-                        />
-                        {!loadingGeo && localisationSuggestions.length > 0 && (
-                          <ul className="absolute z-50 w-full bg-surface border border-separator mt-1 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                            {localisationSuggestions.map((s) => (
-                              <li
-                                key={s.place_id}
-                                className="px-4 py-2 hover:bg-surface-secondary cursor-pointer text-sm"
-                                onMouseDown={async () => {
-                                  field.onChange(s.description);
-                                  setLocalisationSuggestions([]);
-                                  setLoadingGeo(true);
-                                  try {
-                                    const details = await placeDetails(s.place_id);
-                                    const lat = details.result.geometry?.location.lat ?? 0;
-                                    const lng = details.result.geometry?.location.lng ?? 0;
-                                    setValue('latitude', lat);
-                                    setValue('longitude', lng);
-                                  } catch {
-                                    // fail silently
-                                  } finally {
-                                    setLoadingGeo(false);
-                                  }
-                                }}
-                              >
-                                {s.description}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      {fieldState.invalid && (
-                        <p className="text-xs text-destructive">{fieldState.error?.message}</p>
-                      )}
-                    </div>
+                    <ComboBox
+                      allowsCustomValue
+                      inputValue={field.value ?? ''}
+                      isInvalid={fieldState.invalid}
+                      items={propositionsAdresse}
+                      menuTrigger="input"
+                      onInputChange={(saisie) => {
+                        field.onChange(saisie);
+                        handleLocalisationChange(saisie);
+                      }}
+                      onSelectionChange={(cle) => {
+                        if (cle != null) void choisirAdresse(String(cle), field.onChange);
+                      }}
+                      selectedKey={null}
+                    >
+                      <Label>Localisation</Label>
+                      <ComboBox.InputGroup>
+                        <Input autoComplete="off" placeholder="Adresse complète" />
+                        <ComboBox.Trigger />
+                      </ComboBox.InputGroup>
+                      {fieldState.invalid && <FieldError>{fieldState.error?.message}</FieldError>}
+                      <ComboBox.Popover>
+                        <ListBox items={propositionsAdresse}>
+                          {(p: { id: string; label: string }) => (
+                            <ListBox.Item id={p.id} textValue={p.label}>
+                              {p.label}
+                            </ListBox.Item>
+                          )}
+                        </ListBox>
+                      </ComboBox.Popover>
+                    </ComboBox>
                   )}
                 />
                 <Controller

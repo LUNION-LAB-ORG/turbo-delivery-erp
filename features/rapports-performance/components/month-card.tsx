@@ -1,86 +1,95 @@
 'use client';
 
-import { TrendingUp, Users, Briefcase, ArrowUpRight, PlusCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, ProgressBar } from '@heroui-v3/react';
-import { CardContent } from '@/components/ui/card';
+import { Card, Chip, ProgressBar } from '@heroui-v3/react';
+import { ArrowUpRight, Briefcase, PlusCircle, TrendingUp, Users, type LucideIcon } from 'lucide-react';
+
+import CarteStat, { type TonStat } from '@/components/commons/CarteStat';
+
 import { MonthData } from '../hooks/use-bilan-annuel';
 
 interface MonthCardProps {
   month: MonthData;
 }
 
-function MonthStatsCards({ month }: MonthCardProps) {
+/**
+ * Le mois d'un bilan annuel.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Les couleurs disaient toutes la meme chose : rien. Le nom du mois et les deux
+ * compteurs etaient peints en ROUGE DE MARQUE, la couleur reservee au geste, alors
+ * qu'ils n'appellent aucune action. Le resultat du mois etait peint en VERT quel que
+ * soit son signe : un mois perdu s'affichait en vert, sous l'intitule « Benefice
+ * mensuel ». La couleur suit desormais le signe, et l'intitule aussi.</p>
+ *
+ * <p>Les cinq montants etaient poses en colonnes cote a cote, alignes a gauche et en
+ * chasse proportionnelle : ils ne tombaient pas sur la meme verticale d'un mois a
+ * l'autre, donc ne se comparaient pas, et « 48 250 000 FCFA » se coupait en deux lignes.
+ * Ils sont empiles, un par ligne, cales a droite en chasse tabulaire.</p>
+ *
+ * <p>La rupture de mise en page etait a `lg` (1024 px). La fenetre de l'operateur fait
+ * environ 1000 px : elle ne s'ouvrait jamais, et la carte restait en une seule colonne
+ * sur toute la hauteur. Elle est a `md`.</p>
+ */
+
+const MONTANTS: {
+  cle: 'autresEntrees' | 'ca' | 'expenses' | 'investments' | 'reimbursements';
+  icone?: LucideIcon;
+  libelle: string;
+}[] = [
+  { cle: 'ca', icone: TrendingUp, libelle: 'CA' },
+  { cle: 'autresEntrees', icone: PlusCircle, libelle: 'Autres entrées' },
+  // L'intitule annoncait « % Depenses » sur une valeur qui est un MONTANT en francs,
+  // jamais un pourcentage : l'intitule mentait sur ce qu'on lisait.
+  { cle: 'expenses', libelle: 'Dépenses' },
+  { cle: 'reimbursements', icone: ArrowUpRight, libelle: 'Remboursements' },
+  { cle: 'investments', icone: Briefcase, libelle: 'Investissements' },
+];
+
+/**
+ * Le signe porte deja l'information ; la couleur ne fait que la rendre lisible d'un coup
+ * d'oeil. Zero n'est ni une bonne ni une mauvaise nouvelle : il reste neutre.
+ */
+function tonDuResultat(montantFormate: string): TonStat {
+  if (montantFormate.startsWith('-')) return 'danger';
+  if (montantFormate.startsWith('+')) return 'succes';
+  return 'neutre';
+}
+
+function MoisCompteurs({ month }: MonthCardProps) {
   return (
-    <div className="grid grid-cols-2 gap-4">
-      <Card className="bg-surface-secondary border-separator">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 text-red-500 mb-2">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-xs font-medium uppercase">Courses</span>
-          </div>
-          <p className="text-2xl font-bold text-foreground">{month.courses}</p>
-        </CardContent>
-      </Card>
-      <Card className="bg-surface-secondary border-separator">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 text-red-500 mb-2">
-            <Users className="w-4 h-4" />
-            <span className="text-xs font-medium uppercase">Staff</span>
-          </div>
-          <p className="text-2xl font-bold text-foreground">{month.staff}</p>
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-2 gap-3">
+      <CarteStat icone={TrendingUp} libelle="Courses" valeur={month.courses} />
+      <CarteStat icone={Users} libelle="Staff" valeur={month.staff} />
     </div>
   );
 }
 
-function MonthFinancials({ month }: MonthCardProps) {
+function MoisMontants({ month }: MonthCardProps) {
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div>
-          <div className="flex items-center gap-1 text-muted text-xs mb-1">
-            <TrendingUp className="w-3 h-3" />
-            <span>CA</span>
+      {/* Cinq montants poses cote a cote se coupaient au milieu du chiffre et
+          repoussaient « 48 250 000 FCFA » sur deux lignes. Empiles, ils tombent tous sur
+          la meme colonne a droite : c'est ce qui les rend comparables. */}
+      <dl className="divide-y divide-separator">
+        {MONTANTS.map(({ cle, icone: Icone, libelle }) => (
+          <div className="flex items-center justify-between gap-4 py-1.5" key={cle}>
+            <dt className="flex min-w-0 items-center gap-1.5 text-xs text-muted">
+              {Icone && <Icone aria-hidden="true" className="size-3 shrink-0" />}
+              <span className="truncate">{libelle}</span>
+            </dt>
+            <dd className="shrink-0 text-sm font-semibold tabular-nums whitespace-nowrap text-foreground">
+              {month[cle]}
+            </dd>
           </div>
-          <p className="text-sm font-semibold text-foreground">{month.ca}</p>
-        </div>
-        <div>
-          <div className="flex items-center gap-1 text-muted text-xs mb-1">
-            <PlusCircle className="w-3 h-3" />
-            <span>Autres entrées</span>
-          </div>
-          <p className="text-sm font-semibold text-foreground">{month.autresEntrees}</p>
-        </div>
-        <div>
-          <div className="flex items-center gap-1 text-muted text-xs mb-1">
-            <span>% Dépenses</span>
-          </div>
-          <p className="text-sm font-semibold text-foreground">{month.expenses}</p>
-        </div>
-        <div>
-          <div className="flex items-center gap-1 text-muted text-xs mb-1">
-            <ArrowUpRight className="w-3 h-3" />
-            <span>Remboursements</span>
-          </div>
-          <p className="text-sm font-semibold text-foreground">{month.reimbursements}</p>
-        </div>
-        <div>
-          <div className="flex items-center gap-1 text-muted text-xs mb-1">
-            <Briefcase className="w-3 h-3" />
-            <span>Investissements</span>
-          </div>
-          <p className="text-sm font-semibold text-foreground">{month.investments}</p>
-        </div>
-      </div>
-      <div className="space-y-2">
+        ))}
+      </dl>
+
+      <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted">Progression annuelle</span>
-          <span className="text-muted">{month.progress}/12</span>
+          <span className="tabular-nums text-muted">{month.progress}/12</span>
         </div>
-        {/* Sans `color`, la v3 remplit en accent — le rouge de marque sur un simple
+        {/* Sans `color`, la v3 remplit en accent : le rouge de marque sur un simple
             avancement dans l'annee. */}
         <ProgressBar
           aria-label="Progression annuelle"
@@ -97,73 +106,59 @@ function MonthFinancials({ month }: MonthCardProps) {
   );
 }
 
-function MonthProfitability({ month }: MonthCardProps) {
+function MoisRentabilite({ month }: MonthCardProps) {
+  const tonMois = tonDuResultat(month.monthlyResult);
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 text-foreground font-semibold mb-3">
-        <div className="w-1 h-4 bg-foreground rounded-full" />
-        RENTABILITÉ
-      </div>
-      <Card className="bg-green-50 border-green-200">
-        <CardContent className="p-4">
-          <p className="text-xs text-muted mb-1">Résultat du mois</p>
-          <p className="text-base sm:text-lg font-bold text-green-700 mb-1 break-all">
-            {month.monthlyResult}
-          </p>
-          <p className="text-xs text-muted">Bénéfice mensuel</p>
-        </CardContent>
-      </Card>
-      <Card className="bg-blue-600 text-white border-blue-600">
-        <CardContent className="p-4">
-          <p className="text-xs text-blue-100 mb-1">RENTABILITÉ CUMULÉE YTD</p>
-          <p className="text-base sm:text-lg font-bold mb-1 break-all">
-            {month.cumulativeResult}
-          </p>
-          <p className="text-xs text-blue-100">Depuis : {month.monthName}</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2 text-xs text-blue-100 hover:text-white hover:bg-blue-700 p-0 h-auto"
-          >
-            Voir détails
-            <ArrowUpRight className="w-3 h-3 ml-1" />
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Rentabilité</h3>
+      <CarteStat
+        accent
+        libelle="Résultat du mois"
+        note={tonMois === 'danger' ? 'Perte mensuelle' : 'Bénéfice mensuel'}
+        ton={tonMois}
+        valeur={month.monthlyResult}
+      />
+      <CarteStat
+        libelle="Rentabilité cumulée YTD"
+        note={`Depuis : ${month.monthName}`}
+        ton={tonDuResultat(month.cumulativeResult)}
+        valeur={month.cumulativeResult}
+      />
     </div>
   );
 }
 
 export function MonthCard({ month }: MonthCardProps) {
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className={`text-lg font-bold ${month.hasData ? 'text-red-600' : 'text-muted'}`}>
-            {month.monthName}
-          </h2>
-          {month.hasData && month.isProfitable && (
-            <Badge
-              variant="secondary"
-              className="bg-green-100 text-green-700 hover:bg-green-100"
-            >
-              Rentable
-            </Badge>
+    <Card>
+      <Card.Header className="flex-row items-center justify-between gap-3">
+        <Card.Title className="text-lg font-bold text-foreground">{month.monthName}</Card.Title>
+        {/* « Rentable » seul laissait son absence ambigue : mois deficitaire, ou mois sans
+            chiffres ? Les deux etats sont nommes, et seuls les mois qui ont des chiffres
+            portent une pastille. */}
+        {month.hasData && (
+          <Chip color={month.isProfitable ? 'success' : 'danger'} size="sm" variant="soft">
+            {month.isProfitable ? 'Rentable' : 'Déficitaire'}
+          </Chip>
+        )}
+      </Card.Header>
+
+      <Card.Content className="gap-4 md:flex-row md:gap-6">
+        <div className="flex min-w-0 flex-col gap-4 md:flex-1">
+          <MoisCompteurs month={month} />
+          {month.hasData ? (
+            <MoisMontants month={month} />
+          ) : (
+            <p className="text-sm italic text-muted">Aucun chiffre pour ce mois</p>
           )}
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
-            <MonthStatsCards month={month} />
-            {month.hasData ? (
-              <MonthFinancials month={month} />
-            ) : (
-              <p className="text-muted text-sm italic">Aucun chiffre pour ce mois</p>
-            )}
+        {month.hasData && (
+          <div className="md:w-64 md:shrink-0">
+            <MoisRentabilite month={month} />
           </div>
-          {month.hasData && <MonthProfitability month={month} />}
-        </div>
-      </CardContent>
+        )}
+      </Card.Content>
     </Card>
   );
 }

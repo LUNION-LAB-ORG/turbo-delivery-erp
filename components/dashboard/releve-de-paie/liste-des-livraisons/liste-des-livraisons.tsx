@@ -1,270 +1,238 @@
-import { SelectField } from '@/components/commons/form/select-field';
-import { Button } from '@/components/ui/button';
-import { ArrowUp, Calendar, Circle, ClipboardList, Edit, Home, Printer, User } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+'use client';
+
 import { SearchBar } from '@/components/commons/form/search-bar';
+import { SelectField } from '@/components/commons/form/select-field';
 import { SelectWithCheckbox } from '@/components/commons/form/select-with-checkbox';
+import { TableauResponsive, type ColonneResponsive } from '@/components/commons/TableauResponsive';
+import { formatMontant } from '@/utils/format.utils';
+import { Accordion, Avatar, Button, Card, Chip } from '@heroui-v3/react';
+import { Edit, Printer } from 'lucide-react';
 import Link from 'next/link';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useState } from 'react';
 
-const data: any = [
-    { id: '1', date: '01/08/2024', partenaire: 'LE SMASH', cout: '11 000 FCFA' },
-    { id: '2', date: '02/08/2024', partenaire: 'AGHA', cout: '17 000 FCFA' },
-    { id: '3', date: '02/08/2024', partenaire: 'LE SMASH', cout: '11 000 FCFA' },
-    { id: '4', date: '03/08/2024', partenaire: 'AGHA', cout: '17 000 FCFA' },
-    { id: '5', date: '01/08/2024', partenaire: 'LE SMASH', cout: '11 000 FCFA' },
-    { id: '6', date: '01/08/2024', partenaire: 'LE SMASH', cout: '11 000 FCFA' },
-    { id: '7', date: '03/08/2024', partenaire: 'AGHA', cout: '17 000 FCFA' },
-    { id: '8', date: '03/08/2024', partenaire: 'LE SMASH', cout: '11 000 FCFA' },
+/*
+ * Ecran de MAQUETTE : les lignes ci-dessous sont ecrites en dur, la page qui les monte
+ * (app/(protected)/analystics/pay-slip/content.tsx) le dit par un bandeau.
+ *
+ * Le cout etait une CHAINE, « 11 000 FCFA ». Impossible a additionner : le « Net a payer »
+ * du pied lisait `coutTotal + item.cout` avec `coutTotal` remis a zero a chaque tour, ne
+ * gardait que le premier resultat, et affichait donc « 011 000 FCFA FCFA ». Un montant se
+ * porte en nombre et se formate au rendu.
+ */
+type Livraison = { cout: number; date: string; id: string; partenaire: string };
+
+const LIVRAISONS: readonly Livraison[] = [
+    { id: '1', date: '01/08/2024', partenaire: 'LE SMASH', cout: 11000 },
+    { id: '2', date: '02/08/2024', partenaire: 'AGHA', cout: 17000 },
+    { id: '3', date: '02/08/2024', partenaire: 'LE SMASH', cout: 11000 },
+    { id: '4', date: '03/08/2024', partenaire: 'AGHA', cout: 17000 },
+    { id: '5', date: '01/08/2024', partenaire: 'LE SMASH', cout: 11000 },
+    { id: '6', date: '01/08/2024', partenaire: 'LE SMASH', cout: 11000 },
+    { id: '7', date: '03/08/2024', partenaire: 'AGHA', cout: 17000 },
+    { id: '8', date: '03/08/2024', partenaire: 'LE SMASH', cout: 11000 },
 ];
 
-const items = ['Apple', 'Banana', 'Cherry', 'Grapes', 'Mango', 'Orange', 'Pineapple', 'Strawberry'];
+const TOTAL = LIVRAISONS.reduce((somme, l) => somme + l.cout, 0);
+// « Nombre de jour » comptait les LIGNES : huit livraisons reparties sur trois dates
+// s'annoncaient « 8 jour(s) ». Un jour travaille deux fois reste un jour.
+const JOURS = new Set(LIVRAISONS.map((l) => l.date)).size;
+
+// La barre de recherche se voyait servir « Apple, Banana, Cherry… » : les fruits du
+// gabarit d'origine, dans un releve de paie ivoirien. Elle propose les partenaires servis.
+const PARTENAIRES = Array.from(new Set(LIVRAISONS.map((l) => l.partenaire)));
+
+const COLONNES: readonly ColonneResponsive<Livraison>[] = [
+    {
+        cle: 'date',
+        libelle: 'Période',
+        identite: true,
+        /*
+         * Les trois cellules de la ligne portaient CHACUNE un lien vers la meme fiche, et
+         * la premiere repetait en plus « Total 11 000 FCFA » juste sous la date, montant
+         * deja tenu par la colonne de droite. Un lien par ligne, un montant par ligne.
+         */
+        rendu: (l) => (
+            <Link
+                className="font-medium text-foreground underline-offset-2 hover:underline"
+                href={`/analystics/pay-slip/${l.id}/details`}
+            >
+                {l.date}
+            </Link>
+        ),
+    },
+    { cle: 'partenaire', libelle: 'Partenaire', rendu: (l) => l.partenaire },
+    {
+        cle: 'cout',
+        libelle: 'Coût de livraison',
+        nombre: true,
+        rendu: (l) => formatMontant(l.cout),
+    },
+];
 
 /**
- * Cartes mobile des livraisons (remplace le tableau dense < md). Mêmes données
- * et mêmes liens que le tableau ; factorisé ici pour rester identique dans les
- * deux branches (accordéon / vue simple).
+ * Le releve d'UN livreur : qui il est, ce qu'il a livre, ce qu'on lui doit.
+ *
+ * <p>Ce bloc etait ecrit DEUX FOIS a l'identique dans le fichier, une fois dans la branche
+ * accordeon et une fois dans la branche simple, table et cartes mobiles comprises. Chaque
+ * correction devait donc etre faite deux fois, et ne l'etait pas toujours.</p>
  */
-function LivraisonsMobileCards() {
+function ReleveLivreur({ nom }: { nom: string }) {
     return (
-        <div className="space-y-3 md:hidden">
-            {data.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted">Aucune livraison</p>
-            ) : (
-                data.map((item: any, index: number) => (
-                    <Link
-                        key={index}
-                        href={`/analystics/pay-slip/${item.id}/details`}
-                        className="block space-y-2 rounded-xl border border-separator bg-surface p-4 shadow-xs active:bg-red-50"
-                    >
-                        <div className="flex items-start justify-between gap-2">
-                            <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                <Circle className="text-red-500" size={18} /> {item.date}
-                            </span>
-                            <span className="shrink-0 text-sm font-semibold text-foreground">{item.cout}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="shrink-0 text-xs text-muted">Partenaire</span>
-                            <span className="truncate text-right text-sm text-foreground">{item.partenaire}</span>
-                        </div>
-                        <p className="text-xs text-muted">Total {item.cout}</p>
-                    </Link>
-                ))
-            )}
+        <div className="flex flex-col gap-4 md:flex-row md:items-start">
+            {/*
+             * Le panneau de profil etait peint au rouge de marque : titre « Profil » en
+             * rouge, pastille d'initiale en violet, total general en rouge et en gras. Le
+             * total n'appelle aucun geste, et il ne valait pas non plus la somme des
+             * lignes : « 117 800 F CFA » etait ecrit en dur, sous un tableau qui totalise
+             * 106 000. Deux totaux contradictoires sur le meme ecran.
+             */}
+            <Card className="w-full md:w-64 md:shrink-0">
+                <Card.Header>
+                    <Card.Title>Profil</Card.Title>
+                </Card.Header>
+                <Card.Content className="items-center gap-1 pb-6 text-center">
+                    <Avatar size="lg">
+                        <Avatar.Fallback>{nom.charAt(0).toUpperCase()}</Avatar.Fallback>
+                    </Avatar>
+                    <p className="mt-2 text-lg font-semibold text-foreground">{nom}</p>
+                    <p className="mt-6 text-sm text-muted">Total général</p>
+                    <p className="text-2xl font-bold tabular-nums text-foreground">
+                        {formatMontant(TOTAL)}
+                    </p>
+                </Card.Content>
+            </Card>
+
+            <div className="min-w-0 flex-1">
+                <TableauResponsive
+                    cleLigne={(l) => l.id}
+                    colonnes={COLONNES}
+                    libelle={`Livraisons de ${nom}`}
+                    lignes={LIVRAISONS}
+                    vide="Aucune livraison"
+                />
+            </div>
         </div>
     );
 }
 
 export function ListeDesLivraisons() {
-    const [selected, setSelected] = useState([]);
+    const [selected, setSelected] = useState<string[]>([]);
     const [showAccordion, setShowAccordion] = useState(false);
+    const [periode, setPeriode] = useState<string>('');
 
     const confirmer = () => {
-        selected.length > 1 ? setShowAccordion(true) : setShowAccordion(false);
+        setShowAccordion(selected.length > 1);
     };
 
+    /*
+     * Chaque nom portait une classe de fond (`bg-green-500`, `bg-purple-400`…) que plus
+     * personne ne lit : `SelectWithCheckbox` ne rend que le nom et sa case. Sept couleurs
+     * qui ne disaient rien, et rien ne les affichait.
+     */
     const options = [
-        { id: '1', name: 'ABDOUL Konaté', color: 'bg-green-500' },
-        { id: '2', name: 'Dosso Ousmane', color: 'bg-purple-500' },
-        { id: '3', name: 'FIORI Joël', color: 'bg-blue-400' },
-        { id: '4', name: 'JUDICAËL YAO', color: 'bg-yellow-500' },
-        { id: '5', name: 'Elvis BROU', color: 'bg-blue-600' },
-        { id: '6', name: 'William DO', color: 'bg-purple-400' },
-        { id: '7', name: 'Guedenon Régis', color: 'bg-cyan-500' },
+        { id: '1', name: 'ABDOUL Konaté' },
+        { id: '2', name: 'Dosso Ousmane' },
+        { id: '3', name: 'FIORI Joël' },
+        { id: '4', name: 'JUDICAËL YAO' },
+        { id: '5', name: 'Elvis BROU' },
+        { id: '6', name: 'William DO' },
+        { id: '7', name: 'Guedenon Régis' },
     ];
 
-    const oprions2 = [
-        { key: 'date1', label: '01/01/2025 - 01/01/2024' },
-        { key: 'date2', label: '01/01/2025 - 01/01/2024' },
-        { key: 'date3', label: '01/01/2025 - 01/01/2024' },
-        { key: 'date4', label: '01/01/2025 - 01/01/2024' },
-        { key: 'date5', label: '01/01/2025 - 01/01/2024' },
-        { key: 'date6', label: '01/01/2025 - 01/01/2024' },
-        { key: 'date7', label: '01/01/2025 - 01/01/2024' },
-        { key: 'date8', label: '01/01/2025 - 01/01/2024' },
-        { key: 'date9', label: '01/01/2025 - 01/01/2024' },
-    ];
+    /*
+     * `SelectField` lit le libelle de chaque option sous la CLE portee par sa prop
+     * `label` : avec `label="Période"`, il cherchait `item['Période']` sur des objets qui
+     * n'avaient que `key` et `label`. Les neuf options s'affichaient donc VIDES, et leur
+     * valeur aussi. Elles portent la clef attendue.
+     */
+    const periodes = Array.from({ length: 9 }, (_, i) => ({
+        id: `date${i + 1}`,
+        Période: '01/01/2025 - 01/01/2024',
+    }));
 
     return (
         <>
-            <div className="container mt-10 mb-10">
-                <SearchBar items={items} />
+            <div className="container mb-10 mt-10">
+                <SearchBar items={PARTENAIRES} />
             </div>
+
             {showAccordion ? (
-                selected.map((item) => (
-                    <Accordion type="single" collapsible key={item}>
-                        <AccordionItem value={selected[0]}>
-                            <AccordionTrigger className="bg-red-200 text-primary-text border-none rounded p-2 mb-1 mt-2 data-[state=open]:bg-red-500 data-[state=open]:text-white">
-                                {item}
-                            </AccordionTrigger>
-                            <AccordionContent>
-                                <div className="flex flex-col md:flex-row gap-4 p-4 items-start h-full">
-                                    <div className="w-full md:w-1/4 bg-surface-secondary flex-1 rounded-lg p-4 self-stretch flex flex-col">
-                                        <div className=" text-red-500">
-                                            <span className="flex gap-2 items-center">
-                                                <User /> Profil
-                                            </span>
-                                        </div>
-                                        <div className="flex-1 flex flex-col items-center justify-center p-4">
-                                            <div className="w-16 h-16 bg-purple-500 text-white text-center rounded-full pt-[8%]">{'KRAH Éric'.charAt(0)}</div>
-                                            <h2 className="mt-2 font-semibold text-lg">KRAH Éric</h2>
-                                            <div className="mt-6 text-center">
-                                                <p className="text-muted text-sm">Total général</p>
-                                                <p className="text-red-500 text-2xl font-bold">117 800 F CFA</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="w-full md:w-3/4">
-                                        <Table className="hidden w-full rounded-lg border md:table">
-                                            <TableHeader>
-                                                <TableRow className="text-red-500">
-                                                    <TableHead className="text-left py-2 px-4">
-                                                        <span className="flex gap-4 text-red-500">
-                                                            <Calendar size={18} /> Période
-                                                        </span>
-                                                    </TableHead>
-                                                    <TableHead className="text-left py-2 px-4">
-                                                        <span className="flex gap-4 text-red-500">
-                                                            <Home size={18} /> Partenaire
-                                                        </span>
-                                                    </TableHead>
-                                                    <TableHead className="text-left py-2 px-4">
-                                                        <span className="flex gap-4 text-red-500">
-                                                            <ClipboardList size={18} /> Coût de livraison
-                                                        </span>
-                                                    </TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {data.map((item: any, index: number) => (
-                                                    <TableRow key={index} className="hover:bg-red-50">
-                                                        <TableCell className="py-2 px-4">
-                                                            <Link href={`/analystics/pay-slip/${item.id}/details`} passHref>
-                                                                <span className="flex items-center gap-2">
-                                                                    <Circle className="text-red-500" /> <span>{item.date}</span>
-                                                                </span>
-                                                                <p className="text-xs text-muted">Total {item.cout}</p>
-                                                            </Link>
-                                                        </TableCell>
-                                                        <TableCell className="py-2 px-4">
-                                                            <Link href={`/analystics/pay-slip/${item.id}/details`}>{item.partenaire}</Link>
-                                                        </TableCell>
-                                                        <TableCell className="py-2 px-4 font-semibold">
-                                                            <Link href={`/analystics/pay-slip/${item.id}/details`} passHref>
-                                                                {item.cout}
-                                                            </Link>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                        <LivraisonsMobileCards />
-                                    </div>
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                ))
+                /*
+                 * C'etait un `Accordion` shadcn PAR nom selectionne, chacun avec un seul
+                 * volet dont la valeur etait `selected[0]` : les volets partageaient donc
+                 * tous la meme clef et s'ouvraient ensemble. Un seul groupe, une entree par
+                 * nom, et le bandeau rouge du declencheur laisse place au style de la v3.
+                 */
+                <Accordion>
+                    {selected.map((nom) => (
+                        <Accordion.Item id={nom} key={nom}>
+                            <Accordion.Heading>
+                                <Accordion.Trigger>
+                                    {nom}
+                                    <Accordion.Indicator />
+                                </Accordion.Trigger>
+                            </Accordion.Heading>
+                            <Accordion.Panel>
+                                <Accordion.Body>
+                                    <ReleveLivreur nom={nom} />
+                                </Accordion.Body>
+                            </Accordion.Panel>
+                        </Accordion.Item>
+                    ))}
+                </Accordion>
             ) : (
-                <div className="flex flex-col md:flex-row gap-4 p-4 items-start h-full">
-                    <div className="w-full md:w-1/4 bg-surface-secondary flex-1 rounded-lg p-4 self-stretch flex flex-col">
-                        <div className=" text-red-500">
-                            <span className="flex gap-2 items-center">
-                                <User /> Profil
-                            </span>
-                        </div>
-                        <div className="flex-1 flex flex-col items-center justify-center p-4">
-                            <div className="w-16 h-16 bg-purple-500 text-white text-center rounded-full pt-[8%]">{'KRAH Éric'.charAt(0)}</div>
-                            <h2 className="mt-2 font-semibold text-lg">KRAH Éric</h2>
-                            <div className="mt-6 text-center">
-                                <p className="text-muted text-sm">Total général</p>
-                                <p className="text-red-500 text-2xl font-bold">117 800 F CFA</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="w-full md:w-3/4">
-                        <Table className="hidden w-full rounded-lg border md:table">
-                            <TableHeader>
-                                <TableRow className="text-red-500">
-                                    <TableHead className="text-left py-2 px-4">
-                                        <span className="flex gap-4 text-red-500">
-                                            <Calendar size={18} /> Période
-                                        </span>
-                                    </TableHead>
-                                    <TableHead className="text-left py-2 px-4">
-                                        <span className="flex gap-4 text-red-500">
-                                            <Home size={18} /> Partenaire
-                                        </span>
-                                    </TableHead>
-                                    <TableHead className="text-left py-2 px-4">
-                                        <span className="flex gap-4 text-red-500">
-                                            <ClipboardList size={18} /> Coût de livraison
-                                        </span>
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data.map((item: any, index: number) => (
-                                    <TableRow key={index} className="hover:bg-red-50">
-                                        <TableCell className="py-2 px-4">
-                                            <Link href={`/analystics/pay-slip/${item.id}/details`} passHref>
-                                                <span className="flex items-center gap-2">
-                                                    <Circle className="text-red-500" /> <span>{item.date}</span>
-                                                </span>
-                                                <p className="text-xs text-muted">Total {item.cout}</p>
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell className="py-2 px-4">
-                                            <Link href={`/analystics/pay-slip/${item.id}/details`}>{item.partenaire}</Link>
-                                        </TableCell>
-                                        <TableCell className="py-2 px-4 font-semibold">
-                                            <Link href={`/analystics/pay-slip/${item.id}/details`} passHref>
-                                                {item.cout}
-                                            </Link>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        <LivraisonsMobileCards />
-                    </div>
-                </div>
+                <ReleveLivreur nom="KRAH Éric" />
             )}
 
-            <div className="flex justify-between flex-wrap mt-20">
-                <div className="flex gap-4">
-                    <span> Nombre de jour</span>
-                    <Button className="h-6 pl-4 pr-4">
-                        {data.length} Jour(s)
-                    </Button>
-                    <div className="flex gap-4">
-                        Net à payer{' '}
-                        <span className="text-green-500 font-bold flex gap-2">
-                            <ArrowUp className="mr-2" />{' '}
-                            {
-                                data.map((item: any) => {
-                                    const coutTotal = 0;
-
-                                    return coutTotal + item.cout;
-                                })[0]
-                            }{' '}
-                        </span>{' '}
-                        FCFA
-                    </div>
+            <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-6">
+                    {/* Le compte etait rendu par un BOUTON rouge, cliquable, sans geste. */}
+                    <span className="flex items-center gap-2 text-sm text-muted">
+                        Nombre de jours
+                        <Chip size="sm" variant="soft">
+                            <Chip.Label>{JOURS} jour(s)</Chip.Label>
+                        </Chip>
+                    </span>
+                    {/*
+                     * « Net a payer » etait precede d'une FLECHE VERS LE HAUT en vert : la
+                     * grammaire d'une hausse, sur un total qui ne se compare a rien.
+                     */}
+                    <span className="flex items-center gap-2 text-sm text-muted">
+                        Net à payer
+                        <span className="text-base font-bold tabular-nums text-foreground">
+                            {formatMontant(TOTAL)}
+                        </span>
+                    </span>
                 </div>
-                <div className="flex pt-0 flex-wrap gap-2 sm:pt-4 lg:pt-0 md:pt-0 xl:pt-0">
-                    <Button className="h-8">
-                        <Edit className="mr-2" /> Modifier
+                {/*
+                 * Ces deux boutons n'ont AUCUN gestionnaire, ni avant ni maintenant : ils
+                 * appartiennent a la maquette. « Imprimer » etait rouge comme « Modifier ».
+                 */}
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline">
+                        <Edit aria-hidden="true" className="size-4" />
+                        Modifier
                     </Button>
-                    <Button className="h-8" variant={'default'}>
-                        <Printer className="mr-2" /> Imprimer
+                    <Button variant="primary">
+                        <Printer aria-hidden="true" className="size-4" />
+                        Imprimer
                     </Button>
                 </div>
             </div>
-            <div className="flex gap-4 mt-10 items-center">
-                <SelectWithCheckbox options={options} selected={selected} setSelected={setSelected} confirmer={confirmer} />
-                <SelectField options={oprions2} label="Période" />
+
+            <div className="mt-10 flex flex-wrap items-end gap-4">
+                <SelectWithCheckbox
+                    confirmer={confirmer}
+                    options={options}
+                    selected={selected}
+                    setSelected={setSelected}
+                />
+                <SelectField
+                    label="Période"
+                    options={periodes}
+                    setValue={setPeriode}
+                    value={periode}
+                />
             </div>
         </>
     );

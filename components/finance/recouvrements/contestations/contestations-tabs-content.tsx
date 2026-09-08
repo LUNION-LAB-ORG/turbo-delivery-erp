@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { ComboBox, Input, Label, ListBox, Spinner } from '@heroui-v3/react';
+import { Card, ComboBox, Input, Label, ListBox, Spinner } from '@heroui-v3/react';
 
 import { PaginationTableau } from '../common/pagination-tableau';
 import useContestationsDashboard from '@/features/recouvrements/hooks/use-contestations-dashboard';
@@ -28,7 +27,7 @@ export function ContestationsTabsContent({ restoOpts, isOptionsLoading }: Contes
    *
    * <p>Les bornes de periode sont des objets `Date` : nuqs en rend une NOUVELLE instance
    * a chaque rendu. Deposees telles quelles en dependance, elles se comparent par
-   * reference et l'effet repart a chaque fois — la page revenait a 1 aussitot demandee,
+   * reference et l'effet repart a chaque fois : la page revenait a 1 aussitot demandee,
    * la pagination etait inutilisable. On compare leur VALEUR.</p>
    */
   const debutMs = filters.debut instanceof Date ? filters.debut.getTime() : filters.debut;
@@ -63,9 +62,11 @@ export function ContestationsTabsContent({ restoOpts, isOptionsLoading }: Contes
   };
 
   return (
+    // La carte venait de shadcn : deux cartes de dessins differents se cotoyaient sur
+    // l'ecran Recouvrements, celle-ci et celles des contestations juste en dessous.
     <Card className="w-full">
-      <CardHeader className="flex flex-col gap-4 pb-4">
-        <h2 className="text-lg font-medium">Contestations</h2>
+      <Card.Header className="gap-4">
+        <Card.Title className="text-lg">Contestations</Card.Title>
 
         {/* Filtres */}
         <div className="flex flex-col sm:flex-row gap-4 w-full flex-wrap">
@@ -88,7 +89,7 @@ export function ContestationsTabsContent({ restoOpts, isOptionsLoading }: Contes
           />
 
           {/*
-           * Un `ComboBox` et non un `Select`, comme partout ailleurs — et surtout, le
+           * Un `ComboBox` et non un `Select`, comme partout ailleurs, et surtout le
            * `Select` de la v2 recevait un `onChange` DOM alors qu'il rend
            * `onSelectionChange` : le filtre de statut ne changeait rien.
            */}
@@ -120,9 +121,9 @@ export function ContestationsTabsContent({ restoOpts, isOptionsLoading }: Contes
             </ComboBox.Popover>
           </ComboBox>
         </div>
-      </CardHeader>
+      </Card.Header>
 
-      <CardContent className="w-full">
+      <Card.Content className="w-full">
         {filters.restaurantId && isLoading && (
           <div className="flex flex-col items-center justify-center gap-2 py-12">
             <Spinner />
@@ -160,7 +161,7 @@ export function ContestationsTabsContent({ restoOpts, isOptionsLoading }: Contes
             <p>Aucune contestation trouvée</p>
           </div>
         )}
-      </CardContent>
+      </Card.Content>
     </Card>
   );
 }

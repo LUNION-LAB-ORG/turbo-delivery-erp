@@ -1,9 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { X, Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Label, Radio, RadioGroup } from '@heroui-v3/react';
+import { Upload } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { FenetreAction } from '@/components/commons/FenetreAction';
+import {
+  ChampDate,
+  ChampEnveloppe,
+  ChampMontant,
+  ChampZoneTexte,
+} from '@/components/commons/champs-formulaire';
 import type { IAgentFacture as IFactureAgent } from '@/features/agent-recouvreur';
 import { formatMontant } from '@/utils/format.utils';
 
@@ -24,44 +31,79 @@ interface Props {
   onConfirm: (paiement: Omit<IPaiement, 'id'>) => void;
 }
 
-export default function AjouterPaiementModal({ open, onClose, facture, montantDejaRecouvre, onConfirm }: Props) {
+/** Les trois chiffres du haut : ils ne valent que compares les uns aux autres. */
+function ColonneMontant({ libelle, valeur }: { libelle: string; valeur: number }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-xs text-muted">{libelle}</span>
+      <span className="text-sm font-bold tabular-nums text-foreground">
+        {formatMontant(valeur)}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * L'enregistrement d'un paiement sur une facture en recouvrement.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Le choix « Acompte / Solde » etait fait de deux `<button>` peints en bleu quand ils
+ * etaient retenus : rien n'indiquait a un lecteur d'ecran qu'il s'agissait d'un choix
+ * exclusif, ni lequel des deux etait actif. C'est un groupe de boutons radio.</p>
+ *
+ * <p>Le bandeau de resume etait `bg-blue-50 border-blue-100`, le restant du a recouvrer
+ * `text-red-500`, et les libelles introduits par des emojis (calendrier, billet). Les
+ * trois montants etaient en chasse proportionnelle, alignes a gauche : c'est pourtant leur
+ * comparaison qui decide du type de paiement.</p>
+ *
+ * <p>Enfin le bouton d'enregistrement etait DESACTIVE tant que la date ou le montant
+ * manquaient, sans dire lequel.</p>
+ */
+export default function AjouterPaiementModal({
+  open,
+  onClose,
+  facture,
+  montantDejaRecouvre,
+  onConfirm,
+}: Props) {
   const today = new Date().toISOString().split('T')[0];
   const [type, setType] = useState<'Acompte' | 'Solde'>('Acompte');
   const [date, setDate] = useState(today);
-  const [montant, setMontant] = useState(0);
-
-  // Auto-sélectionner 'Solde' quand le montant saisi couvre le restant dû
-  function handleMontantChange(value: number) {
-    setMontant(value);
-    const r = facture ? facture.montant - montantDejaRecouvre : 0;
-    if (value > 0 && r > 0 && value >= r) setType('Solde');
-    else if (value < r) setType('Acompte');
-  }
+  const [montant, setMontant] = useState<number | undefined>(undefined);
   const [fileName, setFileName] = useState<string | null>(null);
-  // V52 (2026-05) — On stocke aussi le contenu en data URL base64 pour
-  // l'envoi au backend. Avant : seul le nom du fichier était capturé,
-  // donc la preuve était silencieusement perdue au backend (champ DTO
+  // V52 (2026-05) : on stocke aussi le contenu en data URL base64 pour
+  // l'envoi au backend. Avant : seul le nom du fichier etait capture,
+  // donc la preuve etait silencieusement perdue au backend (champ DTO
   // recevait juste un nom de fichier sans contenu).
   const [preuveDataUrl, setPreuveDataUrl] = useState<string | null>(null);
   const [remarque, setRemarque] = useState('');
-  const portalRef = useRef<Element | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    portalRef.current = document.getElementById('modal-portal') ?? document.body;
-    setMounted(true);
-  }, []);
+  const [erreurs, setErreurs] = useState<{ date?: string; montant?: string }>({});
 
   useEffect(() => {
     if (open) {
       setType('Acompte');
       setDate(today);
-      setMontant(0);
+      setMontant(undefined);
       setFileName(null);
       setPreuveDataUrl(null);
       setRemarque('');
+      setErreurs({});
     }
-  }, [open]);
+  }, [open, today]);
+
+  if (!facture) return null;
+
+  const restant = facture.montant - montantDejaRecouvre;
+
+  // Auto-selectionner « Solde » quand le montant saisi couvre le restant du.
+  function handleMontantChange(value: number) {
+    const valide = Number.isNaN(value) ? undefined : value;
+    setMontant(valide);
+    setErreurs((e) => ({ ...e, montant: undefined }));
+    const v = valide ?? 0;
+    if (v > 0 && restant > 0 && v >= restant) setType('Solde');
+    else if (v < restant) setType('Acompte');
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -71,7 +113,7 @@ export default function AjouterPaiementModal({ open, onClose, facture, montantDe
       return;
     }
     setFileName(file.name);
-    // V52 — lire le fichier en data URL base64 pour l'envoyer au backend.
+    // V52 : lire le fichier en data URL base64 pour l'envoyer au backend.
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') setPreuveDataUrl(reader.result);
@@ -79,140 +121,121 @@ export default function AjouterPaiementModal({ open, onClose, facture, montantDe
     reader.readAsDataURL(file);
   }
 
-  if (!open || !facture || !mounted) return null;
-
-  const restant = facture.montant - montantDejaRecouvre;
-
   function handleConfirm() {
-    // V52 — envoyer la data URL base64 (pas juste le nom du fichier comme
+    const manque: { date?: string; montant?: string } = {};
+    if (!date) manque.date = 'Indiquez la date du paiement.';
+    if (!montant || montant <= 0) manque.montant = 'Indiquez le montant reçu.';
+    if (Object.keys(manque).length > 0) {
+      setErreurs(manque);
+      return;
+    }
+    // V52 : envoyer la data URL base64 (pas juste le nom du fichier comme
     // avant) pour que le backend puisse persister la preuve.
-    onConfirm({ type, date, montant, preuve: preuveDataUrl ?? undefined, remarque: remarque || undefined });
+    onConfirm({
+      date,
+      montant: montant as number,
+      preuve: preuveDataUrl ?? undefined,
+      remarque: remarque || undefined,
+      type,
+    });
     onClose();
   }
 
-  return createPortal(
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-separator">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-              <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Ajouter un paiement</p>
-              <p className="text-xs text-muted">Facture {facture.numero}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-muted hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-5 space-y-4">
-          {/* Résumé montants */}
-          <div className="grid grid-cols-3 gap-3 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
-            <div>
-              <p className="text-xs text-blue-500 mb-0.5">Montant total</p>
-              <p className="text-sm font-bold text-foreground">{formatMontant(facture.montant)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-blue-500 mb-0.5">Déjà recouvré</p>
-              <p className="text-sm font-bold text-foreground">{formatMontant(montantDejaRecouvre)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-blue-500 mb-0.5">Restant à recouvrer</p>
-              <p className="text-sm font-bold text-red-500">{formatMontant(restant)}</p>
-            </div>
-          </div>
-
-          {/* Type de paiement */}
-          <div>
-            <label className="block text-xs text-muted mb-1.5">Type de paiement <span className="text-red-500">*</span></label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['Acompte', 'Solde'] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setType(t)}
-                  className={`py-2.5 rounded-lg text-sm font-medium border transition-colors ${
-                    type === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-surface text-muted border-separator hover:border-separator'
-                  }`}
-                >
-                  <p className="font-semibold">{t}</p>
-                  <p className="text-xs opacity-70">{t === 'Acompte' ? 'Paiement partiel' : 'Paiement total'}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Date + Montant */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-muted mb-1.5">📅 Date du paiement <span className="text-red-500">*</span></label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-lg border border-separator bg-surface px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-blue-300"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted mb-1.5">💲 Montant <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={montant || ''}
-                  min={0}
-                  onChange={(e) => handleMontantChange(Number(e.target.value))}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-separator bg-surface px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-blue-300 pr-14"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted">FCFA</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Preuve */}
-          <div>
-            <label className="block text-xs text-muted mb-1.5">Preuve de paiement <span className="text-red-500">*</span></label>
-            <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-separator bg-surface-secondary px-4 py-5 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors">
-              <Upload className="w-5 h-5 text-muted" />
-              {fileName
-                ? <p className="text-xs font-medium text-foreground">{fileName}</p>
-                : <p className="text-xs text-muted">Choisir pour télécharger<br /><span className="text-muted">PNG, JPG ou PDF (max 10Mo)</span></p>
-              }
-              <input type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden" onChange={handleFileChange} />
-            </label>
-          </div>
-
-          {/* Remarque */}
-          <div>
-            <label className="flex items-center gap-1.5 text-xs text-muted mb-1.5">
-              <input type="checkbox" className="rounded" /> Remarque (optionnel)
-            </label>
-            <textarea
-              value={remarque}
-              onChange={(e) => setRemarque(e.target.value)}
-              placeholder="Écrivez des remarques sur ce paiement..."
-              rows={2}
-              className="w-full rounded-lg border border-separator bg-surface px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-blue-300 resize-none"
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex gap-3 px-6 pb-5">
-          <Button variant="outline" onClick={onClose} className="flex-1 text-sm">Annuler</Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!montant || !date}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-50"
-          >
-            Enregistrer le paiement
-          </Button>
-        </div>
+  return (
+    <FenetreAction
+      libelleAction="Enregistrer le paiement"
+      onAction={handleConfirm}
+      onFermer={onClose}
+      ouvert={open}
+      titre={`Ajouter un paiement sur la facture ${facture.numero}`}
+    >
+      <div className="grid grid-cols-3 gap-3 rounded-xl border border-separator bg-surface-secondary px-4 py-3">
+        <ColonneMontant libelle="Montant total" valeur={facture.montant} />
+        <ColonneMontant libelle="Déjà recouvré" valeur={montantDejaRecouvre} />
+        <ColonneMontant libelle="Restant à recouvrer" valeur={restant} />
       </div>
-    </div>,
-    portalRef.current!,
+
+      <RadioGroup
+        onChange={(v) => setType(v as 'Acompte' | 'Solde')}
+        value={type}
+      >
+        <Label>Type de paiement</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              { description: 'Paiement partiel', valeur: 'Acompte' },
+              { description: 'Paiement total', valeur: 'Solde' },
+            ] as const
+          ).map((choix) => (
+            <Radio key={choix.valeur} value={choix.valeur}>
+              <Radio.Content className="flex w-full items-center gap-3">
+                <Radio.Control>
+                  <Radio.Indicator />
+                </Radio.Control>
+                <span className="flex flex-col items-start">
+                  <span className="text-sm font-medium text-foreground">{choix.valeur}</span>
+                  <span className="text-xs text-muted">{choix.description}</span>
+                </span>
+              </Radio.Content>
+            </Radio>
+          ))}
+        </div>
+      </RadioGroup>
+
+      <ChampDate
+        erreur={erreurs.date}
+        label="Date du paiement"
+        onChange={(v) => {
+          setDate(v);
+          setErreurs((e) => ({ ...e, date: undefined }));
+        }}
+        valeur={date}
+      />
+
+      <ChampMontant
+        erreur={erreurs.montant}
+        label="Montant (FCFA)"
+        onChange={handleMontantChange}
+        valeur={montant}
+      />
+
+      <ChampEnveloppe label="Preuve de paiement">
+        {/*
+         * `className="hidden"` sortait le champ de fichier de l'ordre de tabulation :
+         * joindre la preuve devenait impossible sans souris.
+         */}
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-separator bg-surface-secondary px-4 py-5 transition-colors hover:bg-surface-tertiary focus-within:border-accent">
+          <Upload aria-hidden="true" className="size-5 text-muted" />
+          {fileName ? (
+            <p className="text-xs font-medium text-foreground">{fileName}</p>
+          ) : (
+            <p className="text-center text-xs text-muted">
+              Choisir pour télécharger
+              <br />
+              PNG, JPG ou PDF (max 10 Mo)
+            </p>
+          )}
+          <input
+            accept=".pdf,.png,.jpg,.jpeg"
+            className="sr-only"
+            onChange={handleFileChange}
+            type="file"
+          />
+        </label>
+      </ChampEnveloppe>
+
+      {/*
+       * Le libelle de la remarque portait une case a cocher NON BRANCHEE : elle ne
+       * pilotait rien, ne se lisait nulle part, et laissait croire qu'il fallait la cocher
+       * pour que la remarque soit prise en compte. Le champ, lui, a toujours ete envoye.
+       */}
+      <ChampZoneTexte
+        label="Remarque (optionnel)"
+        lignes={2}
+        onChange={setRemarque}
+        placeholder="Écrivez des remarques sur ce paiement…"
+        valeur={remarque}
+      />
+    </FenetreAction>
   );
 }

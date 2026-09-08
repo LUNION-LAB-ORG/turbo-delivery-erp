@@ -1,28 +1,47 @@
-﻿'use client';
+'use client';
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { CartesianGrid, Line, LineChart, XAxis } from 'recharts';
-import { cn } from '@/lib/utils';
-import YearSelect from '@/components/commons/year-select';
-import React, { useMemo } from 'react';
-import { useDashboardStatsQuery } from '@/features/finance-dashboard/queries/dashboard-stats.query';
-import { recupererDonnees } from '@/features/depenses/depense-stats.utils';
+import { Card } from '@heroui-v3/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import EtatErreur from '@/components/commons/EtatErreur';
+import React, { useMemo } from 'react';
+import { CartesianGrid, Line, LineChart, XAxis } from 'recharts';
 
+import EtatErreur from '@/components/commons/EtatErreur';
+import YearSelect from '@/components/commons/year-select';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import { recupererDonnees } from '@/features/depenses/depense-stats.utils';
+import { useDashboardStatsQuery } from '@/features/finance-dashboard/queries/dashboard-stats.query';
+import { cn } from '@/lib/utils';
+
+/*
+ * La courbe etait ROUGE. Le rouge de cet ERP dit « ceci appelle un geste » ; l'historique
+ * des depenses d'une annee ecoulee n'en appelle aucun, il se lit. Une teinte franche mais
+ * sans verdict, declaree par theme pour rester lisible en sombre.
+ */
 const chartConfig = {
   montant: {
     label: 'Montant',
-    color: '#ef4444',
+    theme: { dark: '#60a5fa', light: '#2563eb' },
   },
 } satisfies ChartConfig;
 
-
+/**
+ * L'evolution des depenses mois par mois.
+ */
 export default function DepenseLineChart({ className }: { className?: string }) {
   const [year, setYear] = React.useState<string>(new Date().getFullYear().toString());
-  const { data: dashboardStats, isLoading, isFetching, isError, refetch } = useDashboardStatsQuery({ annee: parseInt(year) });
+  const {
+    data: dashboardStats,
+    isError,
+    isFetching,
+    isLoading,
+    refetch,
+  } = useDashboardStatsQuery({ annee: parseInt(year) });
 
   const depenseData = useMemo(() => {
     if (!dashboardStats) return [];
@@ -30,92 +49,74 @@ export default function DepenseLineChart({ className }: { className?: string }) 
   }, [dashboardStats, year]);
 
   const chartData = useMemo(() => {
-    const currentMonth = new Date().getMonth() + 1; // 1-12
-    const currentYear = new Date().getFullYear();
-    const selectedYear = parseInt(year);
+    const moisCourant = new Date().getMonth() + 1; // 1-12
+    const anneeCourante = new Date().getFullYear();
+    const anneeChoisie = parseInt(year);
 
-    // Filtrer uniquement jusqu'au mois actuel si l'année sélectionnée est l'année courante
-    const filteredData = depenseData.filter((item) => {
-      const itemDate = new Date(item.date);
-      const itemMonth = itemDate.getMonth() + 1;
-
-      if (selectedYear === currentYear) {
-        return itemMonth <= currentMonth;
-      }
-      return true;
+    // Sur l'annee en cours, les mois a venir tireraient la courbe a zero.
+    const filtre = depenseData.filter((item) => {
+      const mois = new Date(item.date).getMonth() + 1;
+      return anneeChoisie === anneeCourante ? mois <= moisCourant : true;
     });
 
-    return filteredData.map((item) => {
-      const itemDate = new Date(item.date);
-
-      return {
-        month: format(itemDate, 'MMM', { locale: fr }),
-        montant: item.data.montant,
-        count: item.data.count,
-      };
-    });
+    return filtre.map((item) => ({
+      count: item.data.count,
+      month: format(new Date(item.date), 'MMM', { locale: fr }),
+      montant: item.data.montant,
+    }));
   }, [depenseData, year]);
 
   return (
     <Card className={cn('', className)}>
-      <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+      <Card.Header className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <CardTitle>Evolution des dépenses</CardTitle>
-          <CardDescription>Année {year}</CardDescription>
+          <Card.Title>Évolution des dépenses</Card.Title>
+          <Card.Description>Année {year}</Card.Description>
         </div>
-        <YearSelect value={year} onChange={(newYear) => setYear(newYear)} />
-      </CardHeader>
-      <CardContent>
+        <YearSelect onChange={(nouvelleAnnee) => setYear(nouvelleAnnee)} value={year} />
+      </Card.Header>
+      <Card.Content>
         {isLoading ? (
-          <div className="flex items-center justify-center h-[300px]">
-            <div className="text-muted-foreground">Chargement...</div>
+          <div className="flex h-[300px] items-center justify-center">
+            <div className="text-muted">Chargement...</div>
           </div>
         ) : isError ? (
           /* Sans donnee, la courbe tombait sur « Aucune depense sur la periode » :
              une annee illisible se lisait comme une annee sans depense. */
-          <div className="flex items-center justify-center h-[300px]">
-            <EtatErreur quoi="l'évolution des dépenses" onReessayer={() => refetch()} enCours={isFetching} />
+          <div className="flex h-[300px] items-center justify-center">
+            <EtatErreur
+              enCours={isFetching}
+              onReessayer={() => refetch()}
+              quoi="l'évolution des dépenses"
+            />
           </div>
         ) : chartData.length > 0 ? (
-          <ChartContainer config={chartConfig} className="h-[220px] w-full">
-            <LineChart
-              accessibilityLayer
-              data={chartData}
-              margin={{
-                left: 12,
-                right: 12,
-              }}
-            >
+          <ChartContainer className="h-[220px] w-full" config={chartConfig}>
+            <LineChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+              <XAxis axisLine={false} dataKey="month" tickLine={false} tickMargin={8} />
+              <ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
               <Line
+                activeDot={{ r: 6 }}
                 dataKey="montant"
-                type="linear"
+                dot={{ fill: 'var(--color-montant)' }}
                 stroke="var(--color-montant)"
                 strokeWidth={2}
-                dot={{
-                  fill: 'var(--color-montant)',
-                }}
-                activeDot={{
-                  r: 6,
-                }}
+                type="linear"
               />
             </LineChart>
           </ChartContainer>
         ) : (
-          <div className="flex items-center justify-center h-[300px]">
-            <div className="text-muted-foreground">Aucune dépense sur la période</div>
+          <div className="flex h-[300px] items-center justify-center">
+            <div className="text-muted">Aucune dépense sur la période</div>
           </div>
         )}
-        <CardFooter>
-          <div className="text-muted-foreground leading-none text-center mt-4 w-full">
-            {/* Description */}
-            L&#39;évolution des dépenses durant la période choisie.
-          </div>
-        </CardFooter>
-      </CardContent>
+      </Card.Content>
+      <Card.Footer>
+        <p className="w-full text-center text-sm leading-none text-muted">
+          L&#39;évolution des dépenses durant la période choisie.
+        </p>
+      </Card.Footer>
     </Card>
   );
 }
-

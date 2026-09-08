@@ -1,27 +1,41 @@
 'use client';
 
-import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { useInvestissementMonthlyFilters, useInvestissementStatsMonthly } from '@/features/investissement/hooks';
+import { Card } from '@heroui-v3/react';
 import { format, getMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
+
 import { ChampListe } from '@/components/commons/champs-formulaire';
 import EtatErreur from '@/components/commons/EtatErreur';
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import {
+  useInvestissementMonthlyFilters,
+  useInvestissementStatsMonthly,
+} from '@/features/investissement/hooks';
 
 /*
- * Les deux series etaient peintes en hexadecimaux ecrits en dur — `#3B82F6` et
- * `#10B981` — donc identiques dans les deux themes et etrangeres a la palette. Elles
- * passent par les variables du graphe, que `styles/tailwind.css` declare pour le clair
- * et le sombre : c'est ce que fait deja le reste des graphes du projet.
+ * Les deux series etaient peintes en hexadecimaux ecrits en dur (`#3B82F6` et `#10B981`),
+ * donc identiques dans les deux themes et etrangeres a la palette.
+ *
+ * Le `chartConfig` annoncait bien `var(--chart-1)`, mais cette variable ne contient PAS une
+ * couleur : `styles/tailwind.css` y range un triplet HSL nu (`12 76% 61%`), qu'il faut
+ * envelopper dans `hsl()`. La declaration etait donc invalide, ignoree par le navigateur, et
+ * les barres ne devaient leur couleur qu'aux hexadecimaux : c'est ce qui masquait la panne.
  */
 const chartConfig = {
   montantInvestissement: {
-    color: 'var(--chart-1)',
+    color: 'hsl(var(--chart-1))',
     label: 'Investissement',
   },
   montantRembourse: {
-    color: 'var(--chart-2)',
+    color: 'hsl(var(--chart-2))',
     label: 'Remboursement',
   },
 } satisfies ChartConfig;
@@ -31,7 +45,7 @@ const generateYears = () => {
   const currentYear = new Date().getFullYear();
   const years = [];
   for (let year = 2025; year <= currentYear; year++) {
-    years.push({ value: year.toString(), label: year.toString() });
+    years.push({ label: year.toString(), value: year.toString() });
   }
   return years;
 };
@@ -49,7 +63,6 @@ const generateCompleteMonthlyData = (data: any[], selectedYear: string) => {
   const allMonths = [];
   for (let month = 0; month <= lastMonth; month++) {
     const date = new Date(parseInt(selectedYear), month, 1);
-    const monthKey = format(date, 'yyyy-MM-01');
 
     // Chercher les données correspondantes
     const existingData = data?.find((item) => item.date.startsWith(format(date, 'yyyy-MM')));
@@ -65,8 +78,8 @@ const generateCompleteMonthlyData = (data: any[], selectedYear: string) => {
 };
 
 export function InvestissementMonthlyChart() {
-  const { data, isLoading, isFetching, isError, refetch } = useInvestissementStatsMonthly();
-  const { year, updateYear } = useInvestissementMonthlyFilters();
+  const { data, isError, isFetching, isLoading, refetch } = useInvestissementStatsMonthly();
+  const { updateYear, year } = useInvestissementMonthlyFilters();
 
   const years = generateYears();
 
@@ -76,53 +89,72 @@ export function InvestissementMonthlyChart() {
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <div className="h-6 bg-surface-tertiary rounded w-64 animate-pulse mb-2" />
-          <div className="h-4 bg-surface-tertiary rounded w-48 animate-pulse" />
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px] bg-surface-tertiary rounded animate-pulse" />
-        </CardContent>
+        <Card.Header>
+          <div className="mb-2 h-6 w-64 animate-pulse rounded bg-surface-tertiary" />
+          <div className="h-4 w-48 animate-pulse rounded bg-surface-tertiary" />
+        </Card.Header>
+        <Card.Content>
+          <div className="h-[300px] animate-pulse rounded bg-surface-tertiary" />
+        </Card.Content>
       </Card>
     );
   }
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Répartition mensuelle des investissements et remboursements</CardTitle>
-        <CardDescription>Visualisation des investissements et remboursements par mois</CardDescription>
+      <Card.Header>
+        <Card.Title>Répartition mensuelle des investissements et remboursements</Card.Title>
         <div className="mt-4 max-w-xs">
           <ChampListe
             label="Année"
             onChange={(v) => v && updateYear(v)}
-            options={years.map((y) => ({ label: y.label, value: y.value }))}
+            options={years}
             placeholder="Choisir une année"
             valeur={year}
           />
         </div>
-      </CardHeader>
-      <CardContent>
+      </Card.Header>
+      <Card.Content>
         {/* `generateCompleteMonthlyData` fabrique douze mois a zero quand il n'a pas
             de donnee : le graphe restait dessine, plat, et personne ne voyait l'echec. */}
         {isError ? (
-          <EtatErreur quoi="la répartition mensuelle" onReessayer={() => refetch()} enCours={isFetching} />
+          <EtatErreur
+            enCours={isFetching}
+            onReessayer={() => refetch()}
+            quoi="la répartition mensuelle"
+          />
         ) : (
-        <ChartContainer config={chartConfig}>
-          <BarChart accessibilityLayer data={chartData}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => value.slice(0, 3)} />
-            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-            <ChartLegend content={<ChartLegendContent />} />
-            <Bar dataKey="montantInvestissement" stackId="a" fill="#3B82F6" radius={[0, 0, 4, 4]} />
-            <Bar dataKey="montantRembourse" stackId="a" fill="#10B981" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartContainer>
+          <ChartContainer config={chartConfig}>
+            <BarChart accessibilityLayer data={chartData}>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                axisLine={false}
+                dataKey="month"
+                tickFormatter={(value) => value.slice(0, 3)}
+                tickLine={false}
+                tickMargin={10}
+              />
+              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar
+                dataKey="montantInvestissement"
+                fill="var(--color-montantInvestissement)"
+                radius={[0, 0, 4, 4]}
+                stackId="a"
+              />
+              <Bar
+                dataKey="montantRembourse"
+                fill="var(--color-montantRembourse)"
+                radius={[4, 4, 0, 0]}
+                stackId="a"
+              />
+            </BarChart>
+          </ChartContainer>
         )}
-      </CardContent>
-      <CardFooter className="flex-col items-start gap-2 text-sm">
-        <div className="flex gap-2 leading-none font-medium text-muted-foreground">Données pour l&#39;année {year}</div>
-      </CardFooter>
+      </Card.Content>
+      <Card.Footer className="flex-col items-start gap-2 text-sm">
+        <p className="font-medium leading-none text-muted">Données pour l&#39;année {year}</p>
+      </Card.Footer>
     </Card>
   );
 }

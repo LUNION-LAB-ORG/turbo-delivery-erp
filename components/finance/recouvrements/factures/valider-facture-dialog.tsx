@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { FenetreAction } from '@/components/commons/FenetreAction';
 import { IFacture } from '@/features/recouvrements/types/facture.types';
 import { formatCFA } from '@/src/actions/bonLivraison.mapper';
 import { useValiderFactureMutation } from '@/features/recouvrements/queries/facture.mutation';
@@ -20,6 +11,11 @@ interface ValiderFactureDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/**
+ * La fenetre venait de shadcn, la derniere bibliotheque doublonnee du projet : son
+ * `AlertDialog` rendait un dialogue de plus, avec ses propres boutons, a cote du `Modal`
+ * de la v3 que porte tout le reste de l'ERP. `FenetreAction` est la coquille unique.
+ */
 export const ValiderFactureDialog = ({ facture, open, onOpenChange }: ValiderFactureDialogProps) => {
   const { mutate: validerFacture, isPending } = useValiderFactureMutation();
 
@@ -32,24 +28,19 @@ export const ValiderFactureDialog = ({ facture, open, onOpenChange }: ValiderFac
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Valider la facture</AlertDialogTitle>
-          <AlertDialogDescription>
-            Êtes-vous sûr de vouloir valider cette facture pour le restaurant <strong>{facture.restaurantName}</strong> d&apos;un montant de{' '}
-            <strong>{formatCFA(facture.montant || 0)}</strong> ?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Annuler</AlertDialogCancel>
-          <AlertDialogAction onClick={handleValidate} disabled={isPending}>
-            {isPending ? 'Validation...' : 'Confirmer'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <FenetreAction
+      enAttente={isPending}
+      libelleAction="Confirmer"
+      onAction={handleValidate}
+      onFermer={() => onOpenChange(false)}
+      ouvert={open}
+      titre="Valider la facture"
+    >
+      <p className="text-sm text-foreground">
+        Êtes-vous sûr de vouloir valider cette facture pour le restaurant{' '}
+        <strong>{facture.restaurantName}</strong> d&apos;un montant de{' '}
+        <strong className="tabular-nums">{formatCFA(facture.montant || 0)}</strong> ?
+      </p>
+    </FenetreAction>
   );
 };
-
-

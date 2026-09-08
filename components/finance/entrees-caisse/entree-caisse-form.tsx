@@ -1,44 +1,45 @@
 'use client';
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/components/ui/button';
-import { DialogClose, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  ChampListe,
+  ChampMontant,
+  ChampTexte,
+  ChampZoneTexte,
+} from '@/components/commons/champs-formulaire';
 import {
   entreeCaisseSchema,
-  EntreeCaisseCreateDTO,
+  type EntreeCaisseCreateDTO,
 } from '@/features/entrees-caisse/schemas/entree-caisse.schema';
 
 const MOIS = [
-  { value: '01', label: 'Janvier' },
-  { value: '02', label: 'Février' },
-  { value: '03', label: 'Mars' },
-  { value: '04', label: 'Avril' },
-  { value: '05', label: 'Mai' },
-  { value: '06', label: 'Juin' },
-  { value: '07', label: 'Juillet' },
-  { value: '08', label: 'Août' },
-  { value: '09', label: 'Septembre' },
-  { value: '10', label: 'Octobre' },
-  { value: '11', label: 'Novembre' },
-  { value: '12', label: 'Décembre' },
+  { label: 'Janvier', value: '01' },
+  { label: 'Février', value: '02' },
+  { label: 'Mars', value: '03' },
+  { label: 'Avril', value: '04' },
+  { label: 'Mai', value: '05' },
+  { label: 'Juin', value: '06' },
+  { label: 'Juillet', value: '07' },
+  { label: 'Août', value: '08' },
+  { label: 'Septembre', value: '09' },
+  { label: 'Octobre', value: '10' },
+  { label: 'Novembre', value: '11' },
+  { label: 'Décembre', value: '12' },
 ];
 
 const currentYear = new Date().getFullYear();
-const ANNEES = Array.from({ length: currentYear - 2024 + 1 }, (_, i) =>
-  String(2024 + i),
-);
+const ANNEES = Array.from({ length: currentYear - 2024 + 1 }, (_, i) => {
+  const annee = String(2024 + i);
+  return { label: annee, value: annee };
+});
+
+const STATUTS = [
+  { label: 'Non payée', value: 'non_paye' },
+  { label: 'Payée', value: 'paye' },
+];
 
 function buildDateEntree(month: string, year: string): string {
   return `${year}-${month}-05`;
@@ -52,16 +53,31 @@ function parseDateEntree(dateEntree: string): { month: string; year: string } {
 interface EntreeCaisseFormProps {
   defaultValues?: Partial<EntreeCaisseCreateDTO>;
   onSubmit: (data: EntreeCaisseCreateDTO) => Promise<void>;
-  isPending: boolean;
-  submitLabel: string;
+  /**
+   * Le formulaire prete sa soumission a la fenetre qui l'entoure.
+   *
+   * <p>Le pied de page appartient a la fenetre partagee, qui rend deja le retrait. Sans ce
+   * relais il faudrait un second pied DANS le formulaire, donc deux boutons « Annuler »
+   * l'un au-dessus de l'autre. Le bouton d'action reste celui de la fenetre, et c'est lui
+   * qui declenche la validation du schema.</p>
+   */
+  soumission: React.RefObject<(() => void) | null>;
 }
 
-export function EntreeCaisseForm({
-  defaultValues,
-  onSubmit,
-  isPending,
-  submitLabel,
-}: EntreeCaisseFormProps) {
+/**
+ * Le formulaire d'une entree de caisse.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>Il melangeait quatre bibliotheques : `Label`, `Input`, `Textarea` et `Select` de
+ * shadcn dans une coquille `Dialog` de shadcn, et ses messages d'erreur etaient des
+ * `<p className="text-red-500">` poses A COTE du champ : une couleur sans variante sombre,
+ * et une erreur qu'aucun lecteur d'ecran ne rattachait au champ fautif.</p>
+ *
+ * <p>Les deux listes de la periode etaient des `Select` qu'on deroulait : douze mois
+ * passe encore, mais le champ statut et les annees suivaient le meme moule. Ce sont des
+ * listes CHERCHABLES, comme partout ailleurs dans l'ERP.</p>
+ */
+export function EntreeCaisseForm({ defaultValues, onSubmit, soumission }: EntreeCaisseFormProps) {
   const now = new Date();
   const initialDate = defaultValues?.dateEntree
     ? parseDateEntree(defaultValues.dateEntree)
@@ -75,21 +91,25 @@ export function EntreeCaisseForm({
   const [statut, setStatut] = useState(defaultValues?.paye ? 'paye' : 'non_paye');
 
   const {
-    register,
-    handleSubmit,
+    control,
     formState: { errors },
+    handleSubmit,
     setValue,
   } = useForm<EntreeCaisseCreateDTO>({
-    resolver: zodResolver(entreeCaisseSchema),
     defaultValues: {
+      commentaire: '',
       libelle: '',
       montant: 0,
-      commentaire: '',
       paye: false,
       ...defaultValues,
       dateEntree: buildDateEntree(initialDate.month, initialDate.year),
     },
+    resolver: zodResolver(entreeCaisseSchema),
   });
+
+  // La fenetre porte le bouton : on lui remet la soumission a chaque rendu, pour qu'elle
+  // declenche toujours la validation de l'etat courant.
+  soumission.current = handleSubmit(onSubmit);
 
   const handleStatutChange = (value: string) => {
     setStatut(value);
@@ -107,103 +127,80 @@ export function EntreeCaisseForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="libelle">Libellé</Label>
-        <Input
-          id="libelle"
-          {...register('libelle')}
-          placeholder="Libellé de l'entrée"
-        />
-        {errors.libelle && (
-          <p className="text-red-500 text-xs">{errors.libelle.message}</p>
-        )}
-      </div>
-
-      <div className="flex gap-4">
-        <div className="space-y-2 flex-1">
-          <Label>Période</Label>
-          <div className="flex gap-2">
-            <Select value={selectedMonth} onValueChange={handleMonthChange}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Mois" />
-              </SelectTrigger>
-              <SelectContent>
-                {MOIS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedYear} onValueChange={handleYearChange}>
-              <SelectTrigger className="w-24">
-                <SelectValue placeholder="Année" />
-              </SelectTrigger>
-              <SelectContent>
-                {ANNEES.map((y) => (
-                  <SelectItem key={y} value={y}>
-                    {y}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {errors.dateEntree && (
-            <p className="text-red-500 text-xs">{errors.dateEntree.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2 w-36">
-          <Label htmlFor="montant">Montant (FCFA)</Label>
-          <Input
-            id="montant"
-            type="number"
-            {...register('montant', { valueAsNumber: true })}
-            placeholder="0"
+    <div className="flex flex-col gap-4">
+      <Controller
+        control={control}
+        name="libelle"
+        render={({ field }) => (
+          <ChampTexte
+            erreur={errors.libelle?.message}
+            label="Libellé"
+            onChange={field.onChange}
+            placeholder="Libellé de l'entrée"
+            valeur={field.value ?? ''}
           />
-          {errors.montant && (
-            <p className="text-red-500 text-xs">{errors.montant.message}</p>
-          )}
-        </div>
+        )}
+      />
+
+      <div className="grid grid-cols-2 gap-4">
+        <ChampListe
+          label="Mois"
+          onChange={handleMonthChange}
+          options={MOIS}
+          placeholder="Mois"
+          valeur={selectedMonth}
+        />
+        <ChampListe
+          erreur={errors.dateEntree?.message}
+          label="Année"
+          onChange={handleYearChange}
+          options={ANNEES}
+          placeholder="Année"
+          valeur={selectedYear}
+        />
       </div>
 
-      <div className="space-y-2">
-        <Label>Statut</Label>
-        <Select value={statut} onValueChange={handleStatutChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="non_paye">Non payée</SelectItem>
-            <SelectItem value="paye">Payée</SelectItem>
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground">
-          Une entrée non payée reste dans le CA mais n&apos;est pas comptée dans l&apos;encaissé.
+      <Controller
+        control={control}
+        name="montant"
+        render={({ field }) => (
+          <ChampMontant
+            erreur={errors.montant?.message}
+            label="Montant (FCFA)"
+            onChange={(v) => field.onChange(Number.isNaN(v) ? 0 : v)}
+            valeur={field.value}
+          />
+        )}
+      />
+
+      <div className="flex flex-col gap-1.5">
+        <ChampListe
+          label="Statut"
+          onChange={handleStatutChange}
+          options={STATUTS}
+          placeholder="Statut"
+          valeur={statut}
+        />
+        {/* `ChampListe` ne porte pas de texte d'aide : la consequence du statut se dit ici. */}
+        <p className="text-xs text-muted">
+          Une entrée non payée reste dans le CA mais n&apos;est pas comptée dans
+          l&apos;encaissé.
         </p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="commentaire">Commentaire</Label>
-        <Textarea
-          id="commentaire"
-          {...register('commentaire')}
-          placeholder="Commentaire (optionnel)"
-          rows={3}
-        />
-      </div>
-
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline" size="sm">
-            Annuler
-          </Button>
-        </DialogClose>
-        <Button type="submit" size="sm" disabled={isPending}>
-          {isPending ? `${submitLabel}...` : submitLabel}
-        </Button>
-      </DialogFooter>
-    </form>
+      <Controller
+        control={control}
+        name="commentaire"
+        render={({ field }) => (
+          <ChampZoneTexte
+            label="Commentaire"
+            lignes={3}
+            onChange={field.onChange}
+            placeholder="Commentaire (optionnel)"
+            valeur={field.value ?? ''}
+          />
+        )}
+      />
+    </div>
   );
 }

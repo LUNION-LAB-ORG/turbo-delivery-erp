@@ -1,34 +1,48 @@
 'use client';
 
 import React from 'react';
-import Select from 'react-select';
+
+import { ChampListeMultiple } from '@/components/commons/champs-formulaire';
 import { useCategorieDepense } from '@/features/depenses/hooks/use-categorie-depense';
 
-interface CategoriesSelectFilterProps {
+/**
+ * Le filtre par categorie de depense.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>C'etait un `react-select`, une QUATRIEME bibliotheque d'interface dans un projet qui
+ * en portait deja trois. Elle n'avait ici aucune raison d'etre : le choix multiple
+ * cherchable existe en partage sous `ChampListeMultiple`, monte sur la meme `ComboBox`
+ * que tous les autres champs de l'ERP.</p>
+ *
+ * <p>Ce que le remplacement apporte, au-dela de la coherence : `react-select` porte ses
+ * propres couleurs, qui ne suivent PAS le theme. En theme sombre le champ restait blanc,
+ * et sa liste deroulante aussi. Et les categories retenues n'y etaient lisibles que dans
+ * la boite elle-meme ; elles sont maintenant des etiquettes, chacune avec son bouton de
+ * retrait.</p>
+ */
+export function CategoriesSelectFilter({
+  onCategoriesChange,
+  selectedCategories,
+}: {
+  onCategoriesChange: (categories: null | string[]) => void;
   selectedCategories: string[];
-  onCategoriesChange: (categories: string[] | null) => void;
-}
+}) {
+  const { categories, isLoading } = useCategorieDepense();
 
-export function CategoriesSelectFilter({ selectedCategories, onCategoriesChange }: CategoriesSelectFilterProps) {
-  const { categories, isLoading: isLoadingCategory } = useCategorieDepense();
-  const categorieOptions = categories.map((cat) => ({ value: cat.id.toString(), label: cat.nomCategorie }));
+  const options = React.useMemo(
+    () => categories.map((c) => ({ label: c.nomCategorie, value: String(c.id) })),
+    [categories],
+  );
 
   return (
-    <Select
-      isMulti
-      options={categorieOptions}
-      value={categorieOptions.filter((opt) => selectedCategories?.includes(opt.value))}
-      isClearable
-      onChange={(opt) => {
-        const selectedIds = opt && opt.length > 0 ? opt.map((o) => o.value) : null;
-        onCategoriesChange(selectedIds);
-      }}
-      placeholder="Choisir une catégorie..."
-      className="text-xs w-full max-w-sm"
-      classNamePrefix="react-select"
-      isLoading={isLoadingCategory}
-    />
+    <div className="w-full max-w-sm">
+      <ChampListeMultiple
+        label="Catégories"
+        onChange={(valeurs) => onCategoriesChange(valeurs.length > 0 ? valeurs : null)}
+        options={options}
+        placeholder={isLoading ? 'Chargement…' : 'Choisir une catégorie…'}
+        valeurs={selectedCategories ?? []}
+      />
+    </div>
   );
 }
-
-

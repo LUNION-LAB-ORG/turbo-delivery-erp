@@ -1,186 +1,56 @@
-﻿"use client"
+'use client';
 
-import { useState, useMemo } from "react"
-import { useLivraisonList } from "@/features/revenus/hooks/use-livraison-list"
-import Select, { components } from "react-select"
-import { Store } from "lucide-react"
+import { useMemo } from 'react';
 
-// Composant personnalisé pour les options avec icône
-const OptionWithIcon = (props: any) => {
-    return (
-        <components.Option {...props}>
-            <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full">
-                    <Store className="w-3 h-3 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                    <div className="font-medium text-foreground">{props.data.label}</div>
-                    <div className="text-xs text-muted">Restaurant</div>
-                </div>
-            </div>
-        </components.Option>
-    )
-}
+import { ChampListeMultiple } from '@/components/commons/champs-formulaire';
+import { useLivraisonList } from '@/features/revenus/hooks/use-livraison-list';
 
-// Composant personnalisé pour les tags multi-sélection
-const MultiValueLabel = (props: any) => {
-    return (
-        <components.MultiValueLabel {...props}>
-            <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span>{props.data.label}</span>
-            </div>
-        </components.MultiValueLabel>
-    )
-}
+/**
+ * Le filtre par restaurant des revenus.
+ *
+ * <h3>Ce qui change</h3>
+ * <p>C'etait un `react-select`, la QUATRIEME bibliotheque d'interface du projet, et le
+ * dernier fichier a l'utiliser. Elle disparait avec lui.</p>
+ *
+ * <p>Ce composant portait quatre-vingt-dix lignes de style en ligne, toutes en
+ * hexadecimal ecrit a la main : `backgroundColor: 'white'`, `#dbeafe`, `#1e40af`,
+ * `#d1d5db`, une ombre en `rgba` sur quatre valeurs. Aucune n'a de variante sombre, donc
+ * en theme sombre le champ restait blanc, sa liste deroulante aussi, et les etiquettes
+ * bleu clair sur bleu fonce. Le champ partage suit le theme.</p>
+ *
+ * <p>Chaque option portait par ailleurs une pastille bleue avec une icone de boutique et
+ * le sous-titre « Restaurant », repete sous CHAQUE ligne d'une liste de restaurants dans
+ * un filtre qui s'appelle deja « restaurants ». Une decoration qui ne dit rien.</p>
+ */
+export function RestaurantFilter({
+  onRestaurantChange,
+  selectedRestaurants,
+}: {
+  onRestaurantChange: (restaurantIds: string[]) => void;
+  selectedRestaurants: string[];
+}) {
+  const { livraisons } = useLivraisonList();
 
-interface RestaurantFilterProps {
-    onRestaurantChange: (restaurantIds: string[]) => void
-    selectedRestaurants: string[]
-}
+  const options = useMemo(() => {
+    if (!Array.isArray(livraisons)) return [];
+    const noms = new Set<string>();
+    livraisons.forEach((l) => {
+      if (l.nomRestaurant) noms.add(l.nomRestaurant);
+    });
+    return Array.from(noms)
+      .map((nom) => ({ label: nom, value: nom }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [livraisons]);
 
-export function RestaurantFilter({ onRestaurantChange, selectedRestaurants }: RestaurantFilterProps) {
-    const { livraisons } = useLivraisonList()
-    
-    // Extraire les noms de restaurants uniques depuis les livraisons
-    const restaurantOptions = useMemo(() => {
-        if (!Array.isArray(livraisons)) return []
-        
-        const uniqueRestaurants = new Set<string>()
-        livraisons.forEach(livraison => {
-            if (livraison.nomRestaurant) {
-                uniqueRestaurants.add(livraison.nomRestaurant)
-            }
-        })
-        
-        return Array.from(uniqueRestaurants).map(restaurant => ({
-            value: restaurant,
-            label: restaurant
-        })).sort((a, b) => a.label.localeCompare(b.label))
-    }, [livraisons])
-    
-    // Convertir les restaurants sélectionnés en options pour react-select
-    const selectedOptions = useMemo(() => {
-        return restaurantOptions.filter(option => selectedRestaurants.includes(option.value))
-    }, [restaurantOptions, selectedRestaurants])
-    
-    // Gérer le changement de sélection
-    const handleChange = (selectedOptions: any) => {
-        const selectedIds = selectedOptions ? selectedOptions.map((opt: any) => opt.value) : []
-        onRestaurantChange(selectedIds)
-    }
-
-    return (
-        <div className="relative w-full md:w-[350px]">
-            <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted z-10 pointer-events-none" />
-            <Select
-                isMulti
-                placeholder="Filtrer par restaurants..."
-                options={restaurantOptions}
-                value={selectedOptions}
-                onChange={handleChange}
-                components={{
-                    Option: OptionWithIcon,
-                    MultiValueLabel: MultiValueLabel,
-                }}
-                className="restaurant-multi-select"
-                classNamePrefix="react-select"
-                styles={{
-                    control: (baseStyles, state) => ({
-                        ...baseStyles,
-                        borderColor: state.isFocused ? '#3b82f6' : '#d1d5db',
-                        boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
-                        '&:hover': {
-                            borderColor: '#3b82f6',
-                        },
-                        paddingLeft: '2.5rem', // Space for icon
-                        minHeight: '42px',
-                        fontSize: '0.875rem',
-                        backgroundColor: 'white',
-                    }),
-                    placeholder: (baseStyles) => ({
-                        ...baseStyles,
-                        color: '#9ca3af',
-                        fontSize: '0.875rem',
-                    }),
-                    multiValue: (baseStyles) => ({
-                        ...baseStyles,
-                        backgroundColor: '#dbeafe',
-                        borderRadius: '0.5rem',
-                        border: '1px solid #bfdbfe',
-                        margin: '4px 4px 4px 0',
-                    }),
-                    multiValueLabel: (baseStyles) => ({
-                        ...baseStyles,
-                        color: '#1e40af',
-                        fontSize: '0.75rem',
-                        fontWeight: '500',
-                        padding: '4px 8px',
-                    }),
-                    multiValueRemove: (baseStyles) => ({
-                        ...baseStyles,
-                        color: '#1e40af',
-                        borderRadius: '0 0.5rem 0.5rem 0',
-                        padding: '4px',
-                        '&:hover': {
-                            backgroundColor: '#bfdbfe',
-                            color: '#1e40af',
-                        },
-                    }),
-                    menu: (baseStyles) => ({
-                        ...baseStyles,
-                        zIndex: 50,
-                        border: '1px solid #d1d5db',
-                        borderRadius: '0.75rem',
-                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                        marginTop: '4px',
-                    }),
-                    menuList: (baseStyles) => ({
-                        ...baseStyles,
-                        padding: '8px',
-                        borderRadius: '0.75rem',
-                    }),
-                    option: (baseStyles, state) => ({
-                        ...baseStyles,
-                        backgroundColor: state.isFocused ? '#f8fafc' : 'white',
-                        color: state.isFocused ? '#1f2937' : '#374151',
-                        padding: '12px',
-                        margin: '2px',
-                        borderRadius: '0.5rem',
-                        fontSize: '0.875rem',
-                        cursor: 'pointer',
-                        border: state.isFocused ? '1px solid #e2e8f0' : '1px solid transparent',
-                        '&:hover': {
-                            backgroundColor: '#f8fafc',
-                            borderColor: '#e2e8f0',
-                        },
-                        '&:active': {
-                            backgroundColor: '#f1f5f9',
-                        },
-                    }),
-                    noOptionsMessage: (baseStyles) => ({
-                        ...baseStyles,
-                        padding: '16px',
-                        color: '#9ca3af',
-                        fontSize: '0.875rem',
-                        textAlign: 'center',
-                    }),
-                    dropdownIndicator: (baseStyles) => ({
-                        ...baseStyles,
-                        color: '#6b7280',
-                        padding: '8px',
-                        '&:hover': {
-                            color: '#4b5563',
-                        },
-                    }),
-                    indicatorSeparator: (baseStyles) => ({
-                        ...baseStyles,
-                        backgroundColor: '#e5e7eb',
-                        margin: '0 8px',
-                    }),
-                }}
-                noOptionsMessage={() => "Aucun restaurant trouvé"}
-            />
-        </div>
-    )
+  return (
+    <div className="w-full md:w-[350px]">
+      <ChampListeMultiple
+        label="Restaurants"
+        onChange={onRestaurantChange}
+        options={options}
+        placeholder="Filtrer par restaurants…"
+        valeurs={selectedRestaurants ?? []}
+      />
+    </div>
+  );
 }

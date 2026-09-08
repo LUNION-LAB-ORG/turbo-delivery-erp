@@ -8,9 +8,9 @@ import { IFacture } from '@/features/revenus/types/recouvrement/prets.types';
 import { UseFormReturn } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
+import { ChampListe } from '@/components/commons/champs-formulaire';
 import { RestaurantSelect } from '@/components/finance/recouvrements/common/restaurant-select';
 import { useRestaurantFactures } from '@/features/recouvrements/hooks/use-restaurant-factures';
-import Select from 'react-select';
 
 interface RecouvrementFormProps {
   form: UseFormReturn<any>;
@@ -82,53 +82,41 @@ export function RecouvrementForm({ form, selectedDate, onDateChange, onFileChang
         </div>
 
         <div>
-          <Label>Facture *</Label>
-          <Select<{ value: string; label: string }, false>
-            value={factureOptions.find((option) => option.value === watchedFactureId) ?? null}
-            onChange={(selectedOption) => {
-              const nextFactureId = selectedOption?.value ?? '';
-              setValue('factureId', nextFactureId, { shouldValidate: true });
-
-              if (nextFactureId) {
-                const selectedFacture = restaurantFactures.find((facture) => facture.id === nextFactureId);
-                if (selectedFacture) {
-                  setValue('montant', selectedFacture.restant ?? 0, { shouldValidate: true, shouldDirty: true });
-                }
-              }
-            }}
-            options={factureOptions}
-            isClearable
-            isLoading={isFacturesLoading}
-            isDisabled={!watchedRestaurantId || isFacturesLoading}
-            placeholder={watchedRestaurantId ? 'Sélectionnez une facture' : "Sélectionnez un restaurant d'abord"}
-            // « Aucune facture disponible » est une AFFIRMATION : l'agent en conclut que
-            // le restaurant n'a plus rien a recouvrer et n'enregistre pas l'encaissement.
-            // Sur echec de lecture, on dit que c'est un echec.
-            noOptionsMessage={() =>
+          {/*
+            * Le choix de facture passait par `react-select`, une QUATRIEME bibliotheque
+            * d'interface dont les couleurs ne suivent pas le theme : en theme sombre, le
+            * champ et sa liste restaient blancs. Ses trois hauteurs de 36 px etaient
+            * ecrites a la main en style en ligne, hors de tout jeton.
+            *
+            * Le message d'absence est conserve TEL QUEL, et c'est le point important :
+            * « Aucune facture disponible » est une affirmation, et sur un echec de lecture
+            * elle est fausse. L'agent en conclurait qu'il n'y a plus rien a recouvrer et
+            * n'enregistrerait pas l'encaissement. `ChampListe` sait desormais porter ce
+            * message.
+            */}
+          <ChampListe
+            estDesactive={!watchedRestaurantId || isFacturesLoading}
+            label="Facture *"
+            messageListeVide={
               isFacturesError
-                ? "La liste des factures n'a pas pu être lue — réessayez"
+                ? "La liste des factures n'a pas pu être lue, réessayez"
                 : watchedRestaurantId
                   ? 'Aucune facture disponible pour ce restaurant'
                   : 'Sélectionnez un restaurant'
             }
-            classNamePrefix="react-select"
-            styles={{
-              control: (base) => ({
-                ...base,
-                minHeight: '36px',
-                height: '36px',
-                width: '100%',
-              }),
-              valueContainer: (base) => ({
-                ...base,
-                height: '36px',
-                padding: '0 8px',
-              }),
-              indicatorsContainer: (base) => ({
-                ...base,
-                height: '36px',
-              }),
+            onChange={(valeur) => {
+              setValue('factureId', valeur, { shouldValidate: true });
+              if (!valeur) return;
+              const facture = restaurantFactures.find((f) => f.id === valeur);
+              if (facture) {
+                setValue('montant', facture.restant ?? 0, { shouldDirty: true, shouldValidate: true });
+              }
             }}
+            options={factureOptions}
+            placeholder={
+              watchedRestaurantId ? 'Sélectionnez une facture' : "Sélectionnez un restaurant d'abord"
+            }
+            valeur={watchedFactureId ?? ''}
           />
           {errors.factureId && <small className="text-red-500 text-sm">{errors.factureId.message as string}</small>}
         </div>

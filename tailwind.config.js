@@ -1,7 +1,18 @@
 /** @type {import('tailwindcss').Config} */
 const plugin = require('tailwindcss/plugin');
 
-const { heroui } = require("@heroui/react");
+/*
+ * `require("@heroui/react")` a ete retire d'ici.
+ *
+ * <p>Le plugin `heroui()` n'etait PLUS APPELE depuis qu'il a ete remplace par les
+ * utilitaires recopies ci-dessous : l'import etait mort. Il gardait pourtant le paquet
+ * de la v2 vivant, et sa suppression a fait tomber le serveur avec « Cannot find module
+ * @heroui/react », dans un fichier que `tsc` ne lit pas et qu'aucun grep sur `.ts` /
+ * `.tsx` ne trouve.</p>
+ *
+ * <p>⚠ `@heroui/theme` est un paquet DIFFERENT, toujours dependance directe, et le motif
+ * de `content` plus bas en depend. Ne pas confondre les deux.</p>
+ */
 
 const rotateX = plugin(function ({ addUtilities }) {
     addUtilities({

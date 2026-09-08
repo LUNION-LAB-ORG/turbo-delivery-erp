@@ -39,6 +39,8 @@ import { Eye, UserRoundPlus } from 'lucide-react';
 
 import EtatErreur from '@/components/commons/EtatErreur';
 import { LienBouton } from '@/components/commons/LienBouton';
+
+import { TiroirCourse } from './[course_id]/tiroir-course';
 import { ColonneResponsive, TableauResponsive } from '@/components/commons/TableauResponsive';
 import { PaginationTableau } from '@/components/finance/recouvrements/common/pagination-tableau';
 
@@ -59,6 +61,8 @@ interface Props {
 
 export default function Content({ initialData, delivers }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
+  /** La course affichee dans le tiroir. `null` : le tiroir est ferme. */
+  const [courseOuverte, setCourseOuverte] = useState<null | string>(null);
   const [pageSize] = useState(10);
   const [data, setData] = useState<PaginatedResponse<CourseExterne> | null>(initialData);
   // `getPaginationCourseExterneEnAttente` avale l'erreur et rend `null` : une page
@@ -282,8 +286,24 @@ export default function Content({ initialData, delivers }: Props) {
                 Assigner
               </Button>
             ) : null}
-            {/* `as={Link}` etait une prop de la v2, ignoree en silence par le Button v3. */}
-            <LienBouton href={`/external_delivery/${course.id}`} taille="sm" variante="outline">
+            {/*
+              * Le detail s'ouvre en TIROIR, la liste reste derriere.
+              *
+              * <p>Une course se consulte en rafale : ouvrir, decider, fermer, passer a la
+              * suivante. Naviguer vers une page perdait la place dans la liste, le filtre
+              * et le rang de pagination a chaque aller-retour.</p>
+              *
+              * <p>C'est toujours un VRAI lien : seul le clic ordinaire est detourne. Le
+              * ctrl-clic et le clic du milieu ouvrent la page dans un onglet, et l'URL
+              * reste partageable. `as={Link}` etait une prop de la v2, ignoree en silence
+              * par le Button v3.</p>
+              */}
+            <LienBouton
+              href={`/external_delivery/${course.id}`}
+              onClicSimple={() => setCourseOuverte(course.id)}
+              taille="sm"
+              variante="outline"
+            >
               <Eye aria-hidden="true" className="size-4" />
               Détail
             </LienBouton>
@@ -365,6 +385,19 @@ export default function Content({ initialData, delivers }: Props) {
           }}
         />
       )}
+
+      {/*
+        * Le tiroir est monte UNE fois pour la page, pas une fois par ligne.
+        *
+        * <p>Il lit lui-meme le detail a partir de l'identifiant : la liste ne lui passe
+        * rien d'autre, donc rien a synchroniser. Il reste en place a la fermeture, le
+        * temps de son animation, et se vide ensuite tout seul.</p>
+        */}
+      <TiroirCourse
+        courseId={courseOuverte}
+        delivers={delivers}
+        onFermer={() => setCourseOuverte(null)}
+      />
     </div>
   );
 }

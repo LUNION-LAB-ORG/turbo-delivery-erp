@@ -283,14 +283,28 @@ export function ChampDate({
 
 export function ChampListe({
   erreur,
+  estDesactive,
   label,
+  messageListeVide,
   onChange,
   options,
   placeholder,
   valeur,
 }: {
   erreur?: string;
+  /** La liste ne peut pas encore etre choisie : une dependance manque, ou elle charge. */
+  estDesactive?: boolean;
   label: string;
+  /**
+   * Ce qu'on lit quand la liste est VIDE.
+   *
+   * <p>« Aucun resultat » est une AFFIRMATION. Quand la liste est vide parce que sa
+   * lecture a echoue, cette affirmation est fausse et elle est lourde de consequence :
+   * sur les factures d'un restaurant, l'agent en conclut qu'il n'y a plus rien a
+   * recouvrer et n'enregistre pas l'encaissement. L'ecran qui SAIT pourquoi la liste est
+   * vide le dit ici.</p>
+   */
+  messageListeVide?: string;
   onChange: (v: string) => void;
   options: readonly { label: string; value: string }[];
   placeholder?: string;
@@ -298,6 +312,7 @@ export function ChampListe({
 }) {
   return (
     <ComboBox
+      isDisabled={estDesactive}
       isInvalid={Boolean(erreur)}
       onSelectionChange={(k) => onChange(k == null ? '' : String(k))}
       selectedKey={valeur || null}
@@ -309,7 +324,14 @@ export function ChampListe({
       </ComboBox.InputGroup>
       {erreur && <FieldError>{erreur}</FieldError>}
       <ComboBox.Popover>
-        <ListBox items={options.map((o) => ({ id: o.value, label: o.label }))}>
+        <ListBox
+          items={options.map((o) => ({ id: o.value, label: o.label }))}
+          renderEmptyState={
+            messageListeVide
+              ? () => <p className="px-3 py-2 text-sm text-muted">{messageListeVide}</p>
+              : undefined
+          }
+        >
           {(o: { id: string; label: string }) => (
             <ListBox.Item id={o.id} textValue={o.label}>
               {o.label}

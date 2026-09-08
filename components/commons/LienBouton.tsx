@@ -24,6 +24,7 @@ export function LienBouton({
   children,
   className,
   href,
+  onClicSimple,
   pleineLargeur,
   taille = 'md',
   variante = 'outline',
@@ -31,12 +32,34 @@ export function LienBouton({
   children: React.ReactNode;
   className?: string;
   href: string;
+  /**
+   * Detourner le clic ORDINAIRE, sans rien perdre.
+   *
+   * <p>Quand un ecran prefere ouvrir un tiroir plutot que de naviguer, il pose cette
+   * fonction : le clic simple l'appelle et la navigation est annulee. Le ctrl-clic, le
+   * cmd-clic, le clic du milieu et « ouvrir dans un nouvel onglet » continuent en
+   * revanche de suivre le lien — c'est precisement ce qu'un comptable fait pour ouvrir
+   * trois dossiers cote a cote, et un `<button>` le lui retirerait.</p>
+   */
+  onClicSimple?: () => void;
   pleineLargeur?: boolean;
   taille?: 'lg' | 'md' | 'sm';
   variante?: 'danger' | 'ghost' | 'outline' | 'primary' | 'secondary';
 }) {
   return (
-    <Link className={['button', `button--${taille}`, `button--${variante}`, pleineLargeur ? 'w-full' : '', className ?? ''].filter(Boolean).join(' ')} href={href}>
+    <Link
+      className={['button', `button--${taille}`, `button--${variante}`, pleineLargeur ? 'w-full' : '', className ?? ''].filter(Boolean).join(' ')}
+      href={href}
+      onClick={(evenement) => {
+        if (!onClicSimple) return;
+        // Un clic avec modificateur, ou autre que le bouton gauche, appartient au
+        // navigateur : on ne s'en mele pas.
+        if (evenement.metaKey || evenement.ctrlKey || evenement.shiftKey || evenement.altKey) return;
+        if (evenement.button !== 0) return;
+        evenement.preventDefault();
+        onClicSimple();
+      }}
+    >
       {children}
     </Link>
   );

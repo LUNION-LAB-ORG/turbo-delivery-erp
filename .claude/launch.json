@@ -4,14 +4,29 @@
     {
       "name": "erp-dev",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
-      "port": 3000
+      "runtimeArgs": [
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": true
     },
     {
       "name": "erp-standalone",
       "runtimeExecutable": "node",
-      "runtimeArgs": [".next/standalone/server.js"],
+      "runtimeArgs": [
+        ".next/standalone/server.js"
+      ],
       "port": 3000
+    },
+    {
+      "name": "erp-dev-3101",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev",
+        "-p",
+        "3101"
+      ],
+      "port": 3101
     }
   ]
 }

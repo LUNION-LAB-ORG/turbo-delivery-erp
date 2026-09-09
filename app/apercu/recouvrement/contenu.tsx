@@ -1,23 +1,38 @@
 'use client';
 
-import { Button, Card, Table } from '@heroui-v3/react';
+import { Button, Card, Checkbox, Table } from '@heroui-v3/react';
+import { PiggyBank } from 'lucide-react';
 import React from 'react';
 
 import type { ColumnDef } from '@tanstack/react-table';
 
+import CarteStat, { GrilleStats } from '@/components/commons/CarteStat';
+import { ChampListe } from '@/components/commons/champs-formulaire';
 import { renderAgentActions } from '@/components/finance/agent-recouvreur/agent-recouvreur-columns';
 import { ChipStatutFacture } from '@/components/finance/common/chip-statut-facture';
 import { FiltreStatut } from '@/components/finance/common/filtre-statut';
+import { FenetreOrientation } from '@/components/finance/orientation-fonds/fenetre-orientation';
+import {
+  FILE_TOUTES,
+  FILES_ORIENTATION,
+  type LigneOrientation,
+  sommeMontants,
+} from '@/components/finance/orientation-fonds/ligne-orientation';
+import {
+  BarreLotOrientation,
+  TableauOrientation,
+} from '@/components/finance/orientation-fonds/table-orientation';
 import { createResponsableFinancierColumns } from '@/components/finance/responsable-financier/responsable-financier-columns';
 import type { IFactureRF } from '@/components/finance/responsable-financier/responsable-financier-columns';
 import { FactureMobileCard, MobileCardList } from '@/components/finance/shared/facture-mobile-card';
 import type { IAgentFacture } from '@/features/agent-recouvreur';
+import { formatMontant, formatNombre } from '@/utils/format.utils';
 
 /**
  * Le banc de la chaîne de recouvrement.
  *
- * <p>Il monte les VRAIS composants — la pastille de statut commune, la colonne d'actions
- * du responsable financier, celle de l'agent recouvreur, la carte tactile — sur les
+ * <p>Il monte les VRAIS composants (la pastille de statut commune, la colonne d'actions
+ * du responsable financier, celle de l'agent recouvreur, la carte tactile) sur les
  * SEIZE statuts du parcours. C'est là que se voit ce qu'a changé la refonte : trois tons
  * au lieu de seize teintes, un seul bouton plein par ligne, et le même mot de la même
  * couleur d'un écran à l'autre.</p>
@@ -84,7 +99,7 @@ function factureAgent(statut: string, i: number): IAgentFacture {
  *
  * <p>Un `<div class="dark">` MENT : `styles/tailwind.css` déclare encore les jetons
  * shadcn en triplets HSL bruts dans la même portée `.dark` que HeroUI, et sur un div
- * imbriqué c'est le triplet qui gagne — `bg-success` ne peint alors plus rien.</p>
+ * imbriqué c'est le triplet qui gagne, et `bg-success` ne peint alors plus rien.</p>
  */
 function useThemeSombre(): [boolean, (v: (p: boolean) => boolean) => void] {
   const [sombre, setSombre] = React.useState(false);
@@ -131,6 +146,34 @@ const FILTRES_RF = [
   { label: 'Clôturé', value: 'Clôturé' },
 ] as const;
 
+/*
+ * La file d'orientation des fonds. Deux lignes deja visees, deux qui le seront par la
+ * decision : c'est la seule difference entre les deux statuts que la page agrege, et il
+ * faut la voir dans la colonne « Visa DGA ».
+ */
+const LIGNES_ORIENTATION: LigneOrientation[] = [
+  {
+    dateVisa: '2026-08-12',
+    id: 'o-1',
+    montant: 1250000,
+    numero: 'FA-2026-0014',
+    numeroVisa: 'VISA-2026-0087',
+    partenaire: 'PIZZA ROMA',
+    viseur: 'A. Koné',
+  },
+  { id: 'o-2', montant: 486000, numero: 'FA-2026-0015', partenaire: 'CHICKEN NATION' },
+  { id: 'o-3', montant: 92500, numero: 'FA-2026-0016', partenaire: 'LE BISTROT' },
+  {
+    dateVisa: '2026-08-10',
+    id: 'o-4',
+    montant: 3040000,
+    numero: 'FA-2026-0017',
+    numeroVisa: 'VISA-2026-0081',
+    partenaire: 'PIZZA ROMA',
+    viseur: 'M. Diarra',
+  },
+];
+
 const FILTRES_AGENT = [
   { label: 'Tous', value: 'Tous' },
   { label: 'Recouvrement', value: 'Recouvrement' },
@@ -143,7 +186,47 @@ export default function ApercuRecouvrement() {
   const [sombre, setSombre] = useThemeSombre();
   const [statutFiltre, setStatutFiltre] = React.useState('');
   const [statutAgent, setStatutAgent] = React.useState('');
+  const [cochees, setCochees] = React.useState<Set<string>>(new Set());
+  const [cibleOrientation, setCibleOrientation] = React.useState<LigneOrientation[] | null>(null);
+  const [fileBanc, setFileBanc] = React.useState<string>(FILE_TOUTES);
+  const [pageOrientation, setPageOrientation] = React.useState(1);
   const rien = () => undefined;
+
+  const basculer = (id: string) =>
+    setCochees((prev) => {
+      const suivant = new Set(prev);
+      if (suivant.has(id)) suivant.delete(id);
+      else suivant.add(id);
+      return suivant;
+    });
+  const lignesCochees = LIGNES_ORIENTATION.filter((l) => cochees.has(l.id));
+
+  // Le champ File trie sur le visa : « En attente visa DGA » = les lignes sans numero de
+  // visa, « Vise DGA » = celles qui en portent un. C'est la meme partition que celle que le
+  // serveur rend a l'ecran, sur deux statuts.
+  const libelleFileBanc = FILES_ORIENTATION.find((f) => f.value === fileBanc)?.label ?? '';
+  const lignesFile = LIGNES_ORIENTATION.filter(
+    (l) =>
+      fileBanc === FILE_TOUTES ||
+      (fileBanc === 'Visé DGA' ? Boolean(l.numeroVisa) : !l.numeroVisa),
+  );
+
+  // Deux lignes par page : le pied de tableau et sa pagination ne se rendent qu'au-dela
+  // d'une page, et c'est justement la piece que le banc ne montrait pas.
+  const pagesOrientation = Math.max(1, Math.ceil(lignesFile.length / 2));
+  const pageCourante = Math.min(pageOrientation, pagesOrientation);
+  const lignesPage = lignesFile.slice((pageCourante - 1) * 2, pageCourante * 2);
+
+  const idsPage = lignesPage.map((l) => l.id);
+  const pageCochee = idsPage.length > 0 && idsPage.every((id) => cochees.has(id));
+  const pagePartielle = idsPage.some((id) => cochees.has(id)) && !pageCochee;
+  const basculerPage = () =>
+    setCochees((prev) => {
+      const suivant = new Set(prev);
+      if (pageCochee) idsPage.forEach((id) => suivant.delete(id));
+      else idsPage.forEach((id) => suivant.add(id));
+      return suivant;
+    });
 
   // La colonne ACTIONS du responsable financier, telle que la page la monte.
   const colonnesRF = createResponsableFinancierColumns(rien, rien, rien, rien);
@@ -236,6 +319,111 @@ export default function ApercuRecouvrement() {
             </Table>
           </Card.Content>
         </Card>
+
+        <div>
+          <h2 className="text-lg font-bold text-foreground">Orientation des fonds</h2>
+          <p className="text-sm text-muted">
+            Une file, pas une grille de cartes : le bouton de ligne est secondaire, l&apos;accent
+            va au geste en lot, qui dit combien il engage. Cochez une ligne pour le voir
+            apparaître. La file est paginée deux par deux ici, pour que le pied de tableau
+            soit visible sur quatre lignes d&apos;exemple.
+          </p>
+        </div>
+
+        {/*
+         * Le bandeau de l'ecran, monte sur les memes lignes d'exemple. Les deux premieres
+         * cartes suivent le champ File, comme sur la page : c'est cela qu'il faut pouvoir
+         * regarder ici.
+         */}
+        <GrilleStats className="md:grid-cols-3" colonnes={3}>
+          <CarteStat
+            libelle="En attente d'orientation"
+            note={`${formatNombre(lignesFile.length)} opérations${
+              fileBanc === FILE_TOUTES ? '' : ` · ${libelleFileBanc}`
+            }`}
+            valeur={formatMontant(sommeMontants(lignesFile))}
+          />
+          <CarteStat
+            libelle="Dont déjà visées DGA"
+            note="Les autres seront visées par la décision"
+            valeur={formatNombre(lignesFile.filter((l) => l.numeroVisa).length)}
+          />
+          <CarteStat
+            icone={PiggyBank}
+            libelle="Conservés en caisse"
+            note="1 opération ré-orientable"
+            valeur={formatMontant(92500)}
+          />
+        </GrilleStats>
+
+        {/*
+         * Le champ File et la case « Selectionner la page », qui n'etaient sur aucun banc.
+         * `RestaurantSelect` en est absent A DESSEIN : il LIT la liste des restaurants
+         * derriere l'authentification, et un 401 sur ce banc public deconnecte la session.
+         */}
+        <Card>
+          <Card.Content className="flex-row flex-wrap items-end gap-4">
+            <div className="w-full sm:w-[220px]">
+              <ChampListe
+                label="File"
+                onChange={(v) => {
+                  setFileBanc(v || FILE_TOUTES);
+                  setPageOrientation(1);
+                  setCochees(new Set());
+                }}
+                options={FILES_ORIENTATION}
+                placeholder="Les deux files"
+                valeur={fileBanc}
+              />
+            </div>
+            <Checkbox
+              isIndeterminate={pagePartielle}
+              isSelected={pageCochee}
+              onChange={basculerPage}
+            >
+              <Checkbox.Content>
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                <span className="text-sm text-muted">Sélectionner la page</span>
+              </Checkbox.Content>
+            </Checkbox>
+          </Card.Content>
+        </Card>
+
+        <TableauOrientation
+          estSelectionnee={(id) => cochees.has(id)}
+          libelle="Opérations en attente d'orientation"
+          libelleAction="Orienter"
+          lignes={lignesPage}
+          onAction={(l) => setCibleOrientation([l])}
+          onBasculer={basculer}
+          onPage={(p) => {
+            // Comme sur la page : la selection ne survit ni au filtre ni au changement de
+            // page, sans quoi le geste en lot porterait sur des lignes qui ne sont plus la.
+            setPageOrientation(p);
+            setCochees(new Set());
+          }}
+          page={pageCourante}
+          totalPages={pagesOrientation}
+          vide="Aucune opération en attente d'orientation."
+        />
+
+        <BarreLotOrientation
+          montant={sommeMontants(lignesCochees)}
+          nombre={lignesCochees.length}
+          onEffacer={() => setCochees(new Set())}
+          onOrienter={() => setCibleOrientation(lignesCochees)}
+        />
+
+        <FenetreOrientation
+          ligneUnique={cibleOrientation?.length === 1 ? cibleOrientation[0] : undefined}
+          montant={sommeMontants(cibleOrientation ?? [])}
+          nombre={cibleOrientation?.length ?? 0}
+          onConfirmer={() => setCibleOrientation(null)}
+          onFermer={() => setCibleOrientation(null)}
+          ouvert={!!cibleOrientation}
+        />
 
         <div>
           <h2 className="text-lg font-bold text-foreground">Cartes tactiles</h2>

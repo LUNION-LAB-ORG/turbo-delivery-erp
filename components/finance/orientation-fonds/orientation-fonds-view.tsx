@@ -1,417 +1,486 @@
 'use client';
 
-import { useState } from 'react';
-import { Button, Description, FieldError, Label, Modal, Radio, RadioGroup, Spinner, TextArea } from '@heroui-v3/react';
-import { Landmark, PiggyBank, ArrowRightLeft, Building2 } from 'lucide-react';
-import { useFacturesRFQuery, type IFactureRF } from '@/features/responsable-financier';
+import { Button, Checkbox } from '@heroui-v3/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { PiggyBank } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import CarteStat, { GrilleStats } from '@/components/commons/CarteStat';
+import { ChampListe } from '@/components/commons/champs-formulaire';
 import EtatErreur from '@/components/commons/EtatErreur';
-import { formatMontant } from '@/utils/format.utils';
+import { RestaurantSelect } from '@/components/finance/recouvrements/common/restaurant-select';
 import {
+  type OrientationFonds,
   useOrienterFondsMutation,
   useReorienterFondsMutation,
 } from '@/features/orientation-fonds';
+import {
+  type ActionGroupee,
+  type IActionsGroupeesFiltres,
+  useActionsGroupeesMutation,
+  useFacturesRFQuery,
+} from '@/features/responsable-financier';
+import { formatMontant, formatNombre } from '@/utils/format.utils';
 
+import { FenetreOrientation, FenetreReorientation } from './fenetre-orientation';
+import {
+  FILE_TOUTES,
+  FILES_ORIENTATION,
+  type LigneOrientation,
+  sommeMontants,
+} from './ligne-orientation';
+import { BarreLotOrientation, TableauOrientation } from './table-orientation';
 
-function formatDateFr(iso?: string | null) {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString('fr-FR');
-  } catch {
-    return iso;
-  }
-}
+/**
+ * Orientation des fonds : la file de decision de la Direction.
+ *
+ * <h3>Ce que l'operateur regarde en premier</h3>
+ * <p>Pas un nom de partenaire : la somme qui attend une decision. L'ecran n'affichait
+ * AUCUN total, seulement des cartes. On savait qu'il y avait « 454 en attente » sans
+ * jamais savoir ce que cela pesait. Le bandeau le dit, et il n'est pas colore : un
+ * montant informe, il n'appelle pas de geste.</p>
+ *
+ * <h3>Ce qui appelle un geste</h3>
+ * <p>Une seule chose : decider. Le titre, les montants, les numeros de visa informent, et
+ * passent donc en jetons neutres (le titre etait peint en rouge de marque). Le rouge ne
+ * subsiste que sur le bouton du geste EN LOT, seul endroit de l'ecran ou il distingue
+ * quelque chose.</p>
+ *
+ * <h3>La troncature</h3>
+ * <p>Les trois listes etaient lues avec `size: 100` ecrit en dur et sans pagination :
+ * l'ecran montrait au plus 200 operations sur 454, et les 254 autres n'etaient
+ * ATTEIGNABLES PAR AUCUN CHEMIN. La mention « 153 affichees » disait vrai, mais elle
+ * n'ouvrait rien. La file se pagine.</p>
+ *
+ * <p>Deux statuts alimentent une seule file : « En attente visa DGA » (le visa sera pose
+ * par la decision) et « Vise DGA » (le stock deja vise). Le serveur les pagine
+ * separement, donc la page k de la file est la page k du premier statut suivie de la page
+ * k du second : chaque operation tombe sur une page et une seule, et toutes sont
+ * atteignables. Le compte affiche dit combien de lignes sont rendues sur le total.</p>
+ */
 
-const MOTIF_MIN = 30;
-
-function FactureCard({ facture, children }: { facture: IFactureRF; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-separator bg-surface p-4 shadow-xs">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-secondary">
-            <Building2 aria-hidden="true" className="size-4 text-muted" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{facture.partenaire}</p>
-            <p className="text-xs text-muted">{facture.numero}</p>
-          </div>
-        </div>
-        <p className="text-sm font-bold text-foreground whitespace-nowrap">{formatMontant(facture.montant)}</p>
-      </div>
-      {facture.numeroVisa ? (
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted">
-          <span className="font-semibold text-muted">{facture.numeroVisa}</span>
-          {facture.dateVisa && <span>visa du {formatDateFr(facture.dateVisa)}</span>}
-          {facture.viseur && <span>par {facture.viseur}</span>}
-        </div>
-      ) : (
-        <p className="mt-2 text-[11px] text-warning-soft-foreground">Visa DGA posé automatiquement à l&apos;orientation</p>
-      )}
-      <div className="mt-3">{children}</div>
-    </div>
-  );
-}
+/** Une page de file, par statut. Le serveur retombe sur 20 quand rien n'est demande. */
+const TAILLE = 20;
 
 export default function OrientationFondsView() {
-  // 2026-07-27 (choix métier) — le visa DGA n'est plus une étape manuelle : décider de
-  // l'orientation VAUT visa. On liste donc les factures « En attente visa DGA » (le visa
-  // sera posé implicitement par le backend) + le stock « Visé DGA » historique,
-  // + les conservées en caisse (ré-orientables).
-  const qAttente = useFacturesRFQuery({ periode: 'cycle', statut: 'En attente visa DGA', size: 100 });
-  const qVise = useFacturesRFQuery({ periode: 'cycle', statut: 'Visé DGA', size: 100 });
-  const qCaisse = useFacturesRFQuery({ periode: 'cycle', statut: 'Conservé en caisse', size: 100 });
+  const queryClient = useQueryClient();
+  const [file, setFile] = useState<string>(FILE_TOUTES);
+  const [partenaire, setPartenaire] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageCaisse, setPageCaisse] = useState(0);
 
-  const { data: attenteData, isLoading: loadingAttente } = qAttente;
-  const { data: viseData, isLoading: loadingVise } = qVise;
-  const { data: caisseData, isLoading: loadingCaisse } = qCaisse;
+  const [selection, setSelection] = useState<Set<string>>(new Set());
+  const [toutLaFile, setToutLaFile] = useState(false);
 
-  // Trois listes agregees derriere un seul indicateur de chargement : si l'un des
-  // appels echoue, la file « a orienter » se vidait SILENCIEUSEMENT et le
-  // comptable croyait avoir tout traite.
-  const erreurOrient = qAttente.isError || qVise.isError;
+  const [cible, setCible] = useState<null | { lignes: LigneOrientation[]; tout: boolean }>(null);
+  const [reorient, setReorient] = useState<LigneOrientation | null>(null);
 
-  const aOrienter = [
-    ...(attenteData?.factures?.content ?? []),
-    ...(viseData?.factures?.content ?? []),
-  ];
-  const chargementOrient = loadingAttente || loadingVise;
-  const conservees = caisseData?.factures?.content ?? [];
-
-  // Les compteurs de section affichaient `aOrienter.length` et `conservees.length`,
-  // c'est-a-dire la taille des PAGES demandees ci-dessus (100 par statut). Un DG
-  // lisait donc « 200 en attente d'orientation » quel que soit le stock reel.
-  // `totalElements` est le total serveur, calcule sur l'ensemble filtre.
-  // On affiche le vrai total ET, quand la liste est tronquee, combien sont
-  // rendues : un titre a 340 au-dessus de 200 cartes serait aussi trompeur.
-  const totalAOrienter =
-    (attenteData?.factures?.totalElements ?? 0) + (viseData?.factures?.totalElements ?? 0);
-  const totalConservees = caisseData?.factures?.totalElements ?? 0;
-  const orientTronque = totalAOrienter > aOrienter.length;
-  const conserveesTronque = totalConservees > conservees.length;
+  // 2026-07-27 (choix metier) : le visa DGA n'est plus une etape manuelle, decider de
+  // l'orientation VAUT visa. La file agrege donc « En attente visa DGA » (visa pose
+  // implicitement par le backend) et le stock historique « Vise DGA ».
+  const restaurantId = partenaire || undefined;
+  const qAttente = useFacturesRFQuery({
+    page,
+    periode: 'cycle',
+    restaurantId,
+    size: TAILLE,
+    statut: 'En attente visa DGA',
+  });
+  const qVise = useFacturesRFQuery({
+    page,
+    periode: 'cycle',
+    restaurantId,
+    size: TAILLE,
+    statut: 'Visé DGA',
+  });
+  const qCaisse = useFacturesRFQuery({
+    page: pageCaisse,
+    periode: 'cycle',
+    restaurantId,
+    size: TAILLE,
+    statut: 'Conservé en caisse',
+  });
 
   const orienter = useOrienterFondsMutation();
   const reorienter = useReorienterFondsMutation();
+  const enLot = useActionsGroupeesMutation();
 
-  // Modale orientation
-  const [orientFacture, setOrientFacture] = useState<IFactureRF | null>(null);
-  const [choix, setChoix] = useState<'DEPOT_BANQUE' | 'CONSERVATION_CAISSE'>('DEPOT_BANQUE');
-  const [motif, setMotif] = useState('');
+  const montreAttente = file === FILE_TOUTES || file === 'En attente visa DGA';
+  const montreVise = file === FILE_TOUTES || file === 'Visé DGA';
+  const libelleFile = FILES_ORIENTATION.find((f) => f.value === file)?.label ?? '';
 
-  // Modale ré-orientation
-  const [reorientFacture, setReorientFacture] = useState<IFactureRF | null>(null);
-  const [motifReorient, setMotifReorient] = useState('');
+  const lignes: LigneOrientation[] = [
+    ...(montreAttente ? (qAttente.data?.factures?.content ?? []) : []),
+    ...(montreVise ? (qVise.data?.factures?.content ?? []) : []),
+  ];
+  const conservees = qCaisse.data?.factures?.content ?? [];
 
-  const openOrient = (f: IFactureRF) => { setOrientFacture(f); setChoix('DEPOT_BANQUE'); setMotif(''); };
-  const openReorient = (f: IFactureRF) => { setReorientFacture(f); setMotifReorient(''); };
+  // Les compteurs de section affichaient la taille de la PAGE demandee. `totalElements`
+  // est le total serveur, et `stats.totalMontant` est calcule sur l'ensemble filtre avant
+  // pagination : les deux decrivent la file entiere, pas ce qui est a l'ecran.
+  const nbAttente = qAttente.data?.factures?.totalElements ?? 0;
+  const nbVise = qVise.data?.factures?.totalElements ?? 0;
+  const montantAttente = qAttente.data?.stats?.totalMontant ?? 0;
+  const montantVise = qVise.data?.stats?.totalMontant ?? 0;
 
-  const motifRequis = choix === 'CONSERVATION_CAISSE';
-  const motifValide = !motifRequis || motif.trim().length >= MOTIF_MIN;
+  const totalFile = (montreAttente ? nbAttente : 0) + (montreVise ? nbVise : 0);
+  const montantFile = (montreAttente ? montantAttente : 0) + (montreVise ? montantVise : 0);
+  const pagesFile = Math.max(
+    montreAttente ? (qAttente.data?.factures?.totalPages ?? 0) : 0,
+    montreVise ? (qVise.data?.factures?.totalPages ?? 0) : 0,
+  );
 
-  const handleConfirmOrient = () => {
-    if (!orientFacture || !motifValide) return;
-    orienter.mutate(
-      { id: orientFacture.id, data: { orientation: choix, motif: motifRequis ? motif.trim() : undefined } },
-      { onSuccess: () => setOrientFacture(null) },
+  const nbCaisse = qCaisse.data?.factures?.totalElements ?? 0;
+  const montantCaisse = qCaisse.data?.stats?.totalMontant ?? 0;
+  const pagesCaisse = qCaisse.data?.factures?.totalPages ?? 0;
+
+  // Trois lectures agregees derriere un seul indicateur : si l'une echoue, la file « a
+  // orienter » se vidait SILENCIEUSEMENT et le decideur croyait avoir tout traite.
+  const chargementFile =
+    (montreAttente && qAttente.isLoading) || (montreVise && qVise.isLoading);
+  const erreurFile = (montreAttente && qAttente.isError) || (montreVise && qVise.isError);
+  const relanceFile = () => {
+    if (montreAttente) qAttente.refetch();
+    if (montreVise) qVise.refetch();
+  };
+
+  const viderSelection = () => {
+    setSelection(new Set());
+    setToutLaFile(false);
+  };
+
+  // La selection ne survit ni au filtre ni a la page : elle nomme des lignes qui ne sont
+  // plus a l'ecran, et un geste en lot porterait alors sur autre chose que ce qui est vu.
+  useEffect(() => {
+    viderSelection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file, partenaire, page]);
+
+  // Un lot traite peut vider la derniere page : sans ce recalage, l'ecran resterait sur
+  // une page desormais hors bornes et afficherait « aucune operation » alors qu'il en
+  // reste des centaines en amont.
+  useEffect(() => {
+    if (pagesFile > 0 && page >= pagesFile) setPage(pagesFile - 1);
+  }, [page, pagesFile]);
+
+  useEffect(() => {
+    if (pagesCaisse > 0 && pageCaisse >= pagesCaisse) setPageCaisse(pagesCaisse - 1);
+  }, [pageCaisse, pagesCaisse]);
+
+  const basculerLigne = (id: string) => {
+    setToutLaFile(false);
+    setSelection((prev) => {
+      const suivant = new Set(prev);
+      if (suivant.has(id)) suivant.delete(id);
+      else suivant.add(id);
+      return suivant;
+    });
+  };
+
+  const idsPage = lignes.map((l) => l.id);
+  const pageCochee = idsPage.length > 0 && idsPage.every((id) => selection.has(id));
+  const pagePartielle = idsPage.some((id) => selection.has(id)) && !pageCochee;
+
+  const basculerPage = () => {
+    setToutLaFile(false);
+    setSelection((prev) => {
+      const suivant = new Set(prev);
+      if (pageCochee) idsPage.forEach((id) => suivant.delete(id));
+      else idsPage.forEach((id) => suivant.add(id));
+      return suivant;
+    });
+  };
+
+  const lignesCochees = lignes.filter((l) => selection.has(l.id));
+  const nbLot = toutLaFile ? totalFile : lignesCochees.length;
+  const montantLot = toutLaFile ? montantFile : sommeMontants(lignesCochees);
+
+  // Le geste « toute la file » passe par les filtres cote serveur : il ne sait viser
+  // qu'UN statut a la fois, donc il n'est offert que sur une file choisie.
+  const fileUnique = file !== FILE_TOUTES;
+
+  const filtresLot: IActionsGroupeesFiltres = {
+    periode: 'cycle',
+    restaurantId,
+    statut: file,
+  };
+
+  const confirmerOrientation = (orientation: OrientationFonds, motif?: string) => {
+    if (!cible) return;
+    const action: ActionGroupee =
+      orientation === 'DEPOT_BANQUE' ? 'ORIENTER_BANQUE' : 'ORIENTER_CAISSE';
+    const finir = () => {
+      // Le geste EN LOT passe par la mutation du responsable financier, qui n'invalide que
+      // SES listes. Le geste a l'unite, lui, invalide aussi « orientation-fonds » et
+      // « caissier ». Sans ces deux lignes, « Verification des depots » (staleTime 60 s) et
+      // le suivi caissier continuaient de servir des fonds deja orientes en lot. Le correctif
+      // est pose ICI, sur l'appelant, plutot que dans une mutation partagee par d'autres
+      // ecrans.
+      queryClient.invalidateQueries({ queryKey: ['orientation-fonds'] });
+      queryClient.invalidateQueries({ queryKey: ['caissier'] });
+      setCible(null);
+      viderSelection();
+    };
+
+    if (cible.tout) {
+      enLot.mutate({ action, filtres: filtresLot, motif, selectAll: true }, { onSuccess: finir });
+      return;
+    }
+    // Une seule operation garde son endpoint dedie : il rend le statut obtenu, donc un
+    // message qui nomme la destination reelle des fonds.
+    if (cible.lignes.length === 1) {
+      orienter.mutate(
+        { data: { motif, orientation }, id: cible.lignes[0].id },
+        { onSuccess: finir },
+      );
+      return;
+    }
+    enLot.mutate(
+      { action, ids: cible.lignes.map((l) => l.id), motif, selectAll: false },
+      { onSuccess: finir },
     );
   };
 
-  const handleConfirmReorient = () => {
-    if (!reorientFacture || motifReorient.trim().length < MOTIF_MIN) return;
-    reorienter.mutate(
-      { id: reorientFacture.id, data: { motif: motifReorient.trim() } },
-      { onSuccess: () => setReorientFacture(null) },
-    );
-  };
+  const enAttenteOrientation = orienter.isPending || enLot.isPending;
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
       <div>
-        <p className="text-sm text-muted">Comptabilité — Direction</p>
-        <h1 className="text-2xl font-bold text-primary">Orientation des fonds</h1>
-        <p className="text-sm text-muted mt-0.5">
-          La Direction décide de la destination des fonds : dépôt en banque ou conservation en caisse (fonds de roulement).
-          Décider vaut visa — depuis « En attente visa DGA », le visa DGA est posé automatiquement.
+        <p className="text-sm text-muted">Comptabilité · Direction</p>
+        {/* Un titre INFORME : il n'appelle aucun geste, donc il n'est pas rouge. */}
+        <h1 className="text-2xl font-bold text-foreground">Orientation des fonds</h1>
+        <p className="mt-0.5 text-sm text-muted">
+          La Direction décide de la destination des fonds : dépôt en banque ou conservation en
+          caisse (fonds de roulement). Décider vaut visa : depuis « En attente visa DGA », le visa
+          DGA est posé automatiquement.
         </p>
       </div>
 
-      {/* Section 1 — En attente d'orientation */}
-      <section>
-        <h2 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">
-          En attente d&apos;orientation ({totalAOrienter})
-          {orientTronque && (
-            <span className="ml-2 font-normal normal-case tracking-normal text-muted">
-              {aOrienter.length} affichées
-            </span>
-          )}
-        </h2>
-        {erreurOrient ? (
-          <EtatErreur
-            quoi="les factures à orienter"
-            onReessayer={() => {
-              qAttente.refetch();
-              qVise.refetch();
-            }}
-            enCours={qAttente.isFetching || qVise.isFetching}
-          />
-        ) : chargementOrient ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-28 rounded-xl bg-surface-secondary animate-pulse" />)}
+      {/* Le bandeau repond a la premiere question : combien d'argent attend une decision.
+          Aucune carte n'est coloree, aucune n'appelle de geste.
+
+          Les deux premieres cartes suivent le filtre de file, comme la section en dessous :
+          elles additionnaient les DEUX files sans condition, si bien qu'avec la file reglee
+          sur « Vise DGA (stock) » la carte annoncait un stock et le titre de section, a dix
+          centimetres, en annoncait un autre sous le MEME libelle. Sur un ecran d'argent, une
+          carte qui suit un filtre et pas l'autre est pire que pas de carte du tout. La note
+          nomme la file retenue des qu'il n'y en a qu'une. */}
+      <GrilleStats className="md:grid-cols-3" colonnes={3}>
+        <CarteStat
+          isError={erreurFile}
+          isLoading={chargementFile}
+          libelle="En attente d'orientation"
+          note={`${formatNombre(totalFile)} opérations${fileUnique ? ` · ${libelleFile}` : ''}`}
+          valeur={formatMontant(montantFile)}
+        />
+        <CarteStat
+          isError={montreVise && qVise.isError}
+          isLoading={montreVise && qVise.isLoading}
+          libelle="Dont déjà visées DGA"
+          note="Les autres seront visées par la décision"
+          valeur={formatNombre(montreVise ? nbVise : 0)}
+        />
+        <CarteStat
+          icone={PiggyBank}
+          isError={qCaisse.isError}
+          isLoading={qCaisse.isLoading}
+          libelle="Conservés en caisse"
+          note={`${formatNombre(nbCaisse)} opérations ré-orientables`}
+          valeur={formatMontant(montantCaisse)}
+        />
+      </GrilleStats>
+
+      {/* Section 1 : la file de decision */}
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-muted">
+              En attente d&apos;orientation
+            </h2>
+            <p className="text-sm text-muted">
+              <span className="tabular-nums">{formatNombre(lignes.length)}</span> affichées sur{' '}
+              <span className="tabular-nums">{formatNombre(totalFile)}</span>
+              {pagesFile > 1 && ` · page ${page + 1} sur ${pagesFile}`}
+            </p>
           </div>
-        ) : aOrienter.length === 0 ? (
-          <p className="text-sm text-muted py-8 text-center rounded-xl border border-dashed border-separator">Aucune opération en attente d&apos;orientation.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {aOrienter.map((f) => (
-              <FactureCard key={f.id} facture={f}>
-                <Button className="w-full" onPress={() => openOrient(f)} size="sm" variant="primary">
-                  <Landmark aria-hidden="true" className="size-4" />
-                  Orienter les fonds
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-full sm:w-[220px]">
+              <ChampListe
+                label="File"
+                onChange={(v) => {
+                  setFile(v || FILE_TOUTES);
+                  setPage(0);
+                }}
+                options={FILES_ORIENTATION}
+                placeholder="Les deux files"
+                valeur={file}
+              />
+            </div>
+            <div className="flex items-end gap-1">
+              {/* `RestaurantSelect` est un composant PARTAGE : il n'accepte ni `label` ni
+                  `aria-label` et ne rend aucun `<Label>`. Le libelle etait donc un `<span>`
+                  nu, lie a rien, et le champ n'etait annonce par RIEN. Le `<label>` natif
+                  qui l'enveloppe nomme le premier champ qu'il contient, sans toucher au
+                  composant partage ni changer ce qui est a l'ecran. */}
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted">Partenaire</span>
+                <RestaurantSelect
+                  className="w-full text-xs sm:w-[220px]"
+                  onChange={(v) => {
+                    setPartenaire(v ?? '');
+                    setPage(0);
+                  }}
+                  placeholder="Tous les partenaires"
+                  value={partenaire || undefined}
+                />
+              </label>
+              {/* Sans ce retrait, choisir un partenaire est un cul-de-sac : le
+                  ComboBox n'offre pas d'option « tous ». */}
+              {partenaire && (
+                <Button
+                  onPress={() => {
+                    setPartenaire('');
+                    setPage(0);
+                  }}
+                  size="sm"
+                  variant="ghost"
+                >
+                  Tous
                 </Button>
-              </FactureCard>
-            ))}
+              )}
+            </div>
           </div>
+        </div>
+
+        {!chargementFile && !erreurFile && lignes.length > 0 && (
+          <div className="hidden flex-wrap items-center gap-3 px-1 text-sm md:flex">
+            <Checkbox
+              isIndeterminate={pagePartielle && !toutLaFile}
+              isSelected={pageCochee || toutLaFile}
+              onChange={basculerPage}
+            >
+              <Checkbox.Content>
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                {/* `Checkbox` n'expose que Root/Content/Control/Indicator : le libelle est
+                    un enfant ordinaire du Content, deja zone cliquable. */}
+                <span className="text-sm text-muted">Sélectionner la page</span>
+              </Checkbox.Content>
+            </Checkbox>
+
+            {pageCochee && !toutLaFile && fileUnique && totalFile > lignes.length && (
+              <Button onPress={() => setToutLaFile(true)} size="sm" variant="ghost">
+                Sélectionner les {formatNombre(totalFile)} opérations de cette file
+              </Button>
+            )}
+            {pageCochee && !toutLaFile && !fileUnique && totalFile > lignes.length && (
+              <span className="text-xs text-muted">
+                Choisissez une file pour sélectionner ses opérations d&apos;un seul coup.
+              </span>
+            )}
+            {toutLaFile && (
+              <span className="flex items-center gap-1 text-muted">
+                Les <b className="tabular-nums">{formatNombre(totalFile)}</b> opérations de la file
+                sont sélectionnées
+                <Button onPress={viderSelection} size="sm" variant="ghost">
+                  Effacer
+                </Button>
+              </span>
+            )}
+          </div>
+        )}
+
+        {erreurFile ? (
+          <EtatErreur
+            enCours={qAttente.isFetching || qVise.isFetching}
+            onReessayer={relanceFile}
+            quoi="les opérations à orienter"
+          />
+        ) : (
+          <TableauOrientation
+            enChargement={chargementFile}
+            estSelectionnee={(id) => toutLaFile || selection.has(id)}
+            libelle="Opérations en attente d'orientation"
+            libelleAction="Orienter"
+            lignes={lignes}
+            onAction={(l) => setCible({ lignes: [l], tout: false })}
+            onBasculer={basculerLigne}
+            onPage={(p) => setPage(p - 1)}
+            page={page + 1}
+            totalPages={pagesFile}
+            vide="Aucune opération en attente d'orientation."
+          />
         )}
       </section>
 
-      {/* Section 2 — Conservés en caisse (ré-orientables) */}
-      <section>
-        <h2 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">
-          Conservés en caisse ({totalConservees})
-          {conserveesTronque && (
-            <span className="ml-2 font-normal normal-case tracking-normal text-muted">
-              {conservees.length} affichées
-            </span>
-          )}
-        </h2>
+      {/* Section 2 : les fonds retenus, re-orientables un par un */}
+      <section className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-muted">
+            Conservés en caisse
+          </h2>
+          {/* « Fonds de roulement » etait repete sur chaque carte : c'est la definition de
+              la section, pas une propriete de chaque ligne. */}
+          <p className="text-sm text-muted">
+            Fonds de roulement gardés en caisse.{' '}
+            <span className="tabular-nums">{formatNombre(conservees.length)}</span> affichés sur{' '}
+            <span className="tabular-nums">{formatNombre(nbCaisse)}</span>
+            {pagesCaisse > 1 && ` · page ${pageCaisse + 1} sur ${pagesCaisse}`}
+          </p>
+        </div>
+
         {qCaisse.isError ? (
           <EtatErreur
-            quoi="les factures conservées en caisse"
-            onReessayer={() => qCaisse.refetch()}
             enCours={qCaisse.isFetching}
+            onReessayer={() => qCaisse.refetch()}
+            quoi="les fonds conservés en caisse"
           />
-        ) : loadingCaisse ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {Array.from({ length: 2 }).map((_, i) => <div key={i} className="h-28 rounded-xl bg-surface-secondary animate-pulse" />)}
-          </div>
-        ) : conservees.length === 0 ? (
-          <p className="text-sm text-muted py-8 text-center rounded-xl border border-dashed border-separator">Aucun fonds conservé en caisse.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {conservees.map((f) => (
-              <FactureCard key={f.id} facture={f}>
-                <div className="mb-2 flex items-center gap-1.5 text-xs text-warning-soft-foreground">
-                  <PiggyBank aria-hidden="true" className="size-3.5" /> Fonds de roulement
-                </div>
-                <Button className="w-full" onPress={() => openReorient(f)} size="sm" variant="outline">
-                  <ArrowRightLeft aria-hidden="true" className="size-4" />
-                  Ré-orienter vers la banque
-                </Button>
-              </FactureCard>
-            ))}
-          </div>
+          <TableauOrientation
+            enChargement={qCaisse.isLoading}
+            libelle="Fonds conservés en caisse"
+            libelleAction="Ré-orienter vers la banque"
+            lignes={conservees}
+            onAction={(l) => setReorient(l)}
+            onPage={(p) => setPageCaisse(p - 1)}
+            page={pageCaisse + 1}
+            totalPages={pagesCaisse}
+            vide="Aucun fonds conservé en caisse."
+          />
         )}
       </section>
 
-      {/* Modale orientation */}
-      <Modal isOpen={!!orientFacture} onOpenChange={(o) => !o && setOrientFacture(null)}>
-        <Modal.Backdrop>
-          <Modal.Container>
-            <Modal.Dialog className="max-w-lg">
-              <Modal.Header>
-                <Modal.Heading className="flex flex-col items-start gap-0">
-                  <span className="text-lg font-bold text-foreground">Orienter les fonds</span>
-                  {orientFacture && (
-                    <span className="text-sm font-normal text-muted">
-                      {orientFacture.numero} — {orientFacture.partenaire} ·{' '}
-                      {formatMontant(orientFacture.montant)}
-                    </span>
-                  )}
-                </Modal.Heading>
-                <Modal.CloseTrigger />
-              </Modal.Header>
+      <BarreLotOrientation
+        montant={montantLot}
+        nombre={nbLot}
+        onEffacer={viderSelection}
+        onOrienter={() => setCible({ lignes: lignesCochees, tout: toutLaFile })}
+        precision={toutLaFile ? 'Toutes les pages de la file sélectionnée' : undefined}
+      />
 
-              <Modal.Body className="flex flex-col gap-4">
-                {/* Rappel en lecture seule (SPEC-RECOUV-002 §4.1) */}
-                {orientFacture && (
-                  <div className="flex flex-col gap-1 rounded-lg border border-separator bg-surface-secondary p-3 text-xs">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">N° facture</span>
-                      <span className="font-medium text-foreground">{orientFacture.numero}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Partenaire</span>
-                      <span className="text-right font-medium text-foreground">
-                        {orientFacture.partenaire}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Montant recouvré</span>
-                      <span className="font-semibold tabular-nums text-foreground">
-                        {formatMontant(orientFacture.montant)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">N° de visa</span>
-                      <span className="font-semibold text-foreground">
-                        {orientFacture.numeroVisa ?? '—'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Date du visa</span>
-                      <span className="text-foreground">{formatDateFr(orientFacture.dateVisa)}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Viseur</span>
-                      <span className="text-foreground">{orientFacture.viseur ?? '—'}</span>
-                    </div>
-                  </div>
-                )}
+      <FenetreOrientation
+        enAttente={enAttenteOrientation}
+        ligneUnique={cible && !cible.tout && cible.lignes.length === 1 ? cible.lignes[0] : undefined}
+        montant={cible ? (cible.tout ? montantFile : sommeMontants(cible.lignes)) : 0}
+        nombre={cible ? (cible.tout ? totalFile : cible.lignes.length) : 0}
+        onConfirmer={confirmerOrientation}
+        onFermer={() => setCible(null)}
+        ouvert={!!cible}
+      />
 
-                <RadioGroup onChange={(v) => setChoix(v as typeof choix)} value={choix}>
-                  <Radio value="DEPOT_BANQUE">
-                    <Radio.Content className="items-start">
-                      <Radio.Control className="mt-1">
-                        <Radio.Indicator />
-                      </Radio.Control>
-                      <span className="flex flex-col items-start">
-                        <span className="text-sm text-foreground">Autoriser le dépôt en banque</span>
-                        <span className="text-xs text-muted">
-                          Le Comptable pourra exécuter le dépôt bancaire (bordereau + preuve).
-                        </span>
-                      </span>
-                    </Radio.Content>
-                  </Radio>
-                  <Radio value="CONSERVATION_CAISSE">
-                    <Radio.Content className="items-start">
-                      <Radio.Control className="mt-1">
-                        <Radio.Indicator />
-                      </Radio.Control>
-                      <span className="flex flex-col items-start">
-                        <span className="text-sm text-foreground">
-                          Conserver en caisse (fonds de roulement)
-                        </span>
-                        <span className="text-xs text-muted">
-                          Garder les fonds en caisse comme fonds de roulement (aucun dépôt).
-                        </span>
-                      </span>
-                    </Radio.Content>
-                  </Radio>
-                </RadioGroup>
-
-                {motifRequis && (
-                  <div className="flex flex-col gap-1">
-                    <Label>Motif de conservation</Label>
-                    <TextArea
-                      onChange={(e) => setMotif(e.target.value)}
-                      placeholder={`Obligatoire — minimum ${MOTIF_MIN} caractères`}
-                      required
-                      rows={3}
-                      value={motif}
-                    />
-                    {motif.length > 0 && !motifValide ? (
-                      <FieldError>{`${motif.trim().length}/${MOTIF_MIN} caractères`}</FieldError>
-                    ) : (
-                      <Description>{`${motif.trim().length}/${MOTIF_MIN} caractères`}</Description>
-                    )}
-                  </div>
-                )}
-
-                {/* L'avertissement dit quelque chose : il garde son ton, mais en jetons —
-                    `bg-amber-50 border-amber-100 text-amber-700` etaient trois teintes de
-                    la palette Tailwind, sans variante sombre. */}
-                <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-foreground">
-                  <span>
-                    La décision est tracée (auteur + horodatage) et vaut autorisation :
-                    c&apos;est elle qui débloque (ou non) l&apos;action du Comptable.
-                    {!orientFacture?.numeroVisa &&
-                      ' Le visa DGA est posé automatiquement (N° de visa généré) par cette décision.'}
-                  </span>
-                </div>
-              </Modal.Body>
-
-              <Modal.Footer>
-                <Button
-                  isDisabled={orienter.isPending}
-                  onPress={() => setOrientFacture(null)}
-                  variant="ghost"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  isDisabled={!motifValide}
-                  isPending={orienter.isPending}
-                  onPress={handleConfirmOrient}
-                  variant="primary"
-                >
-                  {orienter.isPending ? <Spinner size="sm" /> : null}
-                  Confirmer
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
-
-      {/* Modale ré-orientation */}
-      <Modal isOpen={!!reorientFacture} onOpenChange={(o) => !o && setReorientFacture(null)}>
-        <Modal.Backdrop>
-          <Modal.Container>
-            <Modal.Dialog className="max-w-lg">
-              <Modal.Header>
-                <Modal.Heading className="flex flex-col items-start gap-0">
-                  <span className="text-lg font-bold text-foreground">
-                    Ré-orienter vers la banque
-                  </span>
-                  {reorientFacture && (
-                    <span className="text-sm font-normal text-muted">
-                      {reorientFacture.numero} — {reorientFacture.partenaire} ·{' '}
-                      {formatMontant(reorientFacture.montant)}
-                    </span>
-                  )}
-                </Modal.Heading>
-                <Modal.CloseTrigger />
-              </Modal.Header>
-
-              <Modal.Body>
-                <div className="flex flex-col gap-1">
-                  <Label>Motif de ré-orientation</Label>
-                  <TextArea
-                    onChange={(e) => setMotifReorient(e.target.value)}
-                    placeholder={`Obligatoire — minimum ${MOTIF_MIN} caractères (toute sortie de caisse doit être tracée)`}
-                    required
-                    rows={3}
-                    value={motifReorient}
-                  />
-                  {motifReorient.length > 0 && motifReorient.trim().length < MOTIF_MIN ? (
-                    <FieldError>{`${motifReorient.trim().length}/${MOTIF_MIN} caractères`}</FieldError>
-                  ) : (
-                    <Description>{`${motifReorient.trim().length}/${MOTIF_MIN} caractères`}</Description>
-                  )}
-                </div>
-              </Modal.Body>
-
-              <Modal.Footer>
-                <Button
-                  isDisabled={reorienter.isPending}
-                  onPress={() => setReorientFacture(null)}
-                  variant="ghost"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  isDisabled={motifReorient.trim().length < MOTIF_MIN}
-                  isPending={reorienter.isPending}
-                  onPress={handleConfirmReorient}
-                  variant="primary"
-                >
-                  {reorienter.isPending ? <Spinner size="sm" /> : null}
-                  Confirmer la ré-orientation
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
+      <FenetreReorientation
+        enAttente={reorienter.isPending}
+        ligne={reorient}
+        onConfirmer={(motif) => {
+          if (!reorient) return;
+          reorienter.mutate(
+            { data: { motif }, id: reorient.id },
+            { onSuccess: () => setReorient(null) },
+          );
+        }}
+        onFermer={() => setReorient(null)}
+      />
     </div>
   );
 }

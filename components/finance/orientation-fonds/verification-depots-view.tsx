@@ -35,6 +35,14 @@ const ETAT_BANQUE: Record<EtatRapprochement, { label: string; color: 'success' |
   ECART_MONTANT: { label: 'Écart de montant', color: 'danger' },
 };
 
+/*
+ * Le squelette de chargement compte ses cellules SUR CES LISTES. Un compte tenu a la main
+ * derive des qu'on ajoute une colonne, et React Aria leve « Cell count must match column
+ * count », ce qui emporte la page entiere en 500.
+ */
+const COLONNES_BANQUE = ['visa', 'bordereau', 'partenaire', 'vise', 'depose', 'date', 'etat'] as const;
+const COLONNES_CAISSE = ['visa', 'partenaire', 'montant', 'motif', 'anciennete', 'etat'] as const;
+
 export default function VerificationDepotsView() {
   const { data, isLoading, isError, isFetching, refetch } = useVerificationDepotsQuery();
   const { data: attestations } = useAttestationsCaisseQuery();
@@ -99,13 +107,18 @@ export default function VerificationDepotsView() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onPress={() => setAttestOpen(true)} variant="outline">
-            <ScrollText aria-hidden="true" className="size-4" />
-            Attestation de caisse
-          </Button>
-          <Button isDisabled={isLoading} onPress={exportXlsx} variant="primary">
+          {/* INVERSION ASSUMEE des deux boutons : l'accent etait sur « Exporter Excel », il
+              passe a « Attestation de caisse ». L'accent va au geste qui ENGAGE : attester
+              un comptage physique ecrit une piece datee, signee et comparee au solde
+              theorique. Un export ne change rien, il recopie. Les deux gestes restent la,
+              seul le poids visuel change, et l'ordre suit (le geste accentue en dernier). */}
+          <Button isDisabled={isLoading} onPress={exportXlsx} variant="outline">
             <Download aria-hidden="true" className="size-4" />
             Exporter Excel
+          </Button>
+          <Button onPress={() => setAttestOpen(true)} variant="primary">
+            <ScrollText aria-hidden="true" className="size-4" />
+            Attestation de caisse
           </Button>
         </div>
       </div>
@@ -114,8 +127,8 @@ export default function VerificationDepotsView() {
         zoneErreur
       ) : (
         <>
-        {/* Synthèse de bouclage */}
-        <GrilleStats colonnes={4}>
+        {/* Bandeau de bouclage */}
+        <GrilleStats className="md:grid-cols-4" colonnes={4}>
           <CarteStat
             libelle="Total visé"
             valeur={formatMontant(synthese?.totalVise ?? 0)}
@@ -144,11 +157,11 @@ export default function VerificationDepotsView() {
         {synthese && !synthese.bouclageOk && (
           <div className="flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger-soft-foreground">
             <AlertTriangle className="w-4 h-4 shrink-0" />
-            Total visé ≠ Total déposé + Total conservé — anomalie à investiguer (opération visée ni déposée ni conservée, ou double comptage).
+            Total visé ≠ Total déposé + Total conservé : anomalie à investiguer (opération visée ni déposée ni conservée, ou double comptage).
           </div>
         )}
 
-        {/* Section A — orientés banque */}
+        {/* Section A : les fonds orientes vers la banque */}
         <section className="bg-surface rounded-xl border border-separator shadow-xs overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-3 border-b border-separator">
             <Landmark aria-hidden="true" className="size-4 text-muted" />
@@ -165,7 +178,12 @@ export default function VerificationDepotsView() {
                     </Table.Column>
                     <Table.Column id="bordereau">N° bordereau</Table.Column>
                     <Table.Column id="partenaire">Partenaire</Table.Column>
-                    <Table.Column id="montants">Visé / déposé</Table.Column>
+                    <Table.Column className="text-right" id="vise">
+                      Visé
+                    </Table.Column>
+                    <Table.Column className="text-right" id="depose">
+                      Déposé
+                    </Table.Column>
                     <Table.Column id="date">Date</Table.Column>
                     <Table.Column id="etat">État</Table.Column>
                   </Table.Header>
@@ -182,7 +200,7 @@ export default function VerificationDepotsView() {
                     {isLoading
                       ? Array.from({ length: 4 }).map((_, i) => (
                           <Table.Row id={`sq-${i}`} key={`sq-${i}`}>
-                            {['visa', 'bordereau', 'partenaire', 'montants', 'date', 'etat'].map((c) => (
+                            {COLONNES_BANQUE.map((c) => (
                               <Table.Cell key={`sq-${i}-${c}`}>
                                 <div className="h-4 animate-pulse rounded bg-surface-secondary" />
                               </Table.Cell>
@@ -195,15 +213,14 @@ export default function VerificationDepotsView() {
                       <Table.Row id={l.factureId} key={l.factureId}>
                         <Table.Cell>{l.numeroVisa ?? '—'}</Table.Cell>
                         <Table.Cell>
-                          {l.numeroBordereau ?? (
-                            <span className="text-danger-soft-foreground">—</span>
-                          )}
+                          {l.numeroBordereau ?? <span className="text-muted">—</span>}
                         </Table.Cell>
                         <Table.Cell>{l.partenaire}</Table.Cell>
-                        <Table.Cell>
-                          <span className="block whitespace-nowrap text-right tabular-nums">
-                            {formatMontant(l.montantVise)} / {formatMontant(l.montantDepose)}
-                          </span>
+                        <Table.Cell className="text-right tabular-nums whitespace-nowrap">
+                          {formatMontant(l.montantVise)}
+                        </Table.Cell>
+                        <Table.Cell className="text-right tabular-nums whitespace-nowrap">
+                          {formatMontant(l.montantDepose)}
                         </Table.Cell>
                         <Table.Cell>{fmtDate(l.dateDepot)}</Table.Cell>
                         <Table.Cell>
@@ -222,7 +239,7 @@ export default function VerificationDepotsView() {
               </Table.ScrollContainer>
             </Table>
           </div>
-          {/* Mobile — cartes (lecture seule) */}
+          {/* Telephone : cartes en lecture seule */}
           <div className="md:hidden divide-y divide-separator">
             {banque.length === 0 ? (
               <p className="text-sm text-muted text-center py-8">Aucun recouvrement orienté banque</p>
@@ -237,14 +254,15 @@ export default function VerificationDepotsView() {
                     <Chip.Label>{ETAT_BANQUE[l.etatRapprochement].label}</Chip.Label>
                   </Chip>
                 </div>
-                <div className="flex justify-between text-xs"><span className="text-muted">Visé / Déposé</span><span className="text-foreground">{formatMontant(l.montantVise)} / {formatMontant(l.montantDepose)}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted">Visé</span><span className="tabular-nums text-foreground">{formatMontant(l.montantVise)}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted">Déposé</span><span className="tabular-nums text-foreground">{formatMontant(l.montantDepose)}</span></div>
                 <div className="flex justify-between text-xs"><span className="text-muted">Date dépôt</span><span className="text-foreground">{fmtDate(l.dateDepot)}</span></div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Section B — conservés en caisse */}
+        {/* Section B : les fonds conserves en caisse */}
         <section className="bg-surface rounded-xl border border-separator shadow-xs overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-3 border-b border-separator">
             <PiggyBank aria-hidden="true" className="size-4 text-warning-soft-foreground" />
@@ -259,7 +277,12 @@ export default function VerificationDepotsView() {
                       N° visa
                     </Table.Column>
                     <Table.Column id="partenaire">Partenaire</Table.Column>
-                    <Table.Column id="montant">Montant</Table.Column>
+                    {/* La cellule est en `text-right tabular-nums` : sans le meme geste sur
+                        l'en-tete, l'intitule flotte a gauche d'une colonne d'argent alignee
+                        a droite. Le geste avait ete porte a la table d'a cote, pas ici. */}
+                    <Table.Column className="text-right" id="montant">
+                      Montant
+                    </Table.Column>
                     <Table.Column id="motif">Motif</Table.Column>
                     <Table.Column id="anciennete">Ancienneté</Table.Column>
                     <Table.Column id="etat">État</Table.Column>
@@ -277,7 +300,7 @@ export default function VerificationDepotsView() {
                     {isLoading
                       ? Array.from({ length: 4 }).map((_, i) => (
                           <Table.Row id={`sqc-${i}`} key={`sqc-${i}`}>
-                            {['visa', 'partenaire', 'montant', 'motif', 'anciennete', 'etat'].map(
+                            {COLONNES_CAISSE.map(
                               (c) => (
                                 <Table.Cell key={`sqc-${i}-${c}`}>
                                   <div className="h-4 animate-pulse rounded bg-surface-secondary" />
@@ -304,7 +327,11 @@ export default function VerificationDepotsView() {
                         </Table.Cell>
                         <Table.Cell>{l.ancienneteJours} j</Table.Cell>
                         <Table.Cell>
-                          <Chip color={l.alerteDormant ? 'danger' : 'warning'} size="sm" variant="soft">
+                          <Chip
+                            color={l.alerteDormant ? 'danger' : 'default'}
+                            size="sm"
+                            variant="soft"
+                          >
                             <Chip.Label>{l.alerteDormant ? 'Dormant' : 'En caisse'}</Chip.Label>
                           </Chip>
                         </Table.Cell>
@@ -315,7 +342,7 @@ export default function VerificationDepotsView() {
               </Table.ScrollContainer>
             </Table>
           </div>
-          {/* Mobile — cartes (lecture seule) */}
+          {/* Telephone : cartes en lecture seule */}
           <div className="md:hidden divide-y divide-separator">
             {caisse.length === 0 ? (
               <p className="text-sm text-muted text-center py-8">Aucun fonds conservé en caisse</p>
@@ -326,11 +353,11 @@ export default function VerificationDepotsView() {
                     <p className="text-sm font-semibold text-foreground truncate">{l.partenaire}</p>
                     <p className="text-[11px] text-muted">Visa {l.numeroVisa ?? '—'} · {l.ancienneteJours} j</p>
                   </div>
-                  <Chip color={l.alerteDormant ? 'danger' : 'warning'} size="sm" variant="soft">
+                  <Chip color={l.alerteDormant ? 'danger' : 'default'} size="sm" variant="soft">
                     <Chip.Label>{l.alerteDormant ? 'Dormant' : 'En caisse'}</Chip.Label>
                   </Chip>
                 </div>
-                <div className="flex justify-between text-xs"><span className="text-muted">Montant</span><span className="text-foreground font-semibold">{formatMontant(l.montantConserve)}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted">Montant</span><span className="font-semibold tabular-nums text-foreground">{formatMontant(l.montantConserve)}</span></div>
                 {l.motif && <p className="text-[11px] text-muted line-clamp-2">{l.motif}</p>}
               </div>
             ))}
@@ -353,9 +380,16 @@ export default function VerificationDepotsView() {
                   <Table.Column id="date" isRowHeader>
                     Date
                   </Table.Column>
-                  <Table.Column id="theorique">Solde théorique</Table.Column>
-                  <Table.Column id="compte">Compté</Table.Column>
-                  <Table.Column id="ecart">Écart</Table.Column>
+                  {/* Trois colonnes d'argent : les en-tetes s'alignent sur leurs cellules. */}
+                  <Table.Column className="text-right" id="theorique">
+                    Solde théorique
+                  </Table.Column>
+                  <Table.Column className="text-right" id="compte">
+                    Compté
+                  </Table.Column>
+                  <Table.Column className="text-right" id="ecart">
+                    Écart
+                  </Table.Column>
                   <Table.Column id="caissier">Caissier</Table.Column>
                 </Table.Header>
                 <Table.Body>
@@ -395,7 +429,7 @@ export default function VerificationDepotsView() {
         </section>
       )}
 
-      {/* Modale attestation de caisse */}
+      {/* La fenetre d'attestation de caisse */}
       <Modal isOpen={attestOpen} onOpenChange={setAttestOpen}>
         <Modal.Backdrop>
           <Modal.Container>

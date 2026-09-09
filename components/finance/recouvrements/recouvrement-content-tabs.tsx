@@ -24,9 +24,36 @@ import { toRestaurantOptions } from '@/features/restaurants/utils/restaurant-opt
  * variante sombre, donc du texte fonce sur fond pastel en theme sombre. L'onglet actif
  * se lit desormais a son etat, comme partout ailleurs dans l'ERP.</p>
  *
- * <p>PAS de `Tabs.Indicator` : il rend un `SharedElement` de react-aria qui LEVE hors
- * d'un `SharedElementTransition`, et fait tomber la page entiere.</p>
+ * <p>La rangee ne ressemblait pas a des onglets mais a du texte pose cote a cote : la
+ * selection ne changeait que la couleur du texte. Il manquait `Tabs.ListContainer`, qui
+ * porte le groupe, et surtout une marque visible de l'onglet ouvert.</p>
+ *
+ * <h3>Pourquoi le trait est dessine a la main</h3>
+ * <p>`Tabs.Indicator` est la piece prevue pour cela, et elle NE FONCTIONNE PAS dans ce
+ * projet. Rendue telle quelle, elle leve `<SharedElement> must be rendered inside a
+ * <SharedElementTransition>` et emporte la page entiere en 500 — mesure a l'ecran, pas
+ * suppose. Enveloppee dans un `SharedElementTransition`, la page tient mais l'indicateur
+ * ne rend RIEN : zero noeud `.tabs__indicator` dans le document, mesure aussi. Une piece
+ * qui ne s'affiche pas ne sert a rien.</p>
+ *
+ * <p>Le trait est donc pose sur l'onglet lui-meme, en `data-[selected=true]`. Il prend
+ * l'accent, et c'est legitime : il ne colorie pas une categorie, il dit ou l'on est.</p>
+ *
+ * <p>Variante `secondary` : conteneur plat. La `primary` fait suivre le trait a l'arrondi
+ * de sa pastille, ce qui se voit et n'est pas beau.</p>
  */
+/** Le trait de l'onglet ouvert. Voir le bloc ci-dessus : `Tabs.Indicator` est inutilisable. */
+const MARQUE_ACTIVE =
+  'border-b-2 border-transparent data-[selected=true]:border-accent data-[selected=true]:font-semibold';
+
+const SECTIONS = [
+  { id: 'factures', libelle: 'Toutes les factures' },
+  { id: 'recouvrements', libelle: 'Recouvrements' },
+  { id: 'accompte', libelle: 'Accompte' },
+  { id: 'restaurants', libelle: 'Liste des restaurants' },
+  { id: 'contestations', libelle: 'Contestations' },
+];
+
 function RecouvrementContentTabs() {
   const { filters, handleTabChange } = useRecouvrementDashboard();
   const { data: restaurants = [], isLoading: isRestaurantsLoading } = useDefinedRestaurantsQuery();
@@ -35,18 +62,21 @@ function RecouvrementContentTabs() {
   return (
     <Tabs
       className="w-full"
+      variant="secondary"
       onSelectionChange={(cle) => handleTabChange(String(cle) as RecouvrementTabsType)}
       selectedKey={filters.tab}
     >
-      {/* La rangee defile plutot que de pousser la page : sur la fenetre reelle des
-          postes (1000 px), cinq libelles ne tiennent pas sur une ligne. */}
-      <Tabs.List className="overflow-x-auto">
-        <Tabs.Tab id="factures">Toutes les factures</Tabs.Tab>
-        <Tabs.Tab id="recouvrements">Recouvrements</Tabs.Tab>
-        <Tabs.Tab id="accompte">Accompte</Tabs.Tab>
-        <Tabs.Tab id="restaurants">Liste des restaurants</Tabs.Tab>
-        <Tabs.Tab id="contestations">Contestations</Tabs.Tab>
-      </Tabs.List>
+      {/* Le conteneur gere lui-meme le debordement et sort ses chevrons : sur la fenetre
+          reelle des postes (1000 px), cinq libelles ne tiennent pas sur une ligne. */}
+      <Tabs.ListContainer>
+        <Tabs.List>
+          {SECTIONS.map((section) => (
+            <Tabs.Tab className={MARQUE_ACTIVE} id={section.id} key={section.id}>
+              {section.libelle}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs.ListContainer>
 
       <Tabs.Panel className="pt-4" id="factures">
         <FactureTabsContent restoOpts={restoOpts} isOptionsLoading={isRestaurantsLoading} />

@@ -1,33 +1,39 @@
 'use client';
 
+import { useRef } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Alert, Button, Card, ComboBox, Input, Label, ListBox, Spinner } from '@heroui-v3/react';
+import { Alert, Button, Spinner } from '@heroui-v3/react';
+
 import {
   encoursFilters,
   useEncoursQuery,
   useEncoursGroupesQuery,
-  MOIS_LONGS,
+  IEncoursReleve,
 } from '@/features/encours';
+
 import { EncoursKpiCards } from './encours-kpi-cards';
 import { EncoursCharts } from './encours-charts';
+import { EncoursFiltres } from './encours-filtres';
 import { EncoursTable } from './encours-table';
 import { EncoursMobileCards } from './encours-mobile-cards';
 import { EncoursDeductionsTable } from './encours-deductions-table';
 import { EncoursDeductionsManager } from './encours-deductions-manager';
 import { EncoursExportButton } from './encours-export-button';
 import { EncoursExportDusButton } from './encours-export-dus-button';
-import { EncoursStoreFilter } from './encours-store-filter';
+import { useHauteurReleve } from './encours-hauteur';
 
-const anneeCourante = new Date().getFullYear();
-const ANNEES = [anneeCourante, anneeCourante - 1, anneeCourante - 2, anneeCourante - 3];
-const MOIS = Array.from({ length: 12 }, (_, i) => i + 1);
-const CYCLES = [
-  { key: 'TOUS', label: 'Tous' },
-  { key: 'MENSUEL', label: 'Mensuel' },
-  { key: 'QUINZAINE', label: 'Quinzaine' },
-  { key: 'HEBDOMADAIRE', label: 'Hebdomadaire' },
-];
-
+/**
+ * Encours - restes a payer.
+ *
+ * <h3>Ce que l'ecran repond, dans l'ordre ou l'operateur le demande</h3>
+ * <p>Il ouvre cette page pour relancer des partenaires. Il lui faut donc, du haut vers le
+ * bas : ce qui reste du et ce qui est en retard, puis le releve ligne a ligne, qui est le
+ * geste lui-meme. Le reste - la saisonnalite, le classement des partenaires, le registre
+ * des avances - se lit, mais apres, et n'a aucune raison d'occuper le premier ecran.</p>
+ *
+ * <p>La barre de filtres est un composant a part (`encours-filtres`), avec l'explication
+ * du bloc blanc qu'elle formait ; elle est ainsi montable sur le banc d'apercu.</p>
+ */
 export function EncoursView() {
   const [filters, setFilters] = useQueryStates(encoursFilters.filter, encoursFilters.option);
 
@@ -42,157 +48,90 @@ export function EncoursView() {
   const { data: releve, isError, isFetching, isLoading, refetch } = useEncoursQuery(params);
   const { data: groupes } = useEncoursGroupesQuery();
 
+  /*
+   * Le releve precedent reste a l'ecran pendant qu'on en charge un autre.
+   *
+   * <p>Chaque changement de filtre cree une nouvelle cle de requete : sans cela, l'ecran
+   * se vidait entierement et un spinner remplacait le tableau a chaque clic, y compris
+   * pour passer de « Mars » a « Avril ». La requete est partagee (`features/encours`) et
+   * n'est pas de ce perimetre ; le report se fait donc ici, et l'attente se dit par un
+   * indicateur discret au lieu d'un ecran blanc.</p>
+   */
+  const dernierReleve = useRef<IEncoursReleve | undefined>(undefined);
+  if (releve) dernierReleve.current = releve;
+  const affiche = releve ?? dernierReleve.current;
+
+  /*
+   * En ECHEC, ce report devient un piege : `isLoading` vaut faux (TanStack : isPending &&
+   * isFetching), donc `affiche` retombe sur le releve precedent et l'operateur lit une
+   * alerte rouge avec, juste dessous, des montants complets qui appartiennent au filtre
+   * d'AVANT. Rien n'est retire de l'ecran - un montant deja lu n'a pas a disparaitre -
+   * mais il est DIT a quoi il appartient, et les deux exports sont neutralises : un PDF
+   * porterait l'entete du filtre demande sur les chiffres de l'ancien.
+   */
+  const relevePerime = isError && Boolean(affiche);
+
+  // La hauteur du releve se mesure jusqu'au PLI, sans soustraire les graphiques ni le
+  // registre : ils sont sous le pli volontairement. Voir `encours-hauteur`.
+  const zoneReleveRef = useRef<HTMLDivElement>(null);
+  const hauteurReleve = useHauteurReleve(zoneReleveRef);
+
   return (
-    <div className="space-y-4 p-3 sm:p-4">
-      {/* En-tête */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Encours — Restes à payer</h1>
-          <p className="text-sm text-muted">
-            Factures éditées non encore recouvrées — détail par facture (mois / quinzaine / semaine)
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-2.5 p-3 sm:p-4">
+      {/*
+       * Le titre et les gestes sur UNE ligne, la phrase de definition en dessous.
+       * Empilee sous le titre, elle mesure 480 px : elle poussait les trois boutons sur
+       * une ligne a eux, soit 40 px pris au releve sur une fenetre qui en fait 563.
+       */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h1 className="text-lg font-semibold leading-tight text-foreground">
+          Encours — Restes à payer
+        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          {isFetching && affiche ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+              <Spinner size="sm" /> Mise à jour…
+            </span>
+          ) : null}
           <EncoursDeductionsManager annee={filters.annee} />
-          <EncoursExportDusButton releve={releve} params={params} isDisabled={isLoading} />
-          <EncoursExportButton params={params} isDisabled={!releve || isLoading} />
+          <EncoursExportDusButton
+            isDisabled={isLoading || relevePerime}
+            params={params}
+            releve={affiche}
+          />
+          <EncoursExportButton
+            isDisabled={!affiche || isLoading || relevePerime}
+            params={params}
+          />
         </div>
       </div>
 
-      {/*
-       * Les filtres, dans une carte.
-       *
-       * <p>Des `ComboBox` et non des `Select` : la liste des partenaires suit le
-       * portefeuille et se cherche, comme partout ailleurs dans ce projet.</p>
-       */}
-      <Card>
-        <Card.Content className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
-          <ComboBox
-            className="w-full sm:w-28"
-            onSelectionChange={(c) => {
-              if (c) setFilters({ annee: Number(c) });
-            }}
-            selectedKey={String(filters.annee)}
-          >
-            <Label>Année</Label>
-            <ComboBox.InputGroup>
-              <Input />
-              <ComboBox.Trigger />
-            </ComboBox.InputGroup>
-            <ComboBox.Popover>
-              <ListBox items={ANNEES.map((y) => ({ cle: String(y) }))}>
-                {(o: { cle: string }) => (
-                  <ListBox.Item id={o.cle} textValue={o.cle}>
-                    {o.cle}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                )}
-              </ListBox>
-            </ComboBox.Popover>
-          </ComboBox>
+      <p className="-mt-1 text-xs text-muted">
+        Factures éditées non encore recouvrées — détail par facture (mois / quinzaine / semaine)
+      </p>
 
-          <ComboBox
-            className="w-full sm:w-44"
-            onSelectionChange={(c) => setFilters({ mois: c === 'TOUS' ? '' : String(c ?? '') })}
-            selectedKey={filters.mois || 'TOUS'}
-          >
-            <Label>Mois</Label>
-            <ComboBox.InputGroup>
-              <Input />
-              <ComboBox.Trigger />
-            </ComboBox.InputGroup>
-            <ComboBox.Popover>
-              <ListBox
-                items={[
-                  { cle: 'TOUS', libelle: 'Tous (cumul annuel)' },
-                  ...MOIS.map((m) => ({ cle: String(m), libelle: MOIS_LONGS[m] })),
-                ]}
-              >
-                {(o: { cle: string; libelle: string }) => (
-                  <ListBox.Item id={o.cle} textValue={o.libelle}>
-                    {o.libelle}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                )}
-              </ListBox>
-            </ComboBox.Popover>
-          </ComboBox>
+      <EncoursFiltres groupes={groupes ?? []} onChange={setFilters} valeurs={filters} />
 
-          <ComboBox
-            className="w-full sm:w-40"
-            onSelectionChange={(c) => setFilters({ cycle: c === 'TOUS' ? '' : String(c ?? '') })}
-            selectedKey={filters.cycle || 'TOUS'}
-          >
-            <Label>Cycle</Label>
-            <ComboBox.InputGroup>
-              <Input />
-              <ComboBox.Trigger />
-            </ComboBox.InputGroup>
-            <ComboBox.Popover>
-              <ListBox items={CYCLES}>
-                {(o: { key: string; label: string }) => (
-                  <ListBox.Item id={o.key} textValue={o.label}>
-                    {o.label}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                )}
-              </ListBox>
-            </ComboBox.Popover>
-          </ComboBox>
-
-          <ComboBox
-            className="w-full sm:w-56"
-            // changer de partenaire réinitialise la sélection de points de vente (§4)
-            onSelectionChange={(c) =>
-              setFilters({ partenaire: c === 'TOUS' ? '' : String(c ?? ''), stores: [] })
-            }
-            selectedKey={filters.partenaire || 'TOUS'}
-          >
-            <Label>Partenaire</Label>
-            <ComboBox.InputGroup>
-              <Input placeholder="Rechercher…" />
-              <ComboBox.Trigger />
-            </ComboBox.InputGroup>
-            <ComboBox.Popover>
-              <ListBox
-                items={[{ cle: 'TOUS', libelle: 'Tous' }, ...(groupes ?? []).map((g) => ({ cle: g, libelle: g }))]}
-              >
-                {(o: { cle: string; libelle: string }) => (
-                  <ListBox.Item id={o.cle} textValue={o.libelle}>
-                    {o.libelle}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                )}
-              </ListBox>
-            </ComboBox.Popover>
-          </ComboBox>
-
-          <div className="col-span-2 sm:contents">
-            <EncoursStoreFilter
-              onChange={(ids) => setFilters({ stores: ids })}
-              partenaire={filters.partenaire}
-              value={filters.stores ?? []}
-            />
-          </div>
-        </Card.Content>
-      </Card>
-
-      {/* États */}
-      {isLoading && (
+      {isLoading && !affiche && (
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted">
           <Spinner size="sm" /> Chargement du relevé…
         </div>
       )}
+
       {/*
        * L'echec n'offrait aucune reprise : il fallait recharger la page entiere pour
-       * retenter une lecture. Et il etait peint en `rose-200/50/600`, trois teintes de la
-       * palette Tailwind indifferentes au theme.
+       * retenter une lecture. L'alerte est collee au bandeau qu'elle qualifie, et dit
+       * elle-meme ce que sont les montants restes a l'ecran.
        */}
       {isError && (
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Description>Le relevé n’a pas pu être lu.</Alert.Description>
+            <Alert.Description>
+              {relevePerime
+                ? 'Le relevé n’a pas pu être lu. Les montants ci-dessous sont ceux de la dernière lecture réussie, pas ceux du filtre demandé ; les exports sont suspendus.'
+                : 'Le relevé n’a pas pu être lu.'}
+            </Alert.Description>
           </Alert.Content>
           <Button isPending={isFetching} onPress={() => void refetch()} size="sm" variant="outline">
             Réessayer
@@ -200,20 +139,41 @@ export function EncoursView() {
         </Alert>
       )}
 
-      {/* Contenu */}
-      {releve && !isLoading && (
-        <div className="space-y-4">
-          <EncoursKpiCards releve={releve} />
-          <EncoursCharts releve={releve} />
-          {/* Desktop : tableau détaillé ; Mobile : cartes tactiles */}
-          <div className="hidden md:block">
-            <EncoursTable releve={releve} />
-          </div>
-          <div className="md:hidden">
-            <EncoursMobileCards releve={releve} />
-          </div>
-          <EncoursDeductionsTable deductions={releve.deductions} total={releve.totalDeductions} />
-        </div>
+      {affiche && <EncoursKpiCards releve={affiche} />}
+
+      {/*
+       * Le releve, au premier ecran : c'est le seul bloc sur lequel on travaille.
+       *
+       * L'enveloppe est montee EN PERMANENCE, meme sans releve. La mesure se fait dans un
+       * effet qui ne depend que de la reference : si le noeud n'existe pas encore au
+       * premier passage - et il n'existe pas, la lecture reseau n'ayant pas repondu -
+       * l'effet sort sans rien mesurer et ne se rejoue jamais. Le cadre de defilement
+       * restait alors sans hauteur, l'en-tete collant sans effet, et le tableau s'etirait
+       * sur 35 000 px.
+       */}
+      <div ref={zoneReleveRef}>
+        {affiche && (
+          <>
+            <div className="hidden md:block">
+              <EncoursTable hauteur={hauteurReleve} releve={affiche} />
+            </div>
+            <div className="md:hidden">
+              <EncoursMobileCards releve={affiche} />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/*
+       * La lecture, sous le releve. Les deux graphiques et le registre des avances disent
+       * d'ou vient l'encours ; ils n'appellent aucun geste, et occupaient le haut de
+       * l'ecran a la place du tableau.
+       */}
+      {affiche && (
+        <>
+          <EncoursCharts releve={affiche} />
+          <EncoursDeductionsTable deductions={affiche.deductions} total={affiche.totalDeductions} />
+        </>
       )}
     </div>
   );

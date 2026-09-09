@@ -6,8 +6,8 @@ import { useState } from 'react';
 
 import { FenetreAction } from '@/components/commons/FenetreAction';
 import { IDepense } from '@/features/depenses/types/depense.type';
-import { formatCFA } from '@/src/actions/bonLivraison.mapper';
 import { createUrlFile } from '@/utils/createUrlFile';
+import { formatMontant } from '@/utils/format.utils';
 
 import { StatusBadge, TypeBadge } from './validation-badges';
 import { fmtDate } from './validation.constants';
@@ -31,17 +31,15 @@ export function HistoryRow({ depense }: { depense: IDepense }) {
   // touchant le DOM a la main (`nextElementSibling.classList`), a cote de React.
   const [apercuImpossible, setApercuImpossible] = useState(false);
 
-  const lienJustificatif = depense.justificatif
-    ? createUrlFile(depense.justificatif, 'backend')
-    : null;
+  const lienJustificatif = depense.justificatif ? createUrlFile(depense.justificatif, 'backend') : null;
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4 p-5 transition-colors hover:bg-surface-secondary">
+      <div className="flex flex-wrap items-start justify-between gap-4 px-4 py-3 transition-colors hover:bg-surface-secondary">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-3">
             <TypeBadge type={depense.typeDepense} />
-            <span className="text-sm text-muted">{fmtDate(depense.dateDepense)}</span>
+            <span className="text-sm tabular-nums text-muted">{fmtDate(depense.dateDepense)}</span>
             <StatusBadge statut={depense.statut} />
           </div>
           <h3 className="font-semibold text-foreground">{depense.libelle}</h3>
@@ -49,17 +47,10 @@ export function HistoryRow({ depense }: { depense: IDepense }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <p className="min-w-32 text-right text-lg font-bold tabular-nums text-foreground">
-            {formatCFA(depense.montant)}
-          </p>
+          <p className="min-w-32 text-right text-base font-bold tabular-nums text-foreground">{formatMontant(depense.montant)}</p>
           <div className="flex items-center gap-2">
             {lienJustificatif && (
-              <a
-                className="button button--sm button--ghost"
-                href={lienJustificatif}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
+              <a className="button button--sm button--ghost" href={lienJustificatif} rel="noopener noreferrer" target="_blank">
                 <Download aria-hidden="true" />
                 <span className="hidden sm:inline">Justificatif</span>
               </a>
@@ -72,12 +63,7 @@ export function HistoryRow({ depense }: { depense: IDepense }) {
         </div>
       </div>
 
-      <FenetreAction
-        libelleFermer="Fermer"
-        onFermer={() => setOuvert(false)}
-        ouvert={ouvert}
-        titre="Détails de la dépense"
-      >
+      <FenetreAction libelleFermer="Fermer" onFermer={() => setOuvert(false)} ouvert={ouvert} titre="Détails de la dépense">
         <div className="flex items-center justify-between gap-3">
           <TypeBadge type={depense.typeDepense} />
           <StatusBadge statut={depense.statut} />
@@ -90,7 +76,7 @@ export function HistoryRow({ depense }: { depense: IDepense }) {
           </div>
           <div className="min-w-0">
             <dt className="text-xs text-muted">Montant</dt>
-            <dd className="font-bold tabular-nums text-foreground">{formatCFA(depense.montant)}</dd>
+            <dd className="font-bold tabular-nums text-foreground">{formatMontant(depense.montant)}</dd>
           </div>
           <div className="min-w-0">
             <dt className="text-xs text-muted">Date</dt>
@@ -119,30 +105,15 @@ export function HistoryRow({ depense }: { depense: IDepense }) {
             <p className="text-xs text-muted">Justificatif</p>
             <div className="overflow-hidden rounded-lg border border-separator bg-surface-secondary">
               {apercuImpossible ? (
-                <Link
-                  className="w-full justify-center py-8 text-sm"
-                  href={lienJustificatif}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
+                <Link className="w-full justify-center py-8 text-sm" href={lienJustificatif} rel="noopener noreferrer" target="_blank">
                   <Download aria-hidden="true" className="mr-2 size-4" />
                   Ouvrir le fichier
                 </Link>
               ) : (
-                <img
-                  alt="Justificatif"
-                  className="max-h-64 w-full object-contain"
-                  onError={() => setApercuImpossible(true)}
-                  src={lienJustificatif}
-                />
+                <img alt="Justificatif" className="max-h-64 w-full object-contain" onError={() => setApercuImpossible(true)} src={lienJustificatif} />
               )}
             </div>
-            <a
-              className="button button--md button--outline button--full-width"
-              href={lienJustificatif}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
+            <a className="button button--md button--outline button--full-width" href={lienJustificatif} rel="noopener noreferrer" target="_blank">
               <Download aria-hidden="true" />
               Télécharger
             </a>

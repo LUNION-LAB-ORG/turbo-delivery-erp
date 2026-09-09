@@ -11,7 +11,7 @@ import { buildEncoursDusPdf } from './encours-export-dus-pdf';
 
 /**
  * Resume client-side : factures encore dues sur les periodes passees ou en
- * cours (exclut "A venir" et placeholder "—"), groupees par partenaire,
+ * cours (exclut "A venir" et le glyphe d'absence), groupees par partenaire,
  * triees du plus gros du au plus petit.
  *
  * Reutilise par les 2 formats d'export (CSV resume rapide + PDF executive
@@ -53,7 +53,7 @@ function buildCsv(rows: PartenaireResumeDu[], totalDu: number, dateRef: string):
   lines.push('');
   lines.push(
     csvEscape(
-      `Export généré le ${dateRef} — partenaires avec restes à payer (périodes passées ou en cours)`,
+      `Export généré le ${dateRef}, partenaires avec restes à payer (périodes passées ou en cours)`,
     ),
   );
   return '﻿' + lines.join('\r\n');
@@ -84,7 +84,7 @@ interface EncoursExportDusButtonProps {
  * date du jour. Dropdown 2 formats :
  *   - CSV (Excel) : resume tabulaire simple, ouvre directement Excel FR.
  *   - PDF : rapport executive avec bandeau de marque, KPIs et table dense.
- * Tout est genere cote client a partir du releve deja charge — aucun nouvel
+ * Tout est genere cote client a partir du releve deja charge, aucun nouvel
  * appel API.
  */
 export function EncoursExportDusButton({
@@ -123,7 +123,7 @@ export function EncoursExportDusButton({
         `${rows.length} partenaire${rows.length > 1 ? 's' : ''} doivent ${fmtFcfa(totalDu)}`,
         {
           id: tid,
-          description: format === 'pdf' ? 'PDF téléchargé — relevé prêt à partager.' : 'CSV téléchargé — ouvrable dans Excel.',
+          description: format === 'pdf' ? 'PDF téléchargé, relevé prêt à partager.' : 'CSV téléchargé, ouvrable dans Excel.',
         },
       );
     } catch (error) {

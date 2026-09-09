@@ -57,3 +57,44 @@ export function calculerRetard(releve: IEncoursReleve): IRetard {
 export function sommeAcomptes(factures: IEncoursFacture[]): number {
   return factures.reduce((total, f) => total + (f.acompte ?? 0), 0);
 }
+
+/**
+ * Le retard VENTILE, par mois puis par partenaire.
+ *
+ * <p>La charge utile ne porte aucun `retardParMois` : `IEncoursReleve` n'expose que
+ * `factureParMois` et `resteParMois`, tous deux agreges par le serveur. Le retard, lui,
+ * n'est pas invente ici pour autant - chaque facture porte deja son `mois`, son `statut`
+ * et son `solde`, et c'est exactement la source que `calculerRetard` somme pour le
+ * bandeau. Ventiler cette meme somme est une lecture du releve, pas une estimation.</p>
+ *
+ * <p>Une precaution s'impose a l'usage : ces totaux et ceux du serveur ne viennent pas du
+ * meme calcul (une deduction de partenaire n'appartient a aucun mois), donc la part en
+ * retard se borne au reste avant d'etre empilee dessus. Voir `encours-charts`.</p>
+ */
+export function calculerRetardParMois(releve: IEncoursReleve): Record<string, number> {
+  const parMois: Record<string, number> = {};
+
+  (releve.partenaires ?? []).forEach((p) => {
+    facturesDuPartenaire(p).forEach((f) => {
+      if (f.statut !== STATUT_EN_RETARD) return;
+      const cle = String(f.mois);
+      parMois[cle] = (parMois[cle] ?? 0) + (f.solde ?? 0);
+    });
+  });
+
+  return parMois;
+}
+
+/** Meme lecture, regroupee sur le nom de groupe : la cle du classement des partenaires. */
+export function calculerRetardParPartenaire(releve: IEncoursReleve): Record<string, number> {
+  const parGroupe: Record<string, number> = {};
+
+  (releve.partenaires ?? []).forEach((p) => {
+    parGroupe[p.groupe] = facturesDuPartenaire(p).reduce(
+      (total, f) => (f.statut === STATUT_EN_RETARD ? total + (f.solde ?? 0) : total),
+      0,
+    );
+  });
+
+  return parGroupe;
+}

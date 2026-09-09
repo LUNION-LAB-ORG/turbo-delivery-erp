@@ -6,7 +6,7 @@ import { ChevronDown, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { encoursAPI, IEncoursParams } from '@/features/encours';
 
-/** Export serveur du relevé (PDF OpenPDF / Excel POI) — télécharge le blob renvoyé. */
+/** Export serveur du releve (PDF OpenPDF / Excel POI) : telecharge le blob renvoye. */
 export function EncoursExportButton({
   params,
   isDisabled,
@@ -45,7 +45,7 @@ export function EncoursExportButton({
     /*
      * Le `Button` est enfant DIRECT de `Dropdown` : `Dropdown.Trigger` rend son propre
      * `<button>` et en produisait un dans un bouton. `isLoading`, `startContent` et
-     * `endContent` sont des props de la v2, ignorees EN SILENCE par la v3 — le bouton
+     * `endContent` sont des props de la v2, ignorees EN SILENCE par la v3 : le bouton
      * avait perdu ses deux icones et son indicateur d'attente.
      */
     <Dropdown>

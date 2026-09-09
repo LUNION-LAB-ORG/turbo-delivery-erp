@@ -7,6 +7,7 @@ export type IDepense = {
   dateDepense: string;
   typeDepense: string;
   sourcePaiement?: string;
+  creerPar?: string;
   statut: string;
   categorie: {
     id: string;

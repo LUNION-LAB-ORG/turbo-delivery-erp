@@ -35,7 +35,17 @@ export function useValidationStats(role: Role, chargeType: ChargeType, debut?: s
     ? chargeType === 'fixe' ? data.fixes : data.variables
     : EMPTY_STATS;
 
+  // La reponse porte les DEUX types de charge. L'onglet ferme peut donc dire ce qu'il
+  // retient sans seconde lecture. `null` tant que rien n'est su : un onglet qui annonce
+  // « 0 » sur une lecture qui a echoue affirme une file vide, ce qui est pire que se taire.
+  const attentes = data
+    ? {
+        variable: getPendingCount(data.variables, role),
+        fixe: getPendingCount(data.fixes, role),
+      }
+    : null;
+
   // Sans data on retombe sur EMPTY_STATS, qui affiche « 0 en attente » : indiscernable
   // d'une file de validation vraiment vide. On remonte l'echec a l'ecran.
-  return { stats, isLoading, isFetching, isError, refetch };
+  return { stats, attentes, isLoading, isFetching, isError, refetch };
 }

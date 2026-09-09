@@ -1,4 +1,4 @@
-// PDF executive report — "Encours / Restes à payer".
+// Rapport PDF « Encours / Restes a payer ».
 //
 // Genere cote client via jsPDF (deja installe). Aucune dependance ajoutee. Design
 // inspire du systeme UI/UX pro max (rapport finance executive) adapte a la
@@ -15,14 +15,14 @@ import type { IEncoursReleve, IEncoursParams } from '@/features/encours';
 // ──────────────────────────────────────────────────────────────────────────
 // Design tokens (RGB triplets pour jsPDF)
 // ──────────────────────────────────────────────────────────────────────────
-const BRAND = [255, 26, 0] as const; // #FF1A00 — Turbo orange
+const BRAND = [255, 26, 0] as const; // #FF1A00, orange Turbo
 const BRAND_DARK = [192, 18, 0] as const; // accent fonce pour montants critiques
 const PALE_BRAND = [255, 237, 232] as const; // bandeau TOTAL
-const INK = [15, 23, 42] as const; // slate-900 — titres
-const INK_2 = [51, 65, 85] as const; // slate-700 — body
-const MUTED = [100, 116, 139] as const; // slate-500 — labels & periodes
-const BORDER = [226, 232, 240] as const; // slate-200 — separateurs
-const ALT_ROW = [249, 250, 252] as const; // slate-50 — alternance
+const INK = [15, 23, 42] as const; // slate-900, titres
+const INK_2 = [51, 65, 85] as const; // slate-700, corps de texte
+const MUTED = [100, 116, 139] as const; // slate-500, libelles et periodes
+const BORDER = [226, 232, 240] as const; // slate-200, separateurs
+const ALT_ROW = [249, 250, 252] as const; // slate-50, alternance des lignes
 const WHITE = [255, 255, 255] as const;
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ function setStroke(doc: jsPDF, [r, g, b]: readonly [number, number, number]) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Resume : meme logique que CSV (solde > 0, hors "A venir" / placeholder "—")
+// Resume : meme logique que CSV (solde > 0, hors "A venir" et glyphe d'absence)
 // ──────────────────────────────────────────────────────────────────────────
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ function drawHeader(doc: jsPDF, page: number) {
 
   if (page > 1) {
     doc.setFontSize(8);
-    const ctn = `Suite — page ${page}`;
+    const ctn = `Suite, page ${page}`;
     const wc = doc.getTextWidth(ctn);
     doc.text(ctn, PAGE_W - MARGIN - wc, 60);
   }
@@ -308,7 +308,7 @@ export function buildEncoursDusPdf(releve: IEncoursReleve, params: IEncoursParam
     kpiW,
     kpiH,
     'TOP CRÉANCE',
-    top ? top.partenaire : '—',
+    top ? top.partenaire : 'Aucun',
     top ? fmtFcfa(top.totalDu) : undefined,
   );
 

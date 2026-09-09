@@ -12,11 +12,8 @@ import {
 } from '@/features/encours';
 
 import { EncoursKpiCards } from './encours-kpi-cards';
-import { EncoursCharts } from './encours-charts';
 import { EncoursFiltres } from './encours-filtres';
-import { EncoursTable } from './encours-table';
-import { EncoursMobileCards } from './encours-mobile-cards';
-import { EncoursDeductionsTable } from './encours-deductions-table';
+import { EncoursSectionsTabs } from './encours-sections-tabs';
 import { EncoursDeductionsManager } from './encours-deductions-manager';
 import { EncoursExportButton } from './encours-export-button';
 import { EncoursExportDusButton } from './encours-export-dus-button';
@@ -29,7 +26,14 @@ import { useHauteurReleve } from './encours-hauteur';
  * <p>Il ouvre cette page pour relancer des partenaires. Il lui faut donc, du haut vers le
  * bas : ce qui reste du et ce qui est en retard, puis le releve ligne a ligne, qui est le
  * geste lui-meme. Le reste - la saisonnalite, le classement des partenaires, le registre
- * des avances - se lit, mais apres, et n'a aucune raison d'occuper le premier ecran.</p>
+ * des avances - se lit, mais apres.</p>
+ *
+ * <p>« Apres » etait ecrit ici en empilement : quatre blocs a la suite, 1 400 px sur une
+ * fenetre de 563. Ce n'est plus une hierarchie, c'est une file d'attente au defilement.
+ * Les trois sections passent sous des onglets (`encours-sections-tabs`), qui les mettent a
+ * une distance EGALE d'un clic au lieu de les ranger par ordre de fatigue. Ce qui est
+ * commun aux trois - le bandeau de chiffres, la barre de filtres, les exports, l'alerte de
+ * lecture - reste au-dessus.</p>
  *
  * <p>La barre de filtres est un composant a part (`encours-filtres`), avec l'explication
  * du bloc blanc qu'elle formait ; elle est ainsi montable sur le banc d'apercu.</p>
@@ -71,10 +75,12 @@ export function EncoursView() {
    */
   const relevePerime = isError && Boolean(affiche);
 
-  // La hauteur du releve se mesure jusqu'au PLI, sans soustraire les graphiques ni le
-  // registre : ils sont sous le pli volontairement. Voir `encours-hauteur`.
-  const zoneReleveRef = useRef<HTMLDivElement>(null);
-  const hauteurReleve = useHauteurReleve(zoneReleveRef);
+  // La hauteur du releve se mesure jusqu'au PLI. Les graphiques et le registre ne sont
+  // plus des freres suivants - ils sont sous leurs propres onglets - donc rien a
+  // soustraire : le cadre s'arrete au bas de la fenetre. `zoneReleve` est une
+  // reference-FONCTION parce que le panneau du releve se demonte quand un autre onglet
+  // s'ouvre. Voir `encours-hauteur`.
+  const { hauteur: hauteurReleve, zoneReleve } = useHauteurReleve();
 
   return (
     <div className="flex flex-col gap-2.5 p-3 sm:p-4">
@@ -85,7 +91,7 @@ export function EncoursView() {
        */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <h1 className="text-lg font-semibold leading-tight text-foreground">
-          Encours — Restes à payer
+          Encours, restes à payer
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           {isFetching && affiche ? (
@@ -107,7 +113,7 @@ export function EncoursView() {
       </div>
 
       <p className="-mt-1 text-xs text-muted">
-        Factures éditées non encore recouvrées — détail par facture (mois / quinzaine / semaine)
+        Factures éditées non encore recouvrées, détail par facture (mois / quinzaine / semaine)
       </p>
 
       <EncoursFiltres groupes={groupes ?? []} onChange={setFilters} valeurs={filters} />
@@ -142,39 +148,11 @@ export function EncoursView() {
       {affiche && <EncoursKpiCards releve={affiche} />}
 
       {/*
-       * Le releve, au premier ecran : c'est le seul bloc sur lequel on travaille.
-       *
-       * L'enveloppe est montee EN PERMANENCE, meme sans releve. La mesure se fait dans un
-       * effet qui ne depend que de la reference : si le noeud n'existe pas encore au
-       * premier passage - et il n'existe pas, la lecture reseau n'ayant pas repondu -
-       * l'effet sort sans rien mesurer et ne se rejoue jamais. Le cadre de defilement
-       * restait alors sans hauteur, l'en-tete collant sans effet, et le tableau s'etirait
-       * sur 35 000 px.
+       * Les trois sections. La barre d'onglets est montee meme sans releve : c'est elle
+       * qui porte l'enveloppe mesuree du cadre de defilement, et cette enveloppe doit
+       * exister au premier rendu (voir `encours-sections-tabs`).
        */}
-      <div ref={zoneReleveRef}>
-        {affiche && (
-          <>
-            <div className="hidden md:block">
-              <EncoursTable hauteur={hauteurReleve} releve={affiche} />
-            </div>
-            <div className="md:hidden">
-              <EncoursMobileCards releve={affiche} />
-            </div>
-          </>
-        )}
-      </div>
-
-      {/*
-       * La lecture, sous le releve. Les deux graphiques et le registre des avances disent
-       * d'ou vient l'encours ; ils n'appellent aucun geste, et occupaient le haut de
-       * l'ecran a la place du tableau.
-       */}
-      {affiche && (
-        <>
-          <EncoursCharts releve={affiche} />
-          <EncoursDeductionsTable deductions={affiche.deductions} total={affiche.totalDeductions} />
-        </>
-      )}
+      <EncoursSectionsTabs hauteur={hauteurReleve} releve={affiche} zoneReleve={zoneReleve} />
     </div>
   );
 }

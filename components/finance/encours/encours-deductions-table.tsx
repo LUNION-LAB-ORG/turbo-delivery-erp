@@ -13,6 +13,13 @@ import { formatFcfa, formatNombre, IEncoursDeduction } from '@/features/encours'
  * 240 px il se repliait sur cinq lignes, et chaque ligne du registre occupait la hauteur
  * d'un paragraphe. Le bloc prend maintenant toute la largeur, et c'est le motif qui
  * absorbe la place restante : les deux colonnes chiffrees, elles, ne se replient pas.</p>
+ *
+ * <p>Le registre vide ne rend plus `null`. Sous un onglet qui l'annonce, disparaitre
+ * revient a laisser l'operateur devant un panneau blanc en se demandant si la lecture a
+ * echoue. « Aucune avance » est une reponse ; le vide n'en est pas une.</p>
+ *
+ * <p>Aucun montant n'est colore ici : une avance deja versee est un FAIT, elle n'appelle
+ * aucun geste. La teinte du danger appartient au reste a payer, qui en appelle un.</p>
  */
 export function EncoursDeductionsTable({
   deductions,
@@ -21,18 +28,33 @@ export function EncoursDeductionsTable({
   deductions: IEncoursDeduction[];
   total: number;
 }) {
-  if (!deductions || deductions.length === 0) return null;
+  const lignes = deductions ?? [];
+
+  const entete = (
+    <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
+      <h3 className="text-sm font-semibold text-foreground">
+        Récapitulatif des déductions &amp; avances
+      </h3>
+      <span className="text-xs text-muted">
+        {formatNombre(lignes.length)} déduction{lignes.length > 1 ? 's' : ''} au registre
+      </span>
+    </div>
+  );
+
+  if (lignes.length === 0) {
+    return (
+      <section className="space-y-2">
+        {entete}
+        <p className="rounded-large border border-separator bg-surface px-4 py-8 text-center text-sm text-muted">
+          Aucune avance ni déduction enregistrée pour cette année.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
-        <h3 className="text-sm font-semibold text-foreground">
-          Récapitulatif des déductions &amp; avances
-        </h3>
-        <span className="text-xs text-muted">
-          {formatNombre(deductions.length)} déduction{deductions.length > 1 ? 's' : ''} au registre
-        </span>
-      </div>
+      {entete}
       <Table>
         <Table.ScrollContainer>
           <Table.Content aria-label="Déductions et avances">
@@ -50,7 +72,7 @@ export function EncoursDeductionsTable({
                 exposent react-aria a recevoir un `id` qui change sur un element deja
                 monte, ce qui fait tomber la page entiere. */}
             <Table.Body>
-              {deductions.map((d, i) => (
+              {lignes.map((d, i) => (
                 <Table.Row id={`d-${i}`} key={`d-${i}`}>
                   <Table.Cell className="align-top">
                     <span className="font-medium text-foreground">{d.partenaire}</span>

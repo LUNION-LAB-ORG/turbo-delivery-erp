@@ -3,22 +3,25 @@
 import { Button } from '@heroui-v3/react';
 import React from 'react';
 
-import { EncoursCharts } from '@/components/finance/encours/encours-charts';
-import { EncoursDeductionsTable } from '@/components/finance/encours/encours-deductions-table';
 import { EncoursFiltres } from '@/components/finance/encours/encours-filtres';
 import type { IEncoursFiltresValeurs } from '@/components/finance/encours/encours-filtres';
 import { useHauteurReleve } from '@/components/finance/encours/encours-hauteur';
 import { EncoursKpiCards } from '@/components/finance/encours/encours-kpi-cards';
-import { EncoursMobileCards } from '@/components/finance/encours/encours-mobile-cards';
-import { EncoursTable } from '@/components/finance/encours/encours-table';
+import { EncoursSectionsTabs } from '@/components/finance/encours/encours-sections-tabs';
 import type { IEncoursDeduction, IEncoursReleve } from '@/features/encours';
 
 /**
  * Le banc du releve ENCOURS.
  *
- * <p>Il monte les VRAIS composants du releve - barre de filtres, bandeau, tableau, cartes
- * tactiles, graphiques, recapitulatif des deductions - sur des donnees d'exemple. Seule la
- * lecture reseau est remplacee.</p>
+ * <p>Il monte les VRAIS composants du releve - barre de filtres, bandeau, barre d'onglets,
+ * tableau, cartes tactiles, graphiques, recapitulatif des deductions - sur des donnees
+ * d'exemple. Seule la lecture reseau est remplacee.</p>
+ *
+ * <p>Les trois sections passent par le MEME composant d'onglets que l'ecran reel, et non
+ * par une pile reconstituee ici : un banc qui remonte la page a sa facon ne montre pas
+ * l'ecran, il montre le banc. C'est aussi la seule facon de verifier a l'oeil ce qu'un
+ * onglet annonce, et ce que rend un graphique, quand le jeu « Aucun reste » ne porte ni
+ * facture, ni mois, ni deduction.</p>
  *
  * <p>La barre de filtres manquait, et c'etait le seul bloc que le banc ne pouvait pas
  * montrer : le vide blanc de 1600 x 340 qu'elle formait ne se verifiait donc nulle part.
@@ -147,12 +150,23 @@ const JEUX = {
     ordinaire: { libelle: 'Relevé ordinaire', releve: fabriquer(11, 4) },
     charge: { libelle: 'Portefeuille chargé', releve: fabriquer(37, 4) },
     aJour: { libelle: 'Rien en retard', releve: sansRetard(fabriquer(11, 4)) },
+    /*
+     * « Aucun reste » doit vraiment ne rien porter. `fabriquer` remplit `factureParMois` et
+     * `resteParMois` de douze valeurs tirees au sort quel que soit le nombre de groupes :
+     * le jeu annoncait donc zero partenaire ET douze mois de reste, et l'onglet
+     * « Repartition » restait a verifier sur un cas qui n'existait nulle part. Les trois
+     * champs mensuels sont vides ici aussi, ce qui est le seul etat coherent avec une
+     * liste de partenaires vide.
+     */
     vide: {
         libelle: 'Aucun reste',
         releve: {
             ...fabriquer(5, 0),
             deductions: [],
+            factureParMois: {},
+            moisColonnes: [],
             partenaires: [],
+            resteParMois: {},
             totalDeductions: 0,
             totalFacture: 0,
             totalReste: 0,
@@ -195,8 +209,7 @@ export default function ApercuEncours() {
     });
     // Meme mesure que l'ecran reel : un banc qui fige une hauteur ne montre pas ce que
     // l'operateur voit, il montre ce que le banc a decide.
-    const zoneReleveRef = React.useRef<HTMLDivElement>(null);
-    const hauteurReleve = useHauteurReleve(zoneReleveRef);
+    const { hauteur: hauteurReleve, zoneReleve } = useHauteurReleve();
 
     return (
         <div>
@@ -243,20 +256,10 @@ export default function ApercuEncours() {
 
                     <EncoursKpiCards releve={releve} />
 
-                    <div ref={zoneReleveRef}>
-                        <div className="hidden md:block">
-                            <EncoursTable hauteur={hauteurReleve} releve={releve} />
-                        </div>
-                        <div className="md:hidden">
-                            <EncoursMobileCards releve={releve} />
-                        </div>
-                    </div>
-
-                    <EncoursCharts releve={releve} />
-
-                    <EncoursDeductionsTable
-                        deductions={releve.deductions}
-                        total={releve.totalDeductions}
+                    <EncoursSectionsTabs
+                        hauteur={hauteurReleve}
+                        releve={releve}
+                        zoneReleve={zoneReleve}
                     />
                 </main>
             </div>

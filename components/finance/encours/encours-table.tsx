@@ -379,7 +379,7 @@ export function EncoursTable({
          * ne puisse plus jamais etre la cause d'un defilement horizontal.
          */}
         <Table.Content
-          aria-label="Relevé des restes à payer — détail factures"
+          aria-label="Relevé des restes à payer, détail par facture"
           className="min-w-[44rem]"
         >
           <Table.Header>

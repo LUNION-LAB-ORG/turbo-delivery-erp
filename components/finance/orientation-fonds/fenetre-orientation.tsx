@@ -73,6 +73,16 @@ function FicheOperation({ ligne }: { ligne: LigneOrientation }) {
  * <p>La fenetre etait doublee : une pour la ligne, une autre a ecrire pour le lot. C'est
  * la meme decision, les memes deux issues, la meme regle de motif. Elle est ecrite une
  * fois et se laisse dire combien d'operations elle couvre.</p>
+ *
+ * <h3>La couleur des deux gestes du pied</h3>
+ * <p>Elle vient de `FenetreAction` et elle est deja juste : « Orienter les fonds » ENGAGE,
+ * il porte l'accent ; « Annuler » ne fait que renoncer, il reste neutre. La fenetre n'est
+ * pas declaree `destructif` a dessein : orienter ne detruit ni ne retire rien, cela ROUTE
+ * de l'argent vers une destination. Le ton du danger est garde pour ce qui efface.</p>
+ *
+ * <p>Les deux issues du choix sont deux DESTINATIONS, pas une alerte et un succes : elles
+ * ne portent aucune couleur. L'avertissement du bas, lui, en porte une, parce qu'il dit
+ * une consequence (la decision est tracee et vaut autorisation).</p>
  */
 export function FenetreOrientation({
   enAttente = false,
@@ -191,7 +201,13 @@ export function FenetreOrientation({
   );
 }
 
-/** Sortie de caisse : elle se motive toujours, et elle ne se fait qu'une operation a la fois. */
+/**
+ * Sortie de caisse : elle se motive toujours, et elle ne se fait qu'une operation a la fois.
+ *
+ * <p>Le geste porte l'accent, pas le ton du danger : sortir des fonds de la caisse pour les
+ * deposer en banque, c'est les remettre sur leur chemin normal, ce n'est pas une
+ * suppression. Ce qui l'encadre est le MOTIF obligatoire, pas une couleur d'alerte.</p>
+ */
 export function FenetreReorientation({
   enAttente = false,
   ligne,

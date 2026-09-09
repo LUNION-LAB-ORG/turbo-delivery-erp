@@ -1,23 +1,23 @@
 'use client';
 
-import { RefObject, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Plancher de secours, volontairement BAS : il ne sert qu'aux fenetres minuscules.
  *
  * <p>Sur la fenetre reelle des postes (1000 x 563, coquille comprise), ce qui est au-dessus
  * du releve - en-tete ERP 64, marge de la coquille 24, titre et gestes, ligne de
- * definition, barre de filtres, bandeau - laisse de l'ordre de 200 px. C'est peu, et c'est
- * la place reelle : c'est la MESURE qui tranche, jamais ce plancher. Un plancher plus haut
- * que la place disponible pousserait le bas du cadre sous le pli, et le total general
- * collant redeviendrait invisible - exactement ce qu'on veut eviter.</p>
+ * definition, barre de filtres, bandeau, barre d'onglets - laisse de l'ordre de 200 px.
+ * C'est peu, et c'est la place reelle : c'est la MESURE qui tranche, jamais ce plancher.
+ * Un plancher plus haut que la place disponible pousserait le bas du cadre sous le pli, et
+ * le total general collant redeviendrait invisible - exactement ce qu'on veut eviter.</p>
  */
 const HAUTEUR_PLANCHER = 160;
 
 /**
  * Point de rupture `md` de Tailwind, celui auquel le releve bascule du tableau vers les
- * cartes tactiles dans `encours-view`. Les deux DOIVENT rester d'accord : mesurer une
- * hauteur pour un tableau qui n'est pas monte n'a aucun sens.
+ * cartes tactiles dans `encours-sections-tabs`. Les deux DOIVENT rester d'accord : mesurer
+ * une hauteur pour un tableau qui n'est pas monte n'a aucun sens.
  */
 const RUPTURE_TABLEAU = 768;
 
@@ -28,31 +28,51 @@ const MARGE_BASSE = 8;
  * Hauteur du cadre de defilement du releve : du haut du bloc jusqu'au PLI.
  *
  * <h3>Pourquoi une mesure locale et pas `useHauteurDisponible`</h3>
- * <p>Le hook partage est ecrit pour les ecrans « poste de travail » ou TOUT doit tenir
- * dans la fenetre : il soustrait la hauteur de ce qui suit le bloc dans la page. Or ici
- * les graphiques et le registre des avances sont des freres SUIVANTS, et ils sont poses
- * sous le pli VOLONTAIREMENT - ils se lisent apres, en faisant defiler la page. Avec ce
- * hook, releve sur le banc en 1000 x 563 : haut du bloc 248, freres suivants 445,
- * disponible -130, donc plancher. La hauteur ne mesurait plus rien, elle rendait une
- * constante, et cette constante (320) etait PLUS PETITE que le `max-h-[64vh]` qu'elle
- * remplacait (360). Ici on ne soustrait que ce qui est AU-DESSUS : le cadre s'arrete au
- * pli, ni avant ni apres.</p>
+ * <p>Le hook partage soustrait la hauteur de ce qui SUIT le bloc dans la page. C'etait le
+ * point de desaccord tant que les graphiques et le registre des avances etaient empiles
+ * sous le releve ; ils sont maintenant chacun sous leur onglet, plus rien ne suit le
+ * releve, et cette soustraction ne gene plus. Ce qui separe encore les deux hooks, c'est
+ * le PLANCHER : celui du hook partage vaut 320 px, or la place reellement disponible sous
+ * le bandeau tourne autour de 200 px sur la fenetre des postes. Un plancher plus haut que
+ * la place disponible ne mesure plus rien, il rend une constante - et cette constante
+ * pousse le bas du cadre sous le pli, donc cache le total general.</p>
+ *
+ * <p>Seconde difference, apparue avec les onglets : le hook partage prend un `RefObject`
+ * et son effet ne depend que de lui, donc il ne remesure jamais un noeud remonte. Voir la
+ * reference-fonction ci-dessous. Le corriger la-bas engagerait les dix ecrans qui
+ * l'utilisent, ce qui n'est pas de ce lot.</p>
  *
  * <p>Consequence voulue : le bas du cadre tombe sur le bas de la fenetre, donc le total
  * general colle en bas du cadre se voit sans faire defiler la page. C'est toute la raison
  * d'avoir un cadre borne plutot qu'un tableau qui s'etire.</p>
  *
- * @returns la hauteur en pixels, ou `undefined` sous le point de rupture (le releve y
- *          passe en cartes tactiles, qui gardent leur hauteur naturelle).
+ * <h3>Pourquoi une reference-FONCTION et pas un `RefObject`</h3>
+ * <p>react-aria DEMONTE les panneaux d'onglet non selectionnes. Un effet qui ne depend que
+ * d'un `RefObject` ne se rejoue jamais - l'objet est stable pour la vie du composant - et
+ * la dependance seule ne suffit donc pas : depuis un autre onglet, `reference.current`
+ * valait `null`, la mesure sortait sans rien faire, et au retour sur le releve le noeud
+ * etait NEUF sans que rien redeclenche l'effet. Un redimensionnement de fenetre fait
+ * depuis « Repartition » laissait une hauteur perimee jusqu'au redimensionnement suivant.
+ * Ranger le noeud dans un ETAT ferme le trou : il change au montage comme au demontage,
+ * l'effet suit, et l'observateur se rebranche sur le noeud reel.</p>
+ *
+ * @returns `hauteur`, en pixels, ou `undefined` sous le point de rupture (le releve y passe
+ *          en cartes tactiles, qui gardent leur hauteur naturelle) ; et `zoneReleve`, la
+ *          reference a poser sur le bloc a mesurer.
  */
-export function useHauteurReleve(reference: RefObject<HTMLElement | null>): number | undefined {
+export function useHauteurReleve(): {
+  hauteur: number | undefined;
+  zoneReleve: (noeud: HTMLElement | null) => void;
+} {
+  // Le NOEUD, pas une reference : c'est ce changement d'etat qui rejoue la mesure quand le
+  // panneau du releve se demonte puis se remonte.
+  const [zone, setZone] = useState<HTMLElement | null>(null);
   const [hauteur, setHauteur] = useState<number>();
 
   useEffect(() => {
-    const mesurer = () => {
-      const element = reference.current;
-      if (!element) return;
+    if (!zone) return;
 
+    const mesurer = () => {
       if (window.innerWidth < RUPTURE_TABLEAU) {
         setHauteur(undefined);
         return;
@@ -62,7 +82,7 @@ export function useHauteurReleve(reference: RefObject<HTMLElement | null>): numb
       // pendant un defilement, la seconde grandirait, ce qui allongerait le cadre, ce qui
       // permettrait de defiler davantage - une boucle. Ce qui est au-dessus du bloc ne
       // bouge pas quand le bloc change de taille : la mesure est stable.
-      const depuisLeHautDuDocument = element.getBoundingClientRect().top + window.scrollY;
+      const depuisLeHautDuDocument = zone.getBoundingClientRect().top + window.scrollY;
       const disponible = window.innerHeight - depuisLeHautDuDocument - MARGE_BASSE;
       const cible = Math.max(HAUTEUR_PLANCHER, Math.round(disponible));
 
@@ -86,7 +106,7 @@ export function useHauteurReleve(reference: RefObject<HTMLElement | null>): numb
       window.removeEventListener('resize', mesurer);
       observateur.disconnect();
     };
-  }, [reference]);
+  }, [zone]);
 
-  return hauteur;
+  return { hauteur, zoneReleve: setZone };
 }

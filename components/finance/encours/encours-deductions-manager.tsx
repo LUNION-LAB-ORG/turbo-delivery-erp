@@ -75,7 +75,12 @@ export function EncoursDeductionsManager({ annee }: { annee: number }) {
 
   return (
     <>
-      <Button onPress={() => setIsOpen(true)} size="sm" variant="outline">
+      {/*
+       * Le seul geste de cet ecran qui ECRIT, donc le seul a porter l'accent. Les deux
+       * exports voisins ne font que LIRE : trois boutons peints cote a cote se valent, et
+       * l'operateur n'a plus de premier geste. Un ecran, une action principale.
+       */}
+      <Button onPress={() => setIsOpen(true)} size="sm" variant="primary">
         <Plus aria-hidden="true" className="size-4" />
         Gérer les déductions
       </Button>
@@ -85,7 +90,7 @@ export function EncoursDeductionsManager({ annee }: { annee: number }) {
           <Modal.Container>
             <Modal.Dialog className="max-w-2xl">
               <Modal.Header>
-                <Modal.Heading>Déductions / avances — {annee}</Modal.Heading>
+                <Modal.Heading>Déductions et avances {annee}</Modal.Heading>
                 <Modal.CloseTrigger />
               </Modal.Header>
 
@@ -129,7 +134,7 @@ export function EncoursDeductionsManager({ annee }: { annee: number }) {
                     <div className="flex items-center justify-between gap-2 py-2 text-sm" key={d.id}>
                       <div className="min-w-0">
                         <span className="font-medium text-foreground">{d.groupePartenaire}</span>
-                        <span className="text-muted"> — {d.motif || '—'}</span>
+                        <span className="text-muted"> · {d.motif || 'Motif non renseigné'}</span>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="font-semibold tabular-nums text-foreground">

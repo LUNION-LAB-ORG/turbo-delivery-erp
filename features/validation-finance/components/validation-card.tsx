@@ -7,8 +7,8 @@ import { useState } from 'react';
 import { Can } from '@/components/auth/Can';
 import { FenetreAction } from '@/components/commons/FenetreAction';
 import { IDepense } from '@/features/depenses/types/depense.type';
-import { formatCFA } from '@/src/actions/bonLivraison.mapper';
 import { createUrlFile } from '@/utils/createUrlFile';
+import { formatMontant } from '@/utils/format.utils';
 
 import { StatusBadge, TypeBadge } from './validation-badges';
 import { fmtDate } from './validation.constants';
@@ -32,167 +32,123 @@ interface ValidationCardProps {
 }
 
 /**
- * La depense en cours d'examen, dans la file de validation.
+ * La depense en cours d'examen.
  *
- * <h3>Ce qui change</h3>
- * <p>Les six commandes de l'ecran etaient des `<button>` nus habilles a la main. Les deux
- * fleches de navigation n'avaient AUCUN nom accessible : un lecteur d'ecran annoncait
- * deux boutons vides. Le lien vers le justificatif etait un `<div onClick>`, donc
- * inatteignable au clavier. Les trois commandes du pied etaient peintes en
- * `bg-green-500` / `text-red-500` / `text-orange-500`, des couleurs de palette brutes
- * sans equivalent en mode sombre, posees dans une grille dont le nombre de colonnes etait
- * calcule sur `onEdit` mais pas sur les droits CASL : quand un role n'avait pas le droit
- * de rejeter, la grille gardait sa colonne vide et l'arrondi du coin bas gauche partait
- * avec le bouton masque.</p>
+ * <h3>Ce que l'operateur regarde, et dans quel ordre</h3>
+ * <p>Le dossier occupe desormais une colonne a lui, en regard de la file. Il tient dans la
+ * hauteur : l'identite et les pieces defilent au milieu, l'en-tete de position reste en
+ * haut et la barre de decision reste EN BAS, sous les yeux. Auparavant la carte etait
+ * posee dans le flux de la page, et la barre Viser / Rejeter passait sous la ligne de
+ * flottaison des qu'un justificatif s'ajoutait.</p>
  *
- * <p>Le pied suit maintenant la barre d'action du visa DGA, deja refondue : le geste
- * principal en primaire, le refus en `danger-soft`, alignes a droite, et rien ne casse
- * quand un droit manque.</p>
+ * <h3>Une valeur fabriquee, retiree</h3>
+ * <p>« Cree par : Comptable » etait ECRIT EN DUR, quel que soit l'auteur reel. La charge
+ * porte pourtant `creerPar` dans sa charge utile ; c'est le mappeur `chargeVariableToDepense`
+ * qui le jette, et `IDepense` qui n'a pas de champ pour l'accueillir. Afficher un nom faux
+ * est pire que ne rien afficher : le champ disparait jusqu'a ce que le mappeur transporte
+ * la vraie valeur.</p>
  *
- * <p>Le montant etait peint en couleur d'alerte et la categorie en bleu. Ni l'un ni
- * l'autre n'appelle un geste : le montant reprend la couleur du texte, en chasse
- * tabulaire, et la categorie celle du texte secondaire.</p>
+ * <p>En echange, la description et la source de paiement, deja presentes dans la donnee et
+ * visibles seulement dans l'historique, arrivent ici : ce sont elles qui justifient la
+ * depense, donc exactement ce sur quoi porte la decision.</p>
  */
-export function ValidationCard({
-  depense,
-  current,
-  total,
-  totalFile,
-  onPrev,
-  onNext,
-  onAccept,
-  onReject,
-  onEdit,
-  acceptLabel,
-  canAct,
-  isDGA,
-  isPending,
-}: ValidationCardProps) {
+export function ValidationCard({ depense, current, total, totalFile, onPrev, onNext, onAccept, onReject, onEdit, acceptLabel, canAct, isDGA, isPending }: ValidationCardProps) {
   const [justificatifOuvert, setJustificatifOuvert] = useState(false);
   // Un justificatif PDF ne s'affiche pas dans une <img> : on bascule sur le lien.
   const [apercuImpossible, setApercuImpossible] = useState(false);
 
-  const titreEtape =
-    acceptLabel === 'Viser'
-      ? 'Validation DGA'
-      : acceptLabel === 'Approuver'
-        ? 'Approbation DG'
-        : 'Décaissement Comptable';
+  const titreEtape = acceptLabel === 'Viser' ? 'Validation DGA' : acceptLabel === 'Approuver' ? 'Approbation DG' : 'Décaissement Comptable';
 
-  const lienJustificatif = depense.justificatif
-    ? createUrlFile(depense.justificatif, 'backend')
-    : null;
+  const lienJustificatif = depense.justificatif ? createUrlFile(depense.justificatif, 'backend') : null;
 
   return (
-    <div className="rounded-b-xl border border-t-0 border-separator bg-surface">
-      <div className="flex items-center justify-between gap-3 border-b border-separator px-5 py-4">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-large border border-separator bg-surface">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-separator px-4 py-3">
         <div className="min-w-0">
-          <h2 className="font-semibold text-foreground">{titreEtape}</h2>
-          <p className="text-sm text-muted">
+          <h2 className="truncate font-semibold text-foreground">{titreEtape}</h2>
+          <p className="text-xs text-muted">
             <span className="tabular-nums">
               Dépense {current + 1} sur {total}
             </span>
-            {typeof totalFile === 'number' && totalFile > total && (
-              <span className="ml-1 tabular-nums">({totalFile} en attente au total)</span>
-            )}
+            {typeof totalFile === 'number' && totalFile > total && <span className="ml-1 tabular-nums">({totalFile} en attente au total)</span>}
           </p>
         </div>
         <div className="flex shrink-0 gap-1">
-          <Button
-            aria-label="Dépense précédente"
-            isDisabled={current === 0}
-            isIconOnly
-            onPress={onPrev}
-            size="sm"
-            variant="ghost"
-          >
+          <Button aria-label="Dépense précédente" isDisabled={current === 0} isIconOnly onPress={onPrev} size="sm" variant="ghost">
             <ChevronLeft aria-hidden="true" />
           </Button>
-          <Button
-            aria-label="Dépense suivante"
-            isDisabled={current === total - 1}
-            isIconOnly
-            onPress={onNext}
-            size="sm"
-            variant="ghost"
-          >
+          <Button aria-label="Dépense suivante" isDisabled={current === total - 1} isIconOnly onPress={onNext} size="sm" variant="ghost">
             <ChevronRight aria-hidden="true" />
           </Button>
         </div>
       </div>
 
-      <div className="px-5 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <TypeBadge type={depense.typeDepense} />
-            <span className="text-sm text-muted">{fmtDate(depense.dateDepense)}</span>
+            <span className="text-sm tabular-nums text-muted">{fmtDate(depense.dateDepense)}</span>
           </div>
-          <span className="text-xl font-bold tabular-nums text-foreground">
-            {formatCFA(depense.montant)}
-          </span>
+          <span className="text-xl font-bold tabular-nums text-foreground">{formatMontant(depense.montant)}</span>
         </div>
 
         <p className="mb-0.5 font-semibold text-foreground">{depense.libelle}</p>
-        <p className="mb-3 text-sm text-muted">{depense.categorie?.nomCategorie}</p>
+        <p className="text-sm text-muted">{depense.categorie?.nomCategorie}</p>
 
         <WorkflowStepper statut={depense.statut} />
 
-        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg bg-surface-secondary p-3">
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-medium bg-surface-secondary p-3">
           <div className="min-w-0">
-            <p className="text-xs text-muted">Créé par</p>
-            <p className="text-sm font-medium text-foreground">Comptable</p>
+            <dt className="text-xs text-muted">Date de création</dt>
+            <dd className="text-sm font-medium tabular-nums text-foreground">{fmtDate(depense.createdAt ?? depense.dateDepense)}</dd>
           </div>
-          <div className="min-w-0">
-            <p className="text-xs text-muted">Date de création</p>
-            <p className="text-sm font-medium tabular-nums text-foreground">
-              {fmtDate(depense.createdAt ?? depense.dateDepense)}
-            </p>
-          </div>
+          {depense.sourcePaiement && (
+            <div className="min-w-0">
+              <dt className="text-xs text-muted">Source de paiement</dt>
+              <dd className="text-sm font-medium text-foreground">{depense.sourcePaiement}</dd>
+            </div>
+          )}
+          {/* La fiche affichait « Comptable » ecrit en dur, quel que soit l'auteur reel.
+              Les trois types sources portent `creerPar` : ce sont les mappeurs qui le
+              jetaient. Le champ ne s'affiche que si le backend l'a rempli, plutot que de
+              nommer quelqu'un au hasard. */}
+          {depense.creerPar && (
+            <div className="min-w-0">
+              <dt className="text-xs text-muted">Créé par</dt>
+              <dd className="text-sm font-medium text-foreground">{depense.creerPar}</dd>
+            </div>
+          )}
+          {depense.description && (
+            <div className="col-span-2 min-w-0">
+              <dt className="text-xs text-muted">Description</dt>
+              <dd className="text-sm font-medium text-foreground">{depense.description}</dd>
+            </div>
+          )}
           {lienJustificatif && (
             <div className="col-span-2">
-              <Button onPress={() => setJustificatifOuvert(true)} size="sm" variant="ghost">
+              <Button onPress={() => setJustificatifOuvert(true)} size="sm" variant="outline">
                 <FileText aria-hidden="true" />
                 Voir le justificatif
               </Button>
             </div>
           )}
-        </div>
+        </dl>
       </div>
 
-      <FenetreAction
-        libelleFermer="Fermer"
-        onFermer={() => setJustificatifOuvert(false)}
-        ouvert={justificatifOuvert}
-        titre={`Justificatif : ${depense.libelle}`}
-      >
+      <FenetreAction libelleFermer="Fermer" onFermer={() => setJustificatifOuvert(false)} ouvert={justificatifOuvert} titre={`Justificatif : ${depense.libelle}`}>
         {lienJustificatif && (
           <>
             <div className="overflow-hidden rounded-lg border border-separator bg-surface-secondary">
               {apercuImpossible ? (
-                <Link
-                  className="w-full justify-center py-8 text-sm"
-                  href={lienJustificatif}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
+                <Link className="w-full justify-center py-8 text-sm" href={lienJustificatif} rel="noopener noreferrer" target="_blank">
                   <Download aria-hidden="true" className="mr-2 size-4" />
                   Ouvrir le fichier
                 </Link>
               ) : (
-                <img
-                  alt="Justificatif"
-                  className="max-h-[60vh] w-full object-contain"
-                  onError={() => setApercuImpossible(true)}
-                  src={lienJustificatif}
-                />
+                <img alt="Justificatif" className="max-h-[60vh] w-full object-contain" onError={() => setApercuImpossible(true)} src={lienJustificatif} />
               )}
             </div>
-            <a
-              className="button button--md button--outline button--full-width"
-              href={lienJustificatif}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
+            <a className="button button--md button--outline button--full-width" href={lienJustificatif} rel="noopener noreferrer" target="_blank">
               <Download aria-hidden="true" />
               Télécharger
             </a>
@@ -200,8 +156,10 @@ export function ValidationCard({
         )}
       </FenetreAction>
 
+      {/* La barre de decision : le geste principal porte l'accent, le refus la teinte du
+          danger parce qu'il DETRUIT le dossier, la modification reste neutre. */}
       {canAct ? (
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-separator px-5 py-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-separator px-4 py-3">
           {isDGA ? (
             <>
               <Can I="rejeter-dga" a="Depense">
@@ -239,10 +197,10 @@ export function ValidationCard({
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-2 rounded-b-xl border-t border-separator py-3 text-sm text-muted">
+        <div className="flex shrink-0 items-center justify-center gap-2 border-t border-separator py-3">
           <StatusBadge statut={depense.statut} />
         </div>
       )}
-    </div>
+    </section>
   );
 }

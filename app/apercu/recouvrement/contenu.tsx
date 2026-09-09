@@ -1,13 +1,10 @@
 'use client';
 
 import { Button, Card, Checkbox, Table } from '@heroui-v3/react';
-import { PiggyBank } from 'lucide-react';
 import React from 'react';
 
 import type { ColumnDef } from '@tanstack/react-table';
 
-import CarteStat, { GrilleStats } from '@/components/commons/CarteStat';
-import { ChampListe } from '@/components/commons/champs-formulaire';
 import { renderAgentActions } from '@/components/finance/agent-recouvreur/agent-recouvreur-columns';
 import { ChipStatutFacture } from '@/components/finance/common/chip-statut-facture';
 import { FiltreStatut } from '@/components/finance/common/filtre-statut';
@@ -20,13 +17,14 @@ import {
 } from '@/components/finance/orientation-fonds/ligne-orientation';
 import {
   BarreLotOrientation,
+  type OngletOrientation,
+  OngletsOrientation,
   TableauOrientation,
 } from '@/components/finance/orientation-fonds/table-orientation';
 import { createResponsableFinancierColumns } from '@/components/finance/responsable-financier/responsable-financier-columns';
 import type { IFactureRF } from '@/components/finance/responsable-financier/responsable-financier-columns';
 import { FactureMobileCard, MobileCardList } from '@/components/finance/shared/facture-mobile-card';
 import type { IAgentFacture } from '@/features/agent-recouvreur';
-import { formatMontant, formatNombre } from '@/utils/format.utils';
 
 /**
  * Le banc de la chaîne de recouvrement.
@@ -174,6 +172,23 @@ const LIGNES_ORIENTATION: LigneOrientation[] = [
   },
 ];
 
+/*
+ * Les fonds conserves en caisse : l'autre liste de l'ecran, avec l'autre geste
+ * (« Re-orienter vers la banque »). Elle n'etait sur aucun banc, alors qu'elle porte le
+ * meme bouton d'accent que la file de decision.
+ */
+const LIGNES_CAISSE: LigneOrientation[] = [
+  {
+    dateVisa: '2026-08-05',
+    id: 'c-1',
+    montant: 92500,
+    numero: 'FA-2026-0009',
+    numeroVisa: 'VISA-2026-0074',
+    partenaire: 'LE BISTROT',
+    viseur: 'A. Koné',
+  },
+];
+
 const FILTRES_AGENT = [
   { label: 'Tous', value: 'Tous' },
   { label: 'Recouvrement', value: 'Recouvrement' },
@@ -188,7 +203,7 @@ export default function ApercuRecouvrement() {
   const [statutAgent, setStatutAgent] = React.useState('');
   const [cochees, setCochees] = React.useState<Set<string>>(new Set());
   const [cibleOrientation, setCibleOrientation] = React.useState<LigneOrientation[] | null>(null);
-  const [fileBanc, setFileBanc] = React.useState<string>(FILE_TOUTES);
+  const [ongletBanc, setOngletBanc] = React.useState<string>(FILE_TOUTES);
   const [pageOrientation, setPageOrientation] = React.useState(1);
   const rien = () => undefined;
 
@@ -201,14 +216,13 @@ export default function ApercuRecouvrement() {
     });
   const lignesCochees = LIGNES_ORIENTATION.filter((l) => cochees.has(l.id));
 
-  // Le champ File trie sur le visa : « En attente visa DGA » = les lignes sans numero de
-  // visa, « Vise DGA » = celles qui en portent un. C'est la meme partition que celle que le
+  // L'onglet trie sur le visa : « En attente visa DGA » = les lignes sans numero de visa,
+  // « Vise DGA » = celles qui en portent un. C'est la meme partition que celle que le
   // serveur rend a l'ecran, sur deux statuts.
-  const libelleFileBanc = FILES_ORIENTATION.find((f) => f.value === fileBanc)?.label ?? '';
   const lignesFile = LIGNES_ORIENTATION.filter(
     (l) =>
-      fileBanc === FILE_TOUTES ||
-      (fileBanc === 'Visé DGA' ? Boolean(l.numeroVisa) : !l.numeroVisa),
+      ongletBanc === FILE_TOUTES ||
+      (ongletBanc === 'Visé DGA' ? Boolean(l.numeroVisa) : !l.numeroVisa),
   );
 
   // Deux lignes par page : le pied de tableau et sa pagination ne se rendent qu'au-dela
@@ -227,6 +241,76 @@ export default function ApercuRecouvrement() {
       else idsPage.forEach((id) => suivant.add(id));
       return suivant;
     });
+
+  /* Le panneau d'une file : la case « Selectionner la page » puis le tableau. Les trois
+     onglets de file rendent le meme, sur la partition lue plus haut. */
+  const panneauFileBanc = (
+    <div className="flex flex-col gap-3">
+      <Checkbox isIndeterminate={pagePartielle} isSelected={pageCochee} onChange={basculerPage}>
+        <Checkbox.Content>
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+          <span className="text-sm text-muted">Sélectionner la page</span>
+        </Checkbox.Content>
+      </Checkbox>
+
+      <TableauOrientation
+        estSelectionnee={(id) => cochees.has(id)}
+        libelle="Opérations en attente d'orientation"
+        libelleAction="Orienter"
+        lignes={lignesPage}
+        onAction={(l) => setCibleOrientation([l])}
+        onBasculer={basculer}
+        onPage={(p) => {
+          // Comme sur la page : la selection ne survit ni a l'onglet ni au changement de
+          // page, sans quoi le geste en lot porterait sur des lignes qui ne sont plus la.
+          setPageOrientation(p);
+          setCochees(new Set());
+        }}
+        page={pageCourante}
+        totalPages={pagesOrientation}
+        vide="Aucune opération en attente d'orientation."
+      />
+    </div>
+  );
+
+  const ongletsBanc: OngletOrientation[] = [
+    ...FILES_ORIENTATION.map((f) => {
+      const dedans = LIGNES_ORIENTATION.filter(
+        (l) =>
+          f.value === FILE_TOUTES ||
+          (f.value === 'Visé DGA' ? Boolean(l.numeroVisa) : !l.numeroVisa),
+      );
+      return {
+        cle: f.value,
+        libelle: f.label,
+        montant: sommeMontants(dedans),
+        nombre: dedans.length,
+        panneau: panneauFileBanc,
+      };
+    }),
+    {
+      cle: 'Conservé en caisse',
+      libelle: 'Conservés en caisse',
+      montant: sommeMontants(LIGNES_CAISSE),
+      nombre: LIGNES_CAISSE.length,
+      panneau: (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-muted">
+            Fonds de roulement gardés en caisse, ré-orientables un par un.
+          </p>
+          <TableauOrientation
+            libelle="Fonds conservés en caisse"
+            libelleAction="Ré-orienter vers la banque"
+            lignes={LIGNES_CAISSE}
+            onAction={rien}
+            vide="Aucun fonds conservé en caisse."
+          />
+        </div>
+      ),
+    },
+  ];
 
   // La colonne ACTIONS du responsable financier, telle que la page la monte.
   const colonnesRF = createResponsableFinancierColumns(rien, rien, rien, rien);
@@ -323,90 +407,31 @@ export default function ApercuRecouvrement() {
         <div>
           <h2 className="text-lg font-bold text-foreground">Orientation des fonds</h2>
           <p className="text-sm text-muted">
-            Une file, pas une grille de cartes : le bouton de ligne est secondaire, l&apos;accent
-            va au geste en lot, qui dit combien il engage. Cochez une ligne pour le voir
-            apparaître. La file est paginée deux par deux ici, pour que le pied de tableau
-            soit visible sur quatre lignes d&apos;exemple.
+            Une file, pas une grille de cartes, et des onglets plutôt qu&apos;une pile : chaque
+            onglet annonce son compte et son montant, le bouton de ligne reprend l&apos;accent
+            parce qu&apos;« Orienter » est le geste de l&apos;écran, et le geste en lot dit
+            combien il engage. Cochez une ligne pour le voir apparaître. La file est paginée
+            deux par deux ici, pour que le pied de tableau soit visible sur quatre lignes
+            d&apos;exemple.
           </p>
         </div>
 
         {/*
-         * Le bandeau de l'ecran, monte sur les memes lignes d'exemple. Les deux premieres
-         * cartes suivent le champ File, comme sur la page : c'est cela qu'il faut pouvoir
-         * regarder ici.
-         */}
-        <GrilleStats className="md:grid-cols-3" colonnes={3}>
-          <CarteStat
-            libelle="En attente d'orientation"
-            note={`${formatNombre(lignesFile.length)} opérations${
-              fileBanc === FILE_TOUTES ? '' : ` · ${libelleFileBanc}`
-            }`}
-            valeur={formatMontant(sommeMontants(lignesFile))}
-          />
-          <CarteStat
-            libelle="Dont déjà visées DGA"
-            note="Les autres seront visées par la décision"
-            valeur={formatNombre(lignesFile.filter((l) => l.numeroVisa).length)}
-          />
-          <CarteStat
-            icone={PiggyBank}
-            libelle="Conservés en caisse"
-            note="1 opération ré-orientable"
-            valeur={formatMontant(92500)}
-          />
-        </GrilleStats>
-
-        {/*
-         * Le champ File et la case « Selectionner la page », qui n'etaient sur aucun banc.
-         * `RestaurantSelect` en est absent A DESSEIN : il LIT la liste des restaurants
+         * Les onglets de l'ecran, montes sur les memes lignes d'exemple. Le champ File
+         * (un menu deroulant) et le bandeau de trois cartes ont fusionne ici : le compte
+         * et le montant de chaque ensemble sont sur l'onglet.
+         *
+         * `RestaurantSelect` est absent A DESSEIN : il LIT la liste des restaurants
          * derriere l'authentification, et un 401 sur ce banc public deconnecte la session.
          */}
-        <Card>
-          <Card.Content className="flex-row flex-wrap items-end gap-4">
-            <div className="w-full sm:w-[220px]">
-              <ChampListe
-                label="File"
-                onChange={(v) => {
-                  setFileBanc(v || FILE_TOUTES);
-                  setPageOrientation(1);
-                  setCochees(new Set());
-                }}
-                options={FILES_ORIENTATION}
-                placeholder="Les deux files"
-                valeur={fileBanc}
-              />
-            </div>
-            <Checkbox
-              isIndeterminate={pagePartielle}
-              isSelected={pageCochee}
-              onChange={basculerPage}
-            >
-              <Checkbox.Content>
-                <Checkbox.Control>
-                  <Checkbox.Indicator />
-                </Checkbox.Control>
-                <span className="text-sm text-muted">Sélectionner la page</span>
-              </Checkbox.Content>
-            </Checkbox>
-          </Card.Content>
-        </Card>
-
-        <TableauOrientation
-          estSelectionnee={(id) => cochees.has(id)}
-          libelle="Opérations en attente d'orientation"
-          libelleAction="Orienter"
-          lignes={lignesPage}
-          onAction={(l) => setCibleOrientation([l])}
-          onBasculer={basculer}
-          onPage={(p) => {
-            // Comme sur la page : la selection ne survit ni au filtre ni au changement de
-            // page, sans quoi le geste en lot porterait sur des lignes qui ne sont plus la.
-            setPageOrientation(p);
+        <OngletsOrientation
+          onSelection={(cle) => {
+            setOngletBanc(cle);
+            setPageOrientation(1);
             setCochees(new Set());
           }}
-          page={pageCourante}
-          totalPages={pagesOrientation}
-          vide="Aucune opération en attente d'orientation."
+          onglets={ongletsBanc}
+          selection={ongletBanc}
         />
 
         <BarreLotOrientation

@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
 import { Button, Checkbox, Chip, Modal, Radio, RadioGroup, Spinner } from '@heroui-v3/react';
-
-import { cn } from '@/lib/utils';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
-import { toast } from 'sonner';
 import { AlertTriangle, GitMerge } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 import {
   donneesRattacheesCategoriesRequest,
@@ -15,6 +13,7 @@ import {
   type ICategorieDonneesRattachees,
 } from '@/features/depenses/apis/fusion-categorie.api';
 import { useInvalidateDepenseQuery } from '@/features/depenses/queries/category/index.query';
+import { cn } from '@/lib/utils';
 
 interface Props {
   ids: string[];
@@ -30,16 +29,29 @@ const METRIQUES: { key: keyof ICategorieDonneesRattachees; label: string }[] = [
 ];
 
 /**
- * Fusion de catégories de dépense en DOUBLON. On choisit la catégorie à GARDER :
- * charges fixes / variables / dépenses des autres y sont réassignées, puis les
- * catégories perdantes sont SUPPRIMÉES (définitif). Miroir de la fusion livreurs.
+ * Fusion de categories de depense en doublon.
+ *
+ * <h3>Ce que l'operateur regarde en premier</h3>
+ * <p>Le volume de donnees rattachees a chaque candidate : c'est lui, et rien d'autre, qui
+ * decide laquelle on garde. Le choix se lit donc en fiches comparables, chiffres alignes
+ * a droite en chasse tabulaire.</p>
+ *
+ * <h3>Ce qui appelle un geste</h3>
+ * <p>Le bouton de fusion, qui SUPPRIME definitivement les categories perdantes : il prend
+ * la teinte du danger, comme toute confirmation destructrice de cet ERP, et non l'accent
+ * d'une action ordinaire. La marque « le plus de donnees » etait un jeton VERT : elle ne
+ * felicite rien, elle informe, donc elle est neutre. La bordure d'accent, elle, dit
+ * laquelle est retenue : elle appelle bien quelque chose, elle reste.</p>
+ *
+ * <p>Ce qui va disparaitre n'etait ecrit nulle part : on lisait « les 3 categories » et il
+ * fallait deduire soi-meme lesquelles des trois. Elles sont nommees.</p>
  */
 export function FusionCategoriesDialog({ ids, isOpen, onOpenChange, onDone }: Props) {
   const { data: session } = useSession();
   const userId = session?.user?.id as string | undefined;
   const invalider = useInvalidateDepenseQuery();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isError, isLoading } = useQuery({
     queryKey: ['categorie-donnees-rattachees', ...[...ids].sort()],
     queryFn: () => donneesRattacheesCategoriesRequest(ids),
     enabled: isOpen && ids.length >= 2,
@@ -47,12 +59,11 @@ export function FusionCategoriesDialog({ ids, isOpen, onOpenChange, onDone }: Pr
   });
 
   const cats = useMemo(() => data ?? [], [data]);
-  // Défaut : garder la catégorie qui porte le PLUS de données (total le plus élevé).
+  // Defaut : garder la categorie qui porte le PLUS de donnees (total le plus eleve).
   const suggereId = useMemo(() => {
     if (cats.length === 0) return '';
     return [...cats].sort((a, b) => b.total - a.total)[0].id;
   }, [cats]);
-  const maxTotal = useMemo(() => Math.max(0, ...cats.map((c) => c.total)), [cats]);
 
   const [gardeId, setGardeId] = useState('');
   useEffect(() => {
@@ -63,6 +74,8 @@ export function FusionCategoriesDialog({ ids, isOpen, onOpenChange, onDone }: Pr
   useEffect(() => {
     if (!isOpen) setConfirme(false);
   }, [isOpen]);
+
+  const aSupprimer = useMemo(() => cats.filter((c) => c.id !== gardeId), [cats, gardeId]);
 
   const fusion = useMutation({
     mutationFn: () => {
@@ -80,6 +93,8 @@ export function FusionCategoriesDialog({ ids, isOpen, onOpenChange, onDone }: Pr
     },
   });
 
+  const pretALire = !isLoading && !isError && cats.length >= 2;
+
   return (
     <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
       <Modal.Backdrop>
@@ -92,8 +107,8 @@ export function FusionCategoriesDialog({ ids, isOpen, onOpenChange, onDone }: Pr
                   Fusionner des catégories en doublon
                 </span>
                 <span className="text-xs font-normal text-muted">
-                  Choisis la catégorie à GARDER. Les charges et dépenses des autres y sont
-                  réassignées, puis les catégories perdantes sont supprimées (définitif).
+                  La catégorie retenue reçoit les charges et dépenses des autres, qui sont
+                  ensuite supprimées définitivement.
                 </span>
               </Modal.Heading>
               <Modal.CloseTrigger />
@@ -109,11 +124,15 @@ export function FusionCategoriesDialog({ ids, isOpen, onOpenChange, onDone }: Pr
                 <p className="py-6 text-center text-sm text-danger-soft-foreground">
                   Impossible de charger les données rattachées.
                 </p>
+              ) : cats.length < 2 ? (
+                <p className="py-6 text-center text-sm text-muted">
+                  Une fusion demande au moins deux catégories.
+                </p>
               ) : (
                 <RadioGroup onChange={setGardeId} value={gardeId}>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {cats.map((c) => {
-                      const estSuggere = c.total === maxTotal && maxTotal > 0;
+                      const estSuggere = c.id === suggereId && c.total > 0;
                       const estGarde = c.id === gardeId;
                       return (
                         <div
@@ -134,8 +153,8 @@ export function FusionCategoriesDialog({ ids, isOpen, onOpenChange, onDone }: Pr
                                     {c.nomCategorie}
                                   </span>
                                   {estSuggere && (
-                                    <Chip color="success" size="sm" variant="soft">
-                                      <Chip.Label>+ de données</Chip.Label>
+                                    <Chip size="sm" variant="soft">
+                                      <Chip.Label>Le plus de données</Chip.Label>
                                     </Chip>
                                   )}
                                 </span>
@@ -172,24 +191,41 @@ export function FusionCategoriesDialog({ ids, isOpen, onOpenChange, onDone }: Pr
                * peint en `bg-warning-50 text-warning-800` : deux teintes de l'ancienne
                * palette pour un avertissement qui, lui, dit bien quelque chose.
                */}
-              {!isLoading && !isError && (
+              {pretALire && (
                 <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-foreground">
                   <AlertTriangle
                     aria-hidden="true"
                     className="mt-0.5 size-4 shrink-0 text-warning-soft-foreground"
                   />
-                  <Checkbox isSelected={confirme} onChange={setConfirme}>
-                    <Checkbox.Content className="items-start">
-                      <Checkbox.Control className="mt-0.5">
-                        <Checkbox.Indicator />
-                      </Checkbox.Control>
-                      <span className="flex-1 text-left">
-                        Je confirme fusionner les {ids.length} catégories dans celle sélectionnée.
-                        Les autres seront supprimées définitivement.
-                      </span>
-                    </Checkbox.Content>
-                  </Checkbox>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <Checkbox isSelected={confirme} onChange={setConfirme}>
+                      <Checkbox.Content className="items-start">
+                        <Checkbox.Control className="mt-0.5">
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                        <span className="flex-1 text-left">
+                          Je confirme la suppression définitive de {aSupprimer.length} catégorie
+                          {aSupprimer.length > 1 ? 's' : ''}, dont les lignes seront réassignées à
+                          celle retenue.
+                        </span>
+                      </Checkbox.Content>
+                    </Checkbox>
+                    {aSupprimer.length > 0 && (
+                      <p className="pl-6 text-muted">
+                        {aSupprimer.map((c) => c.nomCategorie).join(' · ')}
+                      </p>
+                    )}
+                  </div>
                 </div>
+              )}
+
+              {/* Le bouton restait inerte sans un mot quand la session ne portait pas
+                  d'identifiant : l'en-tete X-User-Id part vide et le serveur refuse. */}
+              {pretALire && !userId && (
+                <p className="text-xs text-danger-soft-foreground">
+                  Session incomplète : impossible d&apos;identifier l&apos;auteur de la fusion.
+                  Reconnectez-vous.
+                </p>
               )}
             </Modal.Body>
 
@@ -205,7 +241,7 @@ export function FusionCategoriesDialog({ ids, isOpen, onOpenChange, onDone }: Pr
                 isDisabled={!gardeId || !confirme || cats.length < 2 || !userId}
                 isPending={fusion.isPending}
                 onPress={() => fusion.mutate()}
-                variant="primary"
+                variant="danger"
               >
                 {fusion.isPending ? (
                   <Spinner size="sm" />

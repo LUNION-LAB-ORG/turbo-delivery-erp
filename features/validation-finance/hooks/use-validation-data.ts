@@ -39,7 +39,7 @@ export function useValidationData(chargeType: ChargeType, role: Role) {
    * <p>La requete est plafonnee a 100 (page 0) et l'ecran ne pagine pas : la carte
    * annoncait « Depense N sur {depenses.length} », donc « sur 100 » des que la file
    * depassait le plafond. Le valideur traitait ses 100 dossiers, voyait la file se vider,
-   * et concluait qu'il avait fini — alors que le compteur d'attente voisin, lui, vient
+   * et concluait qu'il avait fini, alors que le compteur d'attente voisin, lui, vient
    * des stats serveur et affichait un autre chiffre.</p>
    */
   const totalFile =

@@ -123,18 +123,48 @@ function postesDe(programmes: IProgramme[]): string[] {
 }
 
 /**
- * Ce qu'il faut savoir d'une ligne, en plus de ses jours : le repos non pris, les
- * absences constatées, un refus et son motif, un carburant absent ou encore prévisionnel.
+ * Le poste où le livreur passe le plus de jours de la semaine.
+ *
+ * <p>C'est ce qui remplace le site quand aucun n'est rattaché, et c'est le cas de TOUS les
+ * programmes de production au 10/09/2026 : `livreurs.site_partner_id` n'est renseigné nulle
+ * part. Les postes desservis, eux, le sont, et ce sont eux qui nomment les teams du
+ * document papier (« Team Faya » dessert Chicken Nation Faya). Sans ce repli, l'export
+ * mettrait la flotte entière dans « Sans site rattaché ».</p>
+ */
+function postePrincipal(p: IProgramme): { id: string; nom: string } | null {
+  const compte = new Map<string, { nom: string; n: number }>();
+  for (const j of p.jours ?? []) {
+    if (!j?.actif) continue;
+    for (const po of j.postes ?? []) {
+      if (!po.restaurantId) continue;
+      const e = compte.get(po.restaurantId) ?? { n: 0, nom: po.restaurantNom ?? po.restaurantId };
+      e.n += 1;
+      compte.set(po.restaurantId, e);
+    }
+  }
+  let meilleur: { id: string; nom: string; n: number } | null = null;
+  for (const [id, e] of compte) {
+    // À égalité, le nom décide : deux exports du même planning doivent donner le même
+    // document.
+    if (!meilleur || e.n > meilleur.n || (e.n === meilleur.n && e.nom.localeCompare(meilleur.nom, 'fr') < 0)) {
+      meilleur = { id, n: e.n, nom: e.nom };
+    }
+  }
+  return meilleur ? { id: meilleur.id, nom: meilleur.nom } : null;
+}
+
+/**
+ * Ce qu'il faut savoir d'une ligne, en plus de ses jours.
+ *
+ * <p>Uniquement ce que la grille ne montre pas déjà : le repos non pris, un refus et son
+ * motif, un carburant absent ou encore prévisionnel. Les absences constatées n'y figurent
+ * pas — la cellule du jour écrit « Absent » en toutes lettres, et sur la semaine 37 de
+ * production, où personne ne pointe, la colonne répétait « Absent lun. · Absent mar. ·
+ * Absent mer. » sur chaque ligne sans rien apprendre.</p>
  */
 export function observations(p: IProgramme): string[] {
   const o: string[] = [];
   if (estSeptSurSept(p.jours)) o.push(OBSERVATION_SEPT_SUR_SEPT);
-  for (const jr of JOURS) {
-    const j = jourDe(p, jr.key);
-    if (j && !j.actif && (j.statutJour === 'ABSENT' || j.statutJour === 'JUSTIFIE')) {
-      o.push(`${libelleJourInactif(j)} ${jr.court.toLowerCase()}.`);
-    }
-  }
   if (p.statut === 'REFUSE') o.push(p.motifRefus ? `Refusé : ${p.motifRefus}` : 'Refusé');
   const { fige, montant } = carburantAffiche(p);
   if (montant === null) o.push('Sans carburant');
@@ -194,7 +224,8 @@ function groupe(cle: string, siteNom: string, titre: string, lieu: string, progr
     if (montant === null) sansMontant += 1;
     else total += montant;
   }
-  const postes = postesDe(programmes);
+  // Le nom du groupe ne se répète pas dans la liste de ce qu'il dessert.
+  const postes = postesDe(programmes).filter((n) => n !== siteNom);
   const dessert = postes.length > 0 ? `Dessert ${postes.slice(0, 6).join(', ')}${postes.length > 6 ? '…' : ''}` : '';
   return {
     cle,
@@ -207,28 +238,35 @@ function groupe(cle: string, siteNom: string, titre: string, lieu: string, progr
   };
 }
 
-/** Les livreurs par site, la supervision à part, et les totaux du pied de page. */
+/**
+ * Les livreurs par site, la supervision à part, et les totaux du pied de page.
+ *
+ * <p>Un livreur rejoint le groupe de son site quand il en a un, sinon celui de son poste
+ * principal de la semaine, sinon le groupe « Sans site ni poste ». Les superviseurs font
+ * leur propre section, comme sur le document papier.</p>
+ */
 export function regrouperPourExport(programmes: IProgramme[], ctx: ContexteExport = {}): SectionsExport {
-  const parSite = new Map<string, IProgramme[]>();
+  const parSite = new Map<string, { nom: string; deduit: boolean; programmes: IProgramme[] }>();
   const superviseurs: IProgramme[] = [];
   for (const p of programmes) {
     if (p.typeLivreur === 'SUPERVISEUR_LIVREUR') {
       superviseurs.push(p);
       continue;
     }
-    const cle = p.siteId ?? '';
-    const liste = parSite.get(cle) ?? [];
-    liste.push(p);
-    parSite.set(cle, liste);
+    const poste = p.siteId ? null : postePrincipal(p);
+    const cle = p.siteId ?? (poste ? `poste:${poste.id}` : '');
+    const nom = p.siteId ? (ctx.sites?.get(p.siteId)?.nom ?? 'Site inconnu') : (poste?.nom ?? '');
+    const e = parSite.get(cle) ?? { deduit: !p.siteId && !!poste, nom, programmes: [] };
+    e.programmes.push(p);
+    parSite.set(cle, e);
   }
 
   const livreurs = Array.from(parSite.entries())
-    .map(([cle, liste]) => {
-      const site = cle ? ctx.sites?.get(cle) : undefined;
-      const siteNom = cle ? (site?.nom ?? 'Site inconnu') : '';
-      const titre = cle ? `Site ${siteNom}` : 'Sans site rattaché';
-      const lieu = site?.commune || site?.localisation || '';
-      return groupe(cle, siteNom, titre, lieu, liste);
+    .map(([cle, e]) => {
+      const site = cle && !e.deduit ? ctx.sites?.get(cle) : undefined;
+      const titre = cle === '' ? 'Sans site ni poste' : e.deduit ? e.nom : `Site ${e.nom}`;
+      const lieu = e.deduit ? 'Groupé d’après les postes desservis' : site?.commune || site?.localisation || '';
+      return groupe(cle, e.nom, titre, lieu, e.programmes);
     })
     .sort((a, b) => {
       if (!a.cle !== !b.cle) return a.cle ? -1 : 1;

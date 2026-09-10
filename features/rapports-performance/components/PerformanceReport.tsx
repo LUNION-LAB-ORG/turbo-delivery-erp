@@ -14,7 +14,7 @@ import { exportPerformancePdf } from '../utils/performance-export.utils';
 import EtatErreur from '@/components/commons/EtatErreur';
 
 export default function PerformanceReport() {
-  const { data, isError, isFetching, refetch } = usePerformanceStats();
+  const { data, isError, isLoading, isFetching, refetch } = usePerformanceStats();
   const { filters, handleDateChange, handleRestaurantChange } = usePerformanceFilters();
   const { data: restaurants = [] } = useDefinedRestaurantsQuery();
   const restoOpts = toRestaurantOptions(restaurants);
@@ -64,9 +64,9 @@ export default function PerformanceReport() {
         />
       ) : (
         <div className="space-y-6">
-          <TopStatsSection mainKPIs={mainKPIs} />
+          <TopStatsSection debut={filters.debut} enChargement={isLoading} fin={filters.fin} mainKPIs={mainKPIs} />
           <ChartsSection geographicData={geographicData} weeklyActivityData={weeklyActivityData} />
-          <MiddleStatsSection secondaryKPIs={secondaryKPIs} />
+          <MiddleStatsSection enChargement={isLoading} secondaryKPIs={secondaryKPIs} />
           <FinancialDetailsSection financialDetails={financialDetails} />
           <PerformanceSummarySection
             mainKPIs={mainKPIs}

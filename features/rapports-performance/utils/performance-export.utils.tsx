@@ -78,7 +78,14 @@ function PerformancePdfDocument({ mainKPIs, secondaryKPIs, financialDetails, sel
           </View>
         </View>
 
-        {/* KPIs principaux */}
+        {/* KPIs principaux. Trois cartes, comme a l'ecran.
+            Deux ont ete retirees, pour deux raisons differentes :
+            - « Chiffre d'Affaires » portait mainKPIs.chiffreAffaires, qui additionnait les
+              entrees de caisse GLOBALES : le PDF de chaque partenaire emportait le meme
+              million appartenant a un autre. Ce que la carte voulait dire, la facture a
+              regler, est ecrit plus bas dans le detail financier ;
+            - « CA (Chiffre d'Affaires) » affichait financialDetails.totalOrderAmount,
+              exactement le meme nombre que la carte voisine, sous un troisieme nom. */}
         <Text style={s.sectionTitle}>Indicateurs Cles de Performance</Text>
         <View style={s.kpiRow}>
           <View style={s.kpiCard}>
@@ -86,15 +93,7 @@ function PerformancePdfDocument({ mainKPIs, secondaryKPIs, financialDetails, sel
             <Text style={s.kpiValue}>{fmtNum(mainKPIs?.totalDeliveries ?? 0)}</Text>
           </View>
           <View style={s.kpiCard}>
-            <Text style={s.kpiLabel}>Chiffre d&apos;Affaires</Text>
-            <Text style={s.kpiValue}>{fmtPdf(mainKPIs?.chiffreAffaires)}</Text>
-          </View>
-          <View style={s.kpiCard}>
-            <Text style={s.kpiLabel}>CA (Chiffre d&apos;Affaires)</Text>
-            <Text style={s.kpiValue}>{fmtPdf(financialDetails?.totalOrderAmount)}</Text>
-          </View>
-          <View style={s.kpiCard}>
-            <Text style={s.kpiLabel}>Valeur Totale Commandes</Text>
+            <Text style={s.kpiLabel}>Chiffre d&apos;affaires genere par les livraisons</Text>
             <Text style={s.kpiValue}>{fmtPdf(mainKPIs?.totalOrderValue)}</Text>
           </View>
           <View style={s.kpiCard}>

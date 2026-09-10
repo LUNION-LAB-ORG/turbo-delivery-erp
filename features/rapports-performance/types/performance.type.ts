@@ -1,7 +1,26 @@
 export interface IMainKPIs {
   totalDeliveries: number;
+  /**
+   * Ce que le partenaire a vendu grace a nos livraisons : la somme du prix des commandes
+   * terminees. C'est le chiffre d'affaires que la page annonce en tete.
+   */
   totalOrderValue: number;
-  successRate: number;
+  /**
+   * Part des courses terminees parmi les courses CONCLUES, terminees ou annulees.
+   *
+   * <p>`null` quand aucune course n'a ete conclue sur la periode : le taux n'existe pas
+   * alors, et « 0 % » se lirait comme un echec total. L'ecran affiche un tiret.</p>
+   */
+  successRate: number | null;
+  /**
+   * Commission + frais de livraison des courses terminees, c'est-a-dire ce que TURBO
+   * facture, et non ce que le partenaire encaisse.
+   *
+   * <p>Toujours servi par l'API, PLUS AFFICHE : le meme montant figure, sous son vrai nom,
+   * dans le detail financier (« Facture totale a regler »). La carte qui le montrait en
+   * tete de page s'appelait « Chiffre d'Affaires » et additionnait en plus les entrees de
+   * caisse GLOBALES, donc l'argent des autres partenaires.</p>
+   */
   chiffreAffaires: number;
 }
 

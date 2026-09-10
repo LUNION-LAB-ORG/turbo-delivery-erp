@@ -105,12 +105,25 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
     </ResponsiveContainer>
   );
 
+  // La colonne `revenue` somme le prix des commandes terminees : sur avril 2026 pour
+  // PLATO, ses barres totalisent 276 500 F, le nombre exact de la carte de tete. La
+  // legende disait « Chiffre d'affaires » quand la carte du meme nom en montrait un autre,
+  // pollue par les entrees de caisse globales. Un seul nom, pour un seul nombre.
   const renderBarChart = () => (
     <ResponsiveContainer width="100%" height={250}>
       <BarChart data={weeklyActivityData}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
         <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} tickFormatter={(value) => `${(value / 100000).toFixed(0)}k`} />
+        {/* « k » veut dire millier : la graduation divisait par 100 000 et etiquetait
+            50 000 F en « 1k ». Le facteur est celui du suffixe. */}
+        {/* DEUX AXES, ET C'EST NECESSAIRE, pas un ornement. Les deux series n'ont pas
+            le meme ordre de grandeur : sur PLATO en avril 2026, les livraisons vont de 1 a
+            6 quand les montants vont de 9 500 a 98 500 F. Sur un axe commun, la serie des
+            livraisons est ecrasee a zero et devient invisible, alors que la legende juste
+            en dessous la promet. Chaque serie porte donc sa propre echelle, et l'axe qui
+            la gradue est du meme cote que sa barre. */}
+        <YAxis axisLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} tickLine={false} yAxisId="montant" />
+        <YAxis allowDecimals={false} axisLine={false} orientation="right" tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} yAxisId="livraisons" />
         <RechartsTooltip
           contentStyle={{
             backgroundColor: '#fff',
@@ -119,14 +132,16 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           }}
         />
-        <Bar dataKey="deliveries" fill="#EF4444" name="Livraisons" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="revenue" fill="#F97316" name="Chiffre d'affaires (FCFA)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="deliveries" fill="#EF4444" name="Livraisons" radius={[4, 4, 0, 0]} yAxisId="livraisons" />
+        <Bar dataKey="revenue" fill="#F97316" name="Chiffre d'affaires généré (FCFA)" radius={[4, 4, 0, 0]} yAxisId="montant" />
       </BarChart>
     </ResponsiveContainer>
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    // `lg:` vaut 1024 px et la fenetre reelle du poste en fait environ 1000 : la grille
+    // ne s'ouvrait jamais et les deux graphiques restaient empiles l'un sous l'autre.
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       <Card>
         <Card.Content className="p-6">
           <div className="mb-4">
@@ -155,7 +170,7 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-orange-500 rounded"></div>
-              <span className="text-sm text-muted">Chiffre d&#39;affaires (FCFA)</span>
+              <span className="text-sm text-muted">Chiffre d&#39;affaires généré (FCFA)</span>
             </div>
           </div>
         </Card.Content>

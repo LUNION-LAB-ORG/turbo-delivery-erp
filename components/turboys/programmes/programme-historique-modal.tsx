@@ -57,6 +57,9 @@ const WHATSAPP: Record<string, string> = {
 /** Les champs qu'on montre à la création : le reste est du remplissage technique. */
 const CHAMPS_CREATION = new Set(['jours', 'sitePartnerId', 'statutProgramme']);
 
+/** Ce que la synthèse ne compte pas : les jours ont leur propre décompte, le reste est de la mécanique. */
+const IGNORES_SYNTHESE = new Set(['jours', 'publieLe', 'nbRelances', 'whatsappLe', 'whatsappDetail', 'accepteLe', 'refuseLe']);
+
 const dateLongue = (iso?: string | null) => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -99,12 +102,66 @@ function valeur(champ: string, v: unknown, sites?: ReadonlyMap<string, string>):
   }
 }
 
+/** Le résumé du serveur, « LUN 08:00-17:00 4000 F [KFC Angré] ; MAR repos ; … », par jour. */
+const parJour = (s?: string) => new Map((s ?? '').split(' ; ').filter(Boolean).map((l) => [l.slice(0, 3), l]));
+
+const NOM_JOUR: Record<string, string> = {
+  DIM: 'dimanche',
+  JEU: 'jeudi',
+  LUN: 'lundi',
+  MAR: 'mardi',
+  MER: 'mercredi',
+  SAM: 'samedi',
+  VEN: 'vendredi',
+};
+
+/** Les jours effectivement modifiés par une écriture. */
+function joursChanges(a: IAuditAction): string[] {
+  const avant = parJour(a.valeursAvant?.jours as string | undefined);
+  const apres = parJour(a.valeursApres?.jours as string | undefined);
+  if (avant.size === 0 || apres.size === 0) return [];
+  return Array.from(apres.keys()).filter((k) => avant.get(k) !== apres.get(k));
+}
+
 /**
- * Les jours, un par ligne, ceux qui changent en gras. Le serveur les résume sous la forme
- * « LUN 08:00-17:00 4000 F [KFC Angré] ; MAR repos ; … ».
+ * Ce qui a bougé depuis la création du programme.
+ *
+ * <p>La direction l'a demandé avec la duplication : retrouver en un clic ce qui diffère de
+ * la semaine dupliquée. Le détail est plus bas, écriture par écriture ; cette ligne dit
+ * d'abord s'il y a quelque chose à y chercher.</p>
  */
+function Synthese({ actions }: { actions: IAuditAction[] }) {
+  const creation = actions.find((a) => a.typeAction === 'CREATION');
+  const depuis = creation ? actions.filter((a) => a !== creation && a.occurredAt >= creation.occurredAt) : actions;
+  const jours = new Set<string>();
+  const champs = new Set<string>();
+  for (const a of depuis) {
+    joursChanges(a).forEach((j) => jours.add(j));
+    // Ce qui a bougé, pas la mécanique qui l'accompagne : l'horodatage d'une publication
+    // ou le détail d'un envoi ne sont pas des décisions.
+    for (const c of Object.keys(a.valeursApres ?? {})) {
+      if (CHAMPS[c] && !IGNORES_SYNTHESE.has(c)) champs.add(c);
+    }
+  }
+  const origine = creation && (creation.chemin ?? '').endsWith('/dupliquer') ? 'la duplication' : 'la création';
+  if (jours.size === 0 && champs.size === 0) {
+    return <p className="pb-2 text-sm text-muted">Rien n’a changé depuis {origine}.</p>;
+  }
+  const noms = Array.from(jours).map((j) => NOM_JOUR[j] ?? j);
+  return (
+    <p className="pb-2 text-sm text-foreground">
+      {noms.length > 0
+        ? `Depuis ${origine} : ${noms.length} jour${noms.length > 1 ? 's' : ''} modifié${noms.length > 1 ? 's' : ''}, ${noms.join(', ')}.`
+        : `Les jours n’ont pas changé depuis ${origine}.`}
+      {champs.size > 0 && (
+        <span className="text-muted"> Ont aussi changé : {Array.from(champs).map((c) => CHAMPS[c]).join(', ')}.</span>
+      )}
+    </p>
+  );
+}
+
+/** Les jours, un par ligne, ceux qui changent en gras. */
 function Jours({ avant, apres }: { avant?: string; apres?: string }) {
-  const parJour = (s?: string) => new Map((s ?? '').split(' ; ').filter(Boolean).map((l) => [l.slice(0, 3), l]));
   const a = parJour(avant);
   const b = parJour(apres);
   const cles = Array.from(new Set([...a.keys(), ...b.keys()]));
@@ -129,7 +186,9 @@ export function HistoriqueProgramme({ actions, sites }: { actions: IAuditAction[
     return <p className="py-6 text-center text-sm text-muted">Aucune modification enregistrée pour ce programme.</p>;
   }
   return (
-    <ol className="flex flex-col divide-y divide-separator">
+    <>
+      <Synthese actions={actions} />
+      <ol className="flex flex-col divide-y divide-separator">
       {actions.map((a) => {
         const creation = a.typeAction === 'CREATION';
         const champs = Array.from(new Set([...Object.keys(a.valeursAvant ?? {}), ...Object.keys(a.valeursApres ?? {})])).filter(
@@ -170,7 +229,8 @@ export function HistoriqueProgramme({ actions, sites }: { actions: IAuditAction[
           </li>
         );
       })}
-    </ol>
+      </ol>
+    </>
   );
 }
 

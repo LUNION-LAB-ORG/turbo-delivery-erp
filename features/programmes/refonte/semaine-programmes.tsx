@@ -689,14 +689,26 @@ export function SemaineProgrammes({
                         </Table.Cell>
 
                         <Table.Cell>
-                          {/* Le site de la semaine d'abord, les postes desservis dessous. */}
-                          <span className="block max-w-[14rem] truncate text-xs font-medium text-foreground">
-                            {p.siteId ? (nomSite.get(p.siteId) ?? 'Site inconnu') : 'Sans site'}
-                            {p.siteId && p.siteDeLaSemaine ? <span className="font-normal text-muted"> · cette semaine</span> : null}
-                          </span>
-                          {postesSemaine(p).length > 0 ? (
-                            <span className="block max-w-[14rem] truncate text-xs text-muted">{postesSemaine(p).join(' · ')}</span>
-                          ) : null}
+                          {(() => {
+                            /*
+                             * Le site de la semaine d'abord, les postes desservis dessous. Un poste
+                             * qui EST le site ne se repete pas : la cellule affichait deux fois le
+                             * meme nom, l'un sous l'autre.
+                             */
+                            const site = p.siteId ? (nomSite.get(p.siteId) ?? 'Site inconnu') : null;
+                            const autresPostes = postesSemaine(p).filter((n) => n !== site);
+                            return (
+                              <>
+                                <span className="block max-w-[14rem] truncate text-xs font-medium text-foreground">
+                                  {site ?? 'Sans site'}
+                                  {site && p.siteDeLaSemaine ? <span className="font-normal text-muted"> · cette semaine</span> : null}
+                                </span>
+                                {autresPostes.length > 0 ? (
+                                  <span className="block max-w-[14rem] truncate text-xs text-muted">{autresPostes.join(' · ')}</span>
+                                ) : null}
+                              </>
+                            );
+                          })()}
                         </Table.Cell>
 
                         {JOURS.map((j) => (

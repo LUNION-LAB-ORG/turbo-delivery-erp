@@ -9,13 +9,23 @@ import { formatNumber } from '@/utils/formatNumber';
 interface PerformanceSummarySectionProps {
   mainKPIs?: IMainKPIs;
   secondaryKPIs?: ISecondaryKPIs;
-  selectedRestaurant: string;
+  /**
+   * Le sujet de la phrase, DEJA ACCORDE : « Restaurant PLATO a réalisé », « les 4
+   * partenaires sélectionnés ont réalisé », « le groupe AGHA a réalisé ».
+   *
+   * <p>Le resume recevait le libelle brut de la selection et l'inserait apres le mot
+   * « Restaurant ». Des que la selection porte sur plusieurs partenaires, la phrase
+   * devenait « Restaurant 4 partenaires a réalisé » : un nom qui n'existe pas, et un verbe
+   * au mauvais nombre. L'accord se decide la ou la selection est connue, dans
+   * `selection.utils`, et pas ici.</p>
+   */
+  sujetSelection: string;
 }
 
 export function PerformanceSummarySection({
   mainKPIs,
   secondaryKPIs,
-  selectedRestaurant,
+  sujetSelection,
 }: PerformanceSummarySectionProps) {
   // Le taux vaut `null` quand aucune course n'a ete conclue sur la periode : la phrase
   // s'arrete alors au temps moyen. `mainKPIs.successRate.toFixed(1)` sur un `null` faisait
@@ -56,7 +66,7 @@ export function PerformanceSummarySection({
             <p className="text-sm text-foreground leading-relaxed">
               {mainKPIs && secondaryKPIs ? (
                 <>
-                  Grâce à Turbo Delivery, Restaurant {selectedRestaurant || 'Tous'} a réalisé{' '}
+                  Grâce à Turbo Delivery, {sujetSelection}{' '}
                   {formatNumber(mainKPIs.totalDeliveries)} livraisons pour un montant total de{' '}
                   {formatCFA(Math.round(mainKPIs.totalOrderValue))} durant la période
                   sélectionnée{mentionDuTaux}.{mentionDuTemps}

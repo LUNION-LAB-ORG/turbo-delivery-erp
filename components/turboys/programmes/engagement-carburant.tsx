@@ -8,7 +8,7 @@ import { ChampListe } from '@/components/commons/champs-formulaire';
 import { useCategorieDepense } from '@/features/depenses/hooks/use-categorie-depense';
 import { useEngagerCarburantMutation, useEtatCarburantQuery } from '@/features/turboys/queries/programme.query';
 import type { IEtatCarburantSemaine, IProgramme } from '@/features/turboys/types/programme.types';
-import { pdfProgrammesBlob } from '@/features/turboys/utils/programmes-export.utils';
+import { type ContexteExport, pdfProgrammesBlob } from '@/features/turboys/utils/programmes-export.utils';
 import { useAbility } from '@/hooks/use-ability';
 import { formatMontant } from '@/utils/format.utils';
 
@@ -123,6 +123,7 @@ export function EngagementCarburant({
 /** La ligne branchée : état, droit, catégorie, PDF, envoi. */
 export function EngagementCarburantConnecte({
   annee,
+  contexteExport,
   programmes,
   semaine,
 }: {
@@ -130,6 +131,11 @@ export function EngagementCarburantConnecte({
   /** Tous les programmes de la semaine, non filtrés : le justificatif en retient les publiés. */
   programmes: IProgramme[];
   semaine: number;
+  /**
+   * Ce que l'export sait des sites. Sans lui, un programme rattaché à un site sortirait
+   * « Site inconnu » dans la pièce que le DGA et le DG vont lire.
+   */
+  contexteExport?: ContexteExport;
 }) {
   const ability = useAbility();
   const peutEngager = ability.can('create', 'ChargeVariable');
@@ -160,7 +166,7 @@ export function EngagementCarburantConnecte({
     engager.mutate({
       annee,
       categorieId,
-      justificatif: pdfProgrammesBlob(publies, annee, semaine),
+      justificatif: pdfProgrammesBlob(publies, annee, semaine, 'Programmes publiés', contexteExport),
       semaine,
     });
   };

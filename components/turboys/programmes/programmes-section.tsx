@@ -277,6 +277,7 @@ export default function ProgrammesSection() {
           engagement={
             <EngagementCarburantConnecte
               annee={annee}
+              contexteExport={contexteExport}
               programmes={Array.isArray(data) ? data : []}
               semaine={semaine}
             />

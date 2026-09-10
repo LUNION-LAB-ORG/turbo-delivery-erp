@@ -3,34 +3,85 @@
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import { Card } from '@heroui-v3/react';
 import { IGeographicLocation, IWeeklyActivity } from '@/features/rapports-performance/types/performance.type';
+import { formatCFA } from '@/src/actions/bonLivraison.mapper';
+import { formatNumber } from '@/utils/formatNumber';
 
 interface ChartsSectionProps {
   geographicData: IGeographicLocation[];
   weeklyActivityData: IWeeklyActivity[];
 }
 
-const DONUT_COLORS = [
-  '#EF4444', // red-500
-  '#F97316', // orange-500
-  '#EAB308', // yellow-500
-  '#22C55E', // green-500
-  '#3B82F6', // blue-500
-  '#8B5CF6', // violet-500
-  '#EC4899', // pink-500
-  '#14B8A6', // teal-500
-  '#06B6D4', // cyan-500
-  '#F43F5E', // rose-500
-  '#84CC16', // lime-500
-  '#A855F7', // purple-500
-  '#F59E0B', // amber-500
-  '#10B981', // emerald-500
-  '#6366F1', // indigo-500
-  '#0EA5E9', // sky-500
-  '#D946EF', // fuchsia-500
-  '#FB7185', // rose-400
-  '#34D399', // emerald-400
-  '#60A5FA', // blue-400
-];
+/*
+ * Les couleurs passent par les VARIABLES du theme, et non par des hexadecimaux : recharts
+ * pose ces valeurs en attributs SVG, ou `var(--x)` et `color-mix()` sont valides.
+ *
+ * Ce fichier en portait trente en dur. Elles ne bougeaient pas avec le theme, et deux
+ * d'entre elles cassaient l'ecran en sombre, chacune a sa facon. `#f3f4f6` est un gris
+ * QUASI BLANC : pose en grille sur la carte blanche du theme clair il se devine a peine,
+ * ce pour quoi il avait ete choisi, mais sur la carte sombre il devient un quadrillage
+ * blanc qui crie plus fort que les barres qu'il sert a lire. L'infobulle, elle, avait son
+ * fond ecrit a `#fff` : un rectangle blanc s'allumait au survol sous le texte clair que
+ * recharts y pose.
+ *
+ * ⚠ NE PAS employer `--muted-foreground` ni les autres jetons shadcn dans un attribut SVG.
+ * Ils valent « 0 0% 45.1% », un TRIPLET HSL nu destine a `hsl(var(--x))`, pas une couleur.
+ * Pose tel quel dans un `fill`, il est invalide, la valeur initiale s'applique, et la
+ * graduation se peint en NOIR sans lever la moindre erreur. `--muted` est le jeton HeroUI
+ * v3, et lui porte bien une couleur.
+ *
+ * Le melange se fait vers `--surface`, jamais vers du blanc : en theme sombre la surface est
+ * sombre, la part s'assourdit au lieu de se delaver.
+ */
+
+/** Une graduation d'axe INFORME, elle n'appelle aucun geste : elle reste neutre. */
+const GRADUATION = 'var(--muted)';
+
+const GRILLE = 'var(--separator)';
+
+/** Le nom d'une zone est un LIBELLE, pas une graduation : il se lit a pleine force. */
+const NOM_DE_ZONE = 'var(--foreground)';
+
+/*
+ * Les deux series du graphe hebdomadaire, et pourquoi ces deux familles.
+ *
+ * Une barre n'a aucune couleur par defaut : lui en donner une n'est pas un acte, c'est une
+ * obligation - et le gris n'est pas une teinte, il dit « secondaire ». Le choix se fait donc
+ * ailleurs : les deux memes grandeurs sont deja peintes plus haut dans la page, sur les
+ * cartes de tete, en `ton="danger"` pour les livraisons et `ton="attention"` pour le montant.
+ * Les barres reprennent ces deux familles, faute de quoi la meme grandeur porterait deux
+ * couleurs differentes sur le meme ecran.
+ */
+const LIVRAISONS = 'var(--danger)';
+const MONTANT = 'var(--warning)';
+
+const CADRE_INFOBULLE = 'rounded-md border border-separator bg-surface p-2 shadow-xs';
+
+/*
+ * Le voile de survol des barres. Laisse a lui-meme, recharts pose un `#ccc` a 40 % ecrit
+ * dans sa propre source : un rectangle GRIS CLAIR sur un fond sombre, plus voyant que la
+ * barre qu'il designe. Un voile se derive du texte de la page, il suit donc le theme.
+ */
+const CURSEUR = { fill: 'color-mix(in oklab, var(--foreground) 6%, transparent)' };
+
+/*
+ * Le camembert : UNE teinte, graduee par le RANG de la zone.
+ *
+ * Il alignait vingt hexadecimaux decoratifs - rouge, orange, jaune, vert, bleu, violet,
+ * rose... - dont dix au plus etaient atteignables, la requete du serveur etant bornee a
+ * `LIMIT 10`. Vingt teintes ne disent rien : elles distinguent vingt zones que les etiquettes
+ * nomment deja. Ce qu'on cherche dans une repartition, c'est le RANG, et une gradation d'une
+ * seule teinte le dit - la premiere zone est la plus soutenue, la derniere la plus douce.
+ *
+ * L'echelle est normalisee sur le nombre de parts et s'arrete a 40 % : a trois zones comme a
+ * dix, la derniere garde assez de teinte pour se lire sur la carte, en clair comme en sombre.
+ * C'est le plancher MESURE du modele `encours-charts.tsx`, pas un chiffre au juge - en
+ * dessous, la derniere part se confond avec la surface en clair comme en sombre.
+ */
+function teinteRang(rang: number, total: number): string {
+  const part = total > 1 ? Math.round(82 - (rang * 42) / (total - 1)) : 82;
+
+  return `color-mix(in oklab, var(--danger) ${part}%, var(--surface))`;
+}
 
 const MAX_ZONE_LABEL_CHARS = 14;
 
@@ -44,6 +95,10 @@ interface GeographicTooltipPayload {
   payload?: IGeographicLocation;
 }
 
+interface WeeklyTooltipPayload {
+  payload?: IWeeklyActivity;
+}
+
 function truncateZoneName(value: string, maxChars = MAX_ZONE_LABEL_CHARS): string {
   if (value.length <= maxChars) {
     return value;
@@ -52,14 +107,42 @@ function truncateZoneName(value: string, maxChars = MAX_ZONE_LABEL_CHARS): strin
   return `${value.slice(0, maxChars)}...`;
 }
 
+/**
+ * Une ligne de l'infobulle hebdomadaire.
+ *
+ * <p>La pastille reprend la couleur de la barre : sans elle, deux nombres se suivent sans
+ * dire lequel appartient a quelle serie. Le nombre, lui, reste NEUTRE - le peindre serait un
+ * acte, et il n'appelle aucun geste. Les valeurs se comparent d'une ligne a l'autre, d'ou
+ * `tabular-nums` et l'alignement a droite.</p>
+ */
+function LigneInfobulle({ libelle, teinte, valeur }: { libelle: string; teinte: string; valeur: string }) {
+  return (
+    <p className="flex items-center justify-between gap-4 text-xs text-muted">
+      <span className="flex items-center gap-1.5">
+        <span aria-hidden="true" className="size-2 shrink-0 rounded-sm" style={{ backgroundColor: teinte }} />
+        {libelle}
+      </span>
+      <span className="font-semibold tabular-nums text-foreground">{valeur}</span>
+    </p>
+  );
+}
+
 export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSectionProps) {
+  /*
+   * La teinte dit le rang : encore faut-il que l'ordre soit vrai. Le serveur trie deja par
+   * livraisons decroissantes et la page s'appuyait dessus pour annoncer la « Zone Top » sans
+   * jamais le verifier. Le tri est refait ici, une fois, pour que la couleur ne puisse pas
+   * mentir si la source change d'avis. Rien n'est retire : les memes zones, dans leur ordre.
+   */
+  const zonesParRang = [...geographicData].sort((a, b) => b.deliveries - a.deliveries);
+
   const renderGeographicLabel = ({ x = 0, y = 0, name = '' }: GeographicLabelProps) => {
     if (!name) {
       return null;
     }
 
     return (
-      <text x={x} y={y} fill="#6b7280" fontSize={11} textAnchor="middle" dominantBaseline="central">
+      <text x={x} y={y} fill={NOM_DE_ZONE} fontSize={11} textAnchor="middle" dominantBaseline="central">
         {truncateZoneName(name)}
       </text>
     );
@@ -73,9 +156,43 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
     const zone = payload[0].payload;
 
     return (
-      <div className="rounded-md border border-separator bg-surface p-2 shadow-xs">
+      <div className={CADRE_INFOBULLE}>
         <p className="text-xs font-medium text-foreground">{zone.name}</p>
         <p className="text-xs text-muted">{zone.deliveries} livraisons</p>
+      </div>
+    );
+  };
+
+  /*
+   * L'infobulle du graphe hebdomadaire etait habillee par `contentStyle`, en dur : fond
+   * `#fff`, bordure `#e5e7eb`. En sombre, un cadre blanc s'allumait au survol sous le texte
+   * clair de la page : blanc sur blanc. Elle prend desormais le meme cadre que celle du
+   * camembert, a cote, et nomme ses deux series au lieu de les numeroter.
+   */
+  const renderWeeklyTooltip = ({
+    active,
+    label,
+    payload,
+  }: {
+    active?: boolean;
+    label?: string;
+    payload?: WeeklyTooltipPayload[];
+  }) => {
+    if (!active || !payload?.length || !payload[0]?.payload) {
+      return null;
+    }
+
+    const jour = payload[0].payload;
+
+    return (
+      <div className={CADRE_INFOBULLE}>
+        <p className="mb-1 text-xs font-medium text-foreground">{label}</p>
+        <LigneInfobulle libelle="Livraisons" teinte={LIVRAISONS} valeur={formatNumber(jour.deliveries)} />
+        <LigneInfobulle
+          libelle="Chiffre d'affaires généré"
+          teinte={MONTANT}
+          valeur={formatCFA(Math.round(jour.revenue))}
+        />
       </div>
     );
   };
@@ -84,7 +201,7 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
     <ResponsiveContainer width="100%" height={250}>
       <PieChart>
         <Pie
-          data={geographicData}
+          data={zonesParRang}
           cx="50%"
           cy="50%"
           innerRadius={60}
@@ -95,10 +212,9 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
           labelLine={false}
           label={renderGeographicLabel}
         >
-          {geographicData.map((_entry, index) => (
-            <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+          {zonesParRang.map((zone, index) => (
+            <Cell key={`${index}-${zone.name}`} fill={teinteRang(index, zonesParRang.length)} />
           ))}
-
         </Pie>
         <RechartsTooltip content={renderGeographicTooltip} />
       </PieChart>
@@ -112,8 +228,8 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
   const renderBarChart = () => (
     <ResponsiveContainer width="100%" height={250}>
       <BarChart data={weeklyActivityData}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} />
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRILLE} />
+        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: GRADUATION, fontSize: 12 }} />
         {/* « k » veut dire millier : la graduation divisait par 100 000 et etiquetait
             50 000 F en « 1k ». Le facteur est celui du suffixe. */}
         {/* DEUX AXES, ET C'EST NECESSAIRE, pas un ornement. Les deux series n'ont pas
@@ -122,18 +238,11 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
             livraisons est ecrasee a zero et devient invisible, alors que la legende juste
             en dessous la promet. Chaque serie porte donc sa propre echelle, et l'axe qui
             la gradue est du meme cote que sa barre. */}
-        <YAxis axisLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} tickLine={false} yAxisId="montant" />
-        <YAxis allowDecimals={false} axisLine={false} orientation="right" tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} yAxisId="livraisons" />
-        <RechartsTooltip
-          contentStyle={{
-            backgroundColor: '#fff',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          }}
-        />
-        <Bar dataKey="deliveries" fill="#EF4444" name="Livraisons" radius={[4, 4, 0, 0]} yAxisId="livraisons" />
-        <Bar dataKey="revenue" fill="#F97316" name="Chiffre d'affaires généré (FCFA)" radius={[4, 4, 0, 0]} yAxisId="montant" />
+        <YAxis axisLine={false} tick={{ fill: GRADUATION, fontSize: 12 }} tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} tickLine={false} yAxisId="montant" />
+        <YAxis allowDecimals={false} axisLine={false} orientation="right" tick={{ fill: GRADUATION, fontSize: 12 }} tickLine={false} yAxisId="livraisons" />
+        <RechartsTooltip content={renderWeeklyTooltip} cursor={CURSEUR} />
+        <Bar dataKey="deliveries" fill={LIVRAISONS} name="Livraisons" radius={[4, 4, 0, 0]} yAxisId="livraisons" />
+        <Bar dataKey="revenue" fill={MONTANT} name="Chiffre d'affaires généré (FCFA)" radius={[4, 4, 0, 0]} yAxisId="montant" />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -147,7 +256,7 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
           <div className="mb-4">
             <h2 className="text-xl font-semibold text-foreground">Répartition Géographique</h2>
             <p className="text-sm text-muted">
-              Zone Top: {geographicData[0]?.name ?? 'N/A'} ({geographicData[0]?.deliveries ?? 0} livraisons)
+              Zone Top: {zonesParRang[0]?.name ?? 'N/A'} ({zonesParRang[0]?.deliveries ?? 0} livraisons)
             </p>
           </div>
           {renderDonutChart()}
@@ -164,12 +273,15 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
           </div>
           {renderBarChart()}
           <div className="flex items-center justify-center gap-6 mt-4">
+            {/* La legende NOMME la barre : elle prend la MEME constante, sinon les deux
+                derivent. `bg-red-500` et `bg-orange-500` etaient deux palettes brutes de
+                plus, figees hors du theme, posees a cote de deux barres hexadecimales. */}
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded"></div>
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: LIVRAISONS }}></div>
               <span className="text-sm text-muted">Livraisons</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-orange-500 rounded"></div>
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: MONTANT }}></div>
               <span className="text-sm text-muted">Chiffre d&#39;affaires généré (FCFA)</span>
             </div>
           </div>

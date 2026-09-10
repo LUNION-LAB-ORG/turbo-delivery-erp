@@ -22,7 +22,11 @@ export function FinancialDetailRow({
   return (
     <div className={`flex items-center text-medium justify-between py-3 ${borderClassName} ${rowClassName}`.trim()}>
       <span className={labelClassName}>{label}</span>
-      <span className={cn('text-lg',valueClassName)}>{value}</span>
+      {/* `tabular-nums` est pose ICI et non dans la valeur par defaut : les quatre lignes
+          empilees sont quatre montants qu'on compare a l'oeil, et un appelant qui surcharge
+          `valueClassName` pour peindre son chiffre ne doit pas pouvoir emporter la chasse
+          fixe avec lui. L'alignement a droite, lui, vient deja du `justify-between`. */}
+      <span className={cn('text-lg tabular-nums', valueClassName)}>{value}</span>
     </div>
   );
 }

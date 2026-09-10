@@ -35,10 +35,21 @@ export function PerformanceSummarySection({
 
   return (
     <Card>
-      <Card.Content className="p-6 bg-orange-50">
+      {/*
+       * `bg-orange-50` est une palette brute : un fond QUASI BLANC qui ne bouge pas avec le
+       * theme. En sombre, le `text-foreground` pose dessus devient clair, et le resume
+       * entier disparaissait - texte clair sur fond clair. `bg-warning-soft` est le meme
+       * bandeau ambre, mais derive de `--warning` par un melange VERS LA TRANSPARENCE :
+       * il se pose sur la surface de la carte, donc clair en clair et sombre en sombre.
+       *
+       * La pastille suit la meme famille. `text-white` etait faux dans les deux themes :
+       * l'ambre de la v3 est une teinte CLAIRE, et son texte est `--warning-foreground`,
+       * qui est presque noir - c'est lui qui se lit sur la pastille.
+       */}
+      <Card.Content className="p-6 bg-warning-soft">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center shrink-0">
-            <AlertCircle className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 bg-warning rounded-full flex items-center justify-center shrink-0">
+            <AlertCircle aria-hidden="true" className="w-4 h-4 text-warning-foreground" />
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-2">Résumé de Performance</h3>

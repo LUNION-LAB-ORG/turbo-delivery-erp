@@ -26,14 +26,15 @@ interface MiddleStatsSectionProps {
  * requete ne compte les lignes de commande. La carte affichait donc « 1 » depuis
  * toujours, et le lecteur y lisait une moyenne. Meme traitement.</p>
  *
- * <p>La <b>croissance mensuelle</b>, elle, est bien calculee. ⚠ Signale et NON corrige :
- * `calculateGrowth` s'appuie sur `countOrdersBetween`, qui ne filtre ni le statut ni les
- * lignes supprimees, alors que la carte des livraisons ne compte que les courses
- * terminees. Les deux nombres ne portent donc pas sur la meme population.</p>
+ * <p>La <b>croissance mensuelle</b>, elle, est bien calculee, et son comptage a ete
+ * aligne depuis : `countOrdersBetween` filtre desormais le statut et les lignes
+ * supprimees, comme la carte des livraisons. Les deux nombres portent enfin sur la meme
+ * population.</p>
  */
 export function MiddleStatsSection({ enChargement = false, secondaryKPIs }: MiddleStatsSectionProps) {
   const tempsMoyen = secondaryKPIs?.averageDeliveryTime;
   const articles = secondaryKPIs?.averageItemsPerOrder;
+  const croissance = secondaryKPIs?.monthlyGrowth;
 
   return (
     <GrilleStats colonnes={3} className="md:grid-cols-3">
@@ -45,13 +46,17 @@ export function MiddleStatsSection({ enChargement = false, secondaryKPIs }: Midd
         valeur={tempsMoyen ? `${tempsMoyen} min` : '—'}
       />
 
+      {/* Le ton suivait `succes` EN DUR : une croissance de moins 24 % s'affichait en vert.
+          Il suit desormais le SIGNE, seul cas ou la couleur dit quelque chose ici, et reste
+          neutre a zero comme en l'absence de mesure : une croissance nulle n'est ni une
+          reussite ni une alerte. */}
       <CarteStat
         icone={TrendingUp}
         isLoading={enChargement}
         libelle="Croissance Mensuelle"
         note="Par rapport au mois précédent"
-        ton="succes"
-        valeur={secondaryKPIs?.monthlyGrowth != null ? `${secondaryKPIs.monthlyGrowth.toFixed(1)}%` : '—'}
+        ton={croissance == null || croissance === 0 ? 'neutre' : croissance > 0 ? 'succes' : 'danger'}
+        valeur={croissance != null ? `${croissance.toFixed(1)}%` : '—'}
       />
 
       <CarteStat

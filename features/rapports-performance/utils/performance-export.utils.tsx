@@ -107,7 +107,7 @@ function PerformancePdfDocument({ mainKPIs, secondaryKPIs, financialDetails, sel
         <View style={s.kpiRow}>
           <View style={s.kpiCard}>
             <Text style={s.kpiLabel}>Temps Moyen de Livraison</Text>
-            <Text style={s.kpiValue}>{secondaryKPIs?.averageDeliveryTime ?? '-'} min</Text>
+            <Text style={s.kpiValue}>{secondaryKPIs?.averageDeliveryTime != null ? `${secondaryKPIs.averageDeliveryTime} min` : 'Non mesuré'}</Text>
           </View>
           <View style={s.kpiCard}>
             <Text style={s.kpiLabel}>Croissance Mensuelle</Text>
@@ -115,7 +115,7 @@ function PerformancePdfDocument({ mainKPIs, secondaryKPIs, financialDetails, sel
           </View>
           <View style={s.kpiCard}>
             <Text style={s.kpiLabel}>Articles par Commande</Text>
-            <Text style={s.kpiValue}>{secondaryKPIs?.averageItemsPerOrder ?? '-'}</Text>
+            <Text style={s.kpiValue}>{secondaryKPIs?.averageItemsPerOrder ?? 'Non mesuré'}</Text>
           </View>
         </View>
 

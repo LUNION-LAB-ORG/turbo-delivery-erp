@@ -43,10 +43,22 @@ export interface IPerformanceParams {
   restaurantId?: string;
 }
 
+/**
+ * Les trois chiffres secondaires, TOUS nullables, et le type doit le dire.
+ *
+ * <p>Le serveur rend `null` quand la grandeur n'est pas mesurable, au lieu d'un zero qui
+ * se lirait comme une mesure : `averageDeliveryTime` quand aucune course de la periode ne
+ * porte d'horodatage, `monthlyGrowth` quand le mois precedent n'a aucune livraison, et
+ * `averageItemsPerOrder` toujours, faute de source pour cette population.</p>
+ *
+ * <p>Les declarer `number` faisait mentir le type : les trois consommateurs testaient deja
+ * l'absence, mais rien ne les y obligeait, et le prochain appel a `.toFixed()` sans garde
+ * aurait fait une page blanche.</p>
+ */
 export interface ISecondaryKPIs {
-  averageDeliveryTime: number;
-  monthlyGrowth: number;
-  averageItemsPerOrder: number;
+  averageDeliveryTime: number | null;
+  monthlyGrowth: number | null;
+  averageItemsPerOrder: number | null;
 }
 
 export interface IFinancialDetails {

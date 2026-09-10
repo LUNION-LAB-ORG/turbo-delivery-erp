@@ -30,14 +30,18 @@ export function PerformanceHeader({
       <div className="p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-primary">Rapport de Performance</h1>
+            <h1 className="text-2xl font-bold text-foreground">Rapport de Performance</h1>
             <p className="text-sm text-muted mt-1">Restaurant {selectedRestaurant || 'Tous'}</p>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 px-5 w-64 py-1.5 bg-red-50 text-red-600 rounded-lg">
-            </div>
-              <RestaurantSelect value={restaurantId} onChange={onRestaurantChange} />
+            {/*
+             * SUPPRIME : un `div` de 16 rem, en `bg-red-50 text-red-600`, ENTIEREMENT VIDE.
+             * Ce n'etait pas une couleur a adapter au theme sombre, c'etait un rectangle
+             * rose de 256 px pousse contre le selecteur de restaurant, sans un caractere
+             * dedans. Un fond `red-50` ne dit rien parce qu'il ne recouvre rien.
+             */}
+            <RestaurantSelect value={restaurantId} onChange={onRestaurantChange} />
 
             <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-secondary rounded-lg">
               <DateFilterInput

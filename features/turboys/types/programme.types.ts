@@ -111,6 +111,8 @@ export interface IDuplicationSemaine {
   depuisSemaine: number;
   crees: number;
   ignores: number;
+  /** Livreurs qui avaient déjà déclaré cette semaine dans l'application ; leur déclaration est intacte. */
+  dejaDeclares: number;
 }
 
 // ── Carburant : engagement de la semaine dans le circuit finance ──────────────

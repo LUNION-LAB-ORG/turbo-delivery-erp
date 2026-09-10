@@ -257,9 +257,14 @@ export const useDupliquerSemaineMutation = (onDone?: () => void) => {
     },
     onSuccess: async (d) => {
       await qc.invalidateQueries({ queryKey: programmeKeys.all });
-      const ignores = d.ignores > 0 ? ` ${d.ignores} sans livreur, laissé${d.ignores > 1 ? 's' : ''} de côté.` : '';
+      const restes = [
+        d.ignores > 0 ? `${d.ignores} sans livreur` : '',
+        d.dejaDeclares > 0
+          ? `${d.dejaDeclares} livreur${d.dejaDeclares > 1 ? 's' : ''} avaient déjà déclaré cette semaine, leur déclaration est intacte`
+          : '',
+      ].filter(Boolean);
       toast.success(
-        `${d.crees} programme${d.crees > 1 ? 's' : ''} dupliqué${d.crees > 1 ? 's' : ''} depuis la semaine ${d.depuisSemaine}/${d.depuisAnnee}, en brouillon.${ignores}`,
+        `${d.crees} programme${d.crees > 1 ? 's' : ''} dupliqué${d.crees > 1 ? 's' : ''} depuis la semaine ${d.depuisSemaine}/${d.depuisAnnee}, en brouillon.${restes.length > 0 ? ` ${restes.join(', ')}.` : ''}`,
       );
       onDone?.();
     },

@@ -58,7 +58,8 @@ export function DuplicationSemaineDialog({
           </p>
           <p className="text-sm text-muted">
             Rien n’est publié. Chaque ligne se modifie ensuite séparément, et le jour de repos se déplace si le
-            roulement change. Ce qui n’est pas copié : le statut, les acceptations, le pointage, le total figé.
+            roulement change. Ce qui n’est pas copié : le statut, les acceptations, le pointage, le total figé. Un
+            livreur qui a déjà déclaré cette semaine dans l’application garde sa déclaration.
           </p>
         </>
       )}

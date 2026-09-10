@@ -14,9 +14,18 @@ import {
   publierProgrammeAction,
   envoyerProgrammeAction,
   supprimerProgrammeAction,
+  dupliquerSemaineAction,
+  renvoyerWhatsAppAction,
+  historiqueProgrammeAction,
 } from '@/features/turboys/actions/programme.actions';
 import { engagerCarburant } from '@/features/turboys/apis/carburant-engagement.api';
-import { ICreerProgrammePayload, IEngagerCarburantPayload, IModifierProgrammePayload } from '@/features/turboys/types/programme.types';
+import {
+  ICreerProgrammePayload,
+  IDupliquerSemainePayload,
+  IEngagerCarburantPayload,
+  IModifierProgrammePayload,
+} from '@/features/turboys/types/programme.types';
+import { phraseWhatsAppApresEnvoi } from '@/features/turboys/utils/whatsapp-statut.utils';
 
 export const programmeKeys = {
   all: ['programme'] as const,
@@ -24,7 +33,17 @@ export const programmeKeys = {
   autosuffisance: (annee: number, semaine: number) => [...programmeKeys.all, 'autosuffisance', annee, semaine] as const,
   independants: (annee: number, semaine: number) => [...programmeKeys.all, 'independants', annee, semaine] as const,
   carburant: (annee: number, semaine: number) => [...programmeKeys.all, 'carburant', annee, semaine] as const,
+  historique: (id: string) => [...programmeKeys.all, 'historique', id] as const,
 };
+
+/** L'histoire d'un programme, lue à l'ouverture de sa fenêtre. */
+export const useHistoriqueProgrammeQuery = (id: string | null | undefined) =>
+  useQuery({
+    queryKey: programmeKeys.historique(id ?? ''),
+    queryFn: () => historiqueProgrammeAction(id!),
+    enabled: !!id,
+    staleTime: 10 * 1000,
+  });
 
 export const useEtatCarburantQuery = (annee: number, semaine: number) =>
   useQuery({
@@ -119,9 +138,12 @@ export const usePublierProgrammeMutation = (onDone?: () => void) => {
       if (!r.success) throw new Error(r.error || 'Erreur lors de la publication');
       return r.data!;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await qc.invalidateQueries({ queryKey: programmeKeys.all });
-      toast.success('Programme publié — le livreur est notifié.');
+      // Ce que le WhatsApp a donné se dit tout de suite : un envoi qui n'est pas parti
+      // ne doit pas se lire comme une publication réussie.
+      const w = phraseWhatsAppApresEnvoi(data);
+      (w.ok ? toast.success : toast.warning)(`Programme publié. ${w.texte}`);
       onDone?.();
     },
     onError: (error) => toast.error(messageErreur(error)),
@@ -189,9 +211,56 @@ export const useEnvoyerProgrammeMutation = (onDone?: () => void) => {
       if (!r.success) throw new Error(r.error || "Erreur lors de l'envoi du programme");
       return r.data!;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await qc.invalidateQueries({ queryKey: programmeKeys.all });
-      toast.success('Programme envoyé — le livreur est notifié.');
+      const w = phraseWhatsAppApresEnvoi(data);
+      (w.ok ? toast.success : toast.warning)(`Programme envoyé. ${w.texte}`);
+      onDone?.();
+    },
+    onError: (error) => toast.error(messageErreur(error)),
+  });
+};
+
+/** Renvoyer le programme par WhatsApp seulement, sans le republier. */
+export const useRenvoyerWhatsAppMutation = (onDone?: () => void) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const r = await renvoyerWhatsAppAction(id);
+      if (!r.success) throw new Error(r.error || "Erreur lors de l'envoi WhatsApp");
+      return r.data!;
+    },
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: programmeKeys.all });
+      const w = phraseWhatsAppApresEnvoi(data);
+      (data.whatsappStatut === 'ENVOYE' ? toast.success : toast.warning)(
+        data.whatsappStatut === 'ENVOYE' ? 'WhatsApp envoyé au livreur.' : w.texte,
+      );
+      onDone?.();
+    },
+    onError: (error) => toast.error(messageErreur(error)),
+  });
+};
+
+/**
+ * Dupliquer une semaine entière vers la semaine affichée, en brouillon. Le serveur refuse
+ * une cible qui porte déjà un programme, ou une semaine passée : son message est rendu
+ * tel quel, il dit quoi faire.
+ */
+export const useDupliquerSemaineMutation = (onDone?: () => void) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: IDupliquerSemainePayload) => {
+      const r = await dupliquerSemaineAction(payload);
+      if (!r.success) throw new Error(r.error || 'Erreur lors de la duplication');
+      return r.data!;
+    },
+    onSuccess: async (d) => {
+      await qc.invalidateQueries({ queryKey: programmeKeys.all });
+      const ignores = d.ignores > 0 ? ` ${d.ignores} sans livreur, laissé${d.ignores > 1 ? 's' : ''} de côté.` : '';
+      toast.success(
+        `${d.crees} programme${d.crees > 1 ? 's' : ''} dupliqué${d.crees > 1 ? 's' : ''} depuis la semaine ${d.depuisSemaine}/${d.depuisAnnee}, en brouillon.${ignores}`,
+      );
       onDone?.();
     },
     onError: (error) => toast.error(messageErreur(error)),

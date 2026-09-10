@@ -6,7 +6,8 @@ import { Download, MessageCircle, Send } from 'lucide-react';
 
 import { IProgramme } from '@/features/turboys/types/programme.types';
 import { useEnvoyerProgrammeMutation } from '@/features/turboys/queries/programme.query';
-import { libelleJourInactif } from '@/features/turboys/utils/jour.utils';
+import { estSeptSurSept, libelleJourInactif, OBSERVATION_SEPT_SUR_SEPT } from '@/features/turboys/utils/jour.utils';
+import { libelleWhatsApp } from '@/features/turboys/utils/whatsapp-statut.utils';
 import { lienWhatsApp, texteProgramme } from '@/features/turboys/utils/partage-whatsapp.utils';
 import { exporterProgrammeIndividuelPdf } from '@/features/turboys/utils/programmes-export.utils';
 import { getTurboyTypeDisplay } from '@/features/turboys/utils/type-livreur-display';
@@ -31,6 +32,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** Le numéro du livreur, pour ouvrir la conversation WhatsApp. Absent : pas de bouton actif. */
   telephone?: string | null;
+  /** Le nom du site de la semaine, s'il est connu. */
+  siteNom?: string | null;
 }
 
 /**
@@ -43,10 +46,12 @@ interface Props {
  * que ça se fait. Le bouton ouvre la conversation avec le message écrit ; l'envoi reste
  * un geste humain. Le message ne dit rien du carburant.</p>
  */
-export function ProgrammeApercuModal({ programme, annee, semaine, isOpen, onOpenChange, telephone = null }: Props) {
+export function ProgrammeApercuModal({ programme, annee, semaine, isOpen, onOpenChange, telephone = null, siteNom = null }: Props) {
   const prenom = (programme?.livreurNom ?? '').split(' ')[0] || 'Bonjour';
   const envoyer = useEnvoyerProgrammeMutation();
   const lien = programme ? lienWhatsApp(telephone, texteProgramme(programme, annee, semaine)) : null;
+  const whatsapp = programme ? libelleWhatsApp(programme) : null;
+  const septSurSept = programme ? estSeptSurSept(programme.jours) : false;
   return (
     <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
       <Modal.Backdrop>
@@ -71,9 +76,15 @@ export function ProgrammeApercuModal({ programme, annee, semaine, isOpen, onOpen
             <Modal.Body>
               {programme && (
                 <div className="rounded-xl border border-separator p-4">
-                  <p className="mb-3 text-sm font-medium text-foreground">
+                  <p className="mb-1 text-sm font-medium text-foreground">
                     {prenom}, voici ton programme cette semaine
                   </p>
+                  {siteNom && (
+                    <p className="mb-3 text-xs text-muted">
+                      Site : {siteNom}
+                      {programme.siteDeLaSemaine ? ' (cette semaine)' : ''}
+                    </p>
+                  )}
                   <ul className="divide-y divide-separator">
                     {JOURS.map((jr) => {
                       const j = programme.jours?.find(
@@ -103,6 +114,19 @@ export function ProgrammeApercuModal({ programme, annee, semaine, isOpen, onOpen
                       );
                     })}
                   </ul>
+                  {/* Ce que la direction veut lire sans recoupement : la semaine sans repos, et
+                      ce que l'envoi WhatsApp a donne. */}
+                  {(septSurSept || whatsapp) && (
+                    <div className="mt-3 flex flex-col gap-1 border-t border-separator pt-3 text-xs">
+                      {septSurSept && <p className="text-foreground">Sept jours travaillés. {OBSERVATION_SEPT_SUR_SEPT}.</p>}
+                      {whatsapp && (
+                        <p className={whatsapp.ton === 'attention' ? 'text-warning-soft-foreground' : 'text-muted'}>
+                          {whatsapp.texte}
+                          {programme.whatsappStatut === 'ECHEC' && programme.whatsappDetail ? ` : ${programme.whatsappDetail}` : ''}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </Modal.Body>
@@ -114,7 +138,7 @@ export function ProgrammeApercuModal({ programme, annee, semaine, isOpen, onOpen
               <Button
                 isDisabled={!programme}
                 onPress={() =>
-                  programme && exporterProgrammeIndividuelPdf(programme, annee, semaine)
+                  programme && exporterProgrammeIndividuelPdf(programme, annee, semaine, siteNom)
                 }
                 variant="outline"
               >

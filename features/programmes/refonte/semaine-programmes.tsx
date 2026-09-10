@@ -1,13 +1,14 @@
 'use client';
 
-import { Button, Card, Checkbox, Chip, ComboBox, Dropdown, Input, Label, ListBox, SearchField, type Selection, Separator, Spinner, Table, ToggleButton, ToggleButtonGroup } from '@heroui-v3/react';
+import { Button, Card, Checkbox, Chip, ComboBox, Dropdown, Input, Label, ListBox, SearchField, type Selection, Separator, Spinner, Table, ToggleButton, ToggleButtonGroup, Tooltip } from '@heroui-v3/react';
 import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
 import React from 'react';
 
 import type { IAutosuffisanceJour, IJourProgramme, IProgramme, StatutProgramme } from '@/features/turboys/types/programme.types';
 import { carburantAffiche, totauxCarburant } from '@/features/turboys/utils/carburant.utils';
-import { libelleJourInactif } from '@/features/turboys/utils/jour.utils';
+import { estSeptSurSept, libelleJourInactif, OBSERVATION_SEPT_SUR_SEPT } from '@/features/turboys/utils/jour.utils';
 import { getTurboyTypeDisplay } from '@/features/turboys/utils/type-livreur-display';
+import { libelleWhatsApp } from '@/features/turboys/utils/whatsapp-statut.utils';
 import { cn } from '@/lib/utils';
 import { formatMontant } from '@/utils/format.utils';
 
@@ -79,12 +80,17 @@ export interface SemaineProgrammesProps {
   onPublier: (p: IProgramme) => void;
   /** Envoyer (ou relancer) la notification au livreur. */
   onEnvoyer: (p: IProgramme) => void;
+  /** Renvoyer par WhatsApp seulement, sans republier. */
+  onRenvoyerWhatsApp: (p: IProgramme) => void;
+  /** Qui a changé quoi sur ce programme, et quand. */
+  onHistorique: (p: IProgramme) => void;
   onSupprimer: (p: IProgramme) => void;
   onNouveau: () => void;
   /** Publier d'un coup les programmes cochés. */
   onPublierLot: (ids: string[]) => void;
 
-  onCopierSemainePrecedente: () => void;
+  /** Dupliquer la semaine précédente entière vers celle-ci, en brouillon. */
+  onDupliquerSemainePrecedente: () => void;
   onImporterFichier: () => void;
   onTelechargerModele: () => void;
   onExporterExcel: () => void;
@@ -264,10 +270,12 @@ export function SemaineProgrammes({
   onPlanifier,
   onPublier,
   onEnvoyer,
+  onRenvoyerWhatsApp,
+  onHistorique,
   onSupprimer,
   onNouveau,
   onPublierLot,
-  onCopierSemainePrecedente,
+  onDupliquerSemainePrecedente,
   onImporterFichier,
   onTelechargerModele,
   onExporterExcel,
@@ -289,6 +297,8 @@ export function SemaineProgrammes({
   const [recherche, setRecherche] = React.useState('');
   const [seulement, setSeulement] = React.useState<'TOUS' | 'A_PUBLIER' | 'REFUSE' | 'SANS_CARBURANT'>('TOUS');
   const [coches, setCoches] = React.useState<Selection>(new Set());
+  /** Le nom d'un site par son identifiant : la grille l'écrit sur chaque ligne. */
+  const nomSite = React.useMemo(() => new Map(partenaires.map((x) => [x.id, x.nom])), [partenaires]);
 
   /*
    * La selection ne survit ni au changement de semaine ni a un echec de lecture :
@@ -511,12 +521,12 @@ export function SemaineProgrammes({
               <Dropdown.Menu
                 aria-label="Options d’import"
                 onAction={(k) => {
-                  if (k === 'copier') onCopierSemainePrecedente();
+                  if (k === 'dupliquer') onDupliquerSemainePrecedente();
                   if (k === 'fichier') onImporterFichier();
                   if (k === 'modele') onTelechargerModele();
                 }}
               >
-                <Dropdown.Item id="copier">Copier la semaine précédente</Dropdown.Item>
+                <Dropdown.Item id="dupliquer">Dupliquer la semaine précédente</Dropdown.Item>
                 <Dropdown.Item id="fichier">Importer un fichier (.xlsx, .csv)</Dropdown.Item>
                 <Dropdown.Item id="modele">Télécharger le modèle</Dropdown.Item>
               </Dropdown.Menu>
@@ -584,7 +594,7 @@ export function SemaineProgrammes({
                     Livreur
                   </Table.Column>
                   <Table.Column className="sticky top-0 z-20 bg-surface-secondary" id="postes">
-                    Poste / Site
+                    Site · Postes
                   </Table.Column>
                   {JOURS.map((j) => (
                     <Table.Column className="sticky top-0 z-20 bg-surface-secondary px-2 text-center" id={j.cle} key={j.cle}>
@@ -664,14 +674,29 @@ export function SemaineProgrammes({
                         <Table.Cell>
                           <span className="block max-w-[12rem] truncate font-medium">{p.livreurNom ?? '—'}</span>
                           {p.typeLivreur && <span className="block text-xs text-muted">{getTurboyTypeDisplay(p.typeLivreur).label}</span>}
+                          {/*
+                           * Sept jours travailles : le repos n'a pas ete pris, et il se regle.
+                           * La direction veut le lire sans recoupement, ligne par ligne.
+                           */}
+                          {estSeptSurSept(p.jours) && (
+                            <Tooltip>
+                              <Chip className="mt-1" color="warning" size="sm" variant="soft">
+                                <Chip.Label>7 j/7, repos à compenser</Chip.Label>
+                              </Chip>
+                              <Tooltip.Content>{OBSERVATION_SEPT_SUR_SEPT}</Tooltip.Content>
+                            </Tooltip>
+                          )}
                         </Table.Cell>
 
                         <Table.Cell>
+                          {/* Le site de la semaine d'abord, les postes desservis dessous. */}
+                          <span className="block max-w-[14rem] truncate text-xs font-medium text-foreground">
+                            {p.siteId ? (nomSite.get(p.siteId) ?? 'Site inconnu') : 'Sans site'}
+                            {p.siteId && p.siteDeLaSemaine ? <span className="font-normal text-muted"> · cette semaine</span> : null}
+                          </span>
                           {postesSemaine(p).length > 0 ? (
                             <span className="block max-w-[14rem] truncate text-xs text-muted">{postesSemaine(p).join(' · ')}</span>
-                          ) : (
-                            <span className="text-muted">—</span>
-                          )}
+                          ) : null}
                         </Table.Cell>
 
                         {JOURS.map((j) => (
@@ -696,6 +721,16 @@ export function SemaineProgrammes({
                              * survole pas, elle se lit.
                              */}
                             {p.statut === 'REFUSE' && p.motifRefus && <span className="max-w-[14rem] text-xs text-muted">{p.motifRefus}</span>}
+                            {/* Ce que l'envoi WhatsApp a donne : parti, ou pourquoi pas. */}
+                            {(() => {
+                              const w = libelleWhatsApp(p);
+                              if (!w) return null;
+                              return (
+                                <span className={cn('max-w-[14rem] text-[11px] leading-tight', w.ton === 'attention' ? 'text-warning-soft-foreground' : 'text-muted')}>
+                                  {w.texte}
+                                </span>
+                              );
+                            })()}
                           </div>
                         </Table.Cell>
 
@@ -715,12 +750,18 @@ export function SemaineProgrammes({
                               <Dropdown.Popover>
                                 <Dropdown.Menu
                                   aria-label="Actions du programme"
-                                  disabledKeys={estAPublier(p) || p.statut === 'REFUSE' ? [] : ['supprimer']}
+                                  disabledKeys={[
+                                    ...(estAPublier(p) || p.statut === 'REFUSE' ? [] : ['supprimer']),
+                                    // Le WhatsApp seul ne se renvoie que sur un programme deja parti.
+                                    ...(estAPublier(p) ? ['whatsapp'] : []),
+                                  ]}
                                   onAction={(k) => {
                                     if (k === 'apercu') onApercu(p);
                                     if (k === 'carburant') onCarburant(p);
                                     if (k === 'editer') onEditer(p);
                                     if (k === 'envoyer') onEnvoyer(p);
+                                    if (k === 'whatsapp') onRenvoyerWhatsApp(p);
+                                    if (k === 'historique') onHistorique(p);
                                     if (k === 'supprimer') onSupprimer(p);
                                   }}
                                 >
@@ -728,6 +769,8 @@ export function SemaineProgrammes({
                                   <Dropdown.Item id="carburant">Carburant…</Dropdown.Item>
                                   <Dropdown.Item id="editer">Éditer</Dropdown.Item>
                                   <Dropdown.Item id="envoyer">Envoyer au livreur</Dropdown.Item>
+                                  <Dropdown.Item id="whatsapp">Renvoyer par WhatsApp</Dropdown.Item>
+                                  <Dropdown.Item id="historique">Historique…</Dropdown.Item>
                                   <Dropdown.Item id="supprimer">Supprimer</Dropdown.Item>
                                 </Dropdown.Menu>
                               </Dropdown.Popover>

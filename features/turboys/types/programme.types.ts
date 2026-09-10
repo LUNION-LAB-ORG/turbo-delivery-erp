@@ -41,6 +41,9 @@ export interface IJourProgramme {
   absenceMotif?: string | null;
 }
 
+/** Ce qu'a donné le dernier envoi du programme par WhatsApp. */
+export type StatutEnvoiWhatsApp = 'ENVOYE' | 'ECHEC' | 'NON_CONFIGURE' | 'SANS_NUMERO';
+
 export interface IProgramme {
   id: string;
   livreurId: string | null;
@@ -61,6 +64,18 @@ export interface IProgramme {
    * livreur. Null tant que rien n'est engagé, ou qu'aucun montant n'a été saisi.
    */
   montantCarburantHebdo?: number | null;
+  /**
+   * Le site (partenaire) effectif de la semaine : celui choisi pour le programme, sinon
+   * celui de la fiche du livreur. Les exports regroupent par ce site.
+   */
+  siteId?: string | null;
+  /** Vrai quand le site a été choisi pour cette semaine, faux quand il vient de la fiche. */
+  siteDeLaSemaine?: boolean;
+  /** Dernier envoi WhatsApp ; absent tant que rien n'a été tenté. */
+  whatsappStatut?: StatutEnvoiWhatsApp | string | null;
+  whatsappLe?: string | null;
+  /** L'identifiant du message parti, ou la raison de l'échec. */
+  whatsappDetail?: string | null;
 }
 
 export interface ICreerProgrammePayload {
@@ -68,11 +83,34 @@ export interface ICreerProgrammePayload {
   annee: number;
   semaine: number;
   jours: IJourProgramme[];
+  /** Le site de la semaine ; absent = celui de la fiche du livreur. */
+  sitePartnerId?: string | null;
 }
 
 export interface IModifierProgrammePayload {
   id: string;
   jours: IJourProgramme[];
+  /** Vrai quand la commande décide du site ; absent, le site de la semaine ne bouge pas. */
+  siteModifie?: boolean;
+  /** Avec `siteModifie` : le site de la semaine, null pour revenir à celui de la fiche. */
+  sitePartnerId?: string | null;
+}
+
+/** Dupliquer tous les programmes d'une semaine vers une semaine vide. */
+export interface IDupliquerSemainePayload {
+  annee: number;
+  semaine: number;
+  depuisAnnee: number;
+  depuisSemaine: number;
+}
+
+export interface IDuplicationSemaine {
+  annee: number;
+  semaine: number;
+  depuisAnnee: number;
+  depuisSemaine: number;
+  crees: number;
+  ignores: number;
 }
 
 // ── Carburant : engagement de la semaine dans le circuit finance ──────────────

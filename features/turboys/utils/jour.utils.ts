@@ -13,3 +13,18 @@ export function libelleJourInactif(j?: IJourProgramme | null): 'Absence justifi�
   if (j?.statutJour === 'JUSTIFIE') return 'Absence justifiée';
   return 'Repos';
 }
+
+/**
+ * Ce qu'il faut écrire quand une semaine ne prévoit aucun repos.
+ *
+ * <p>La direction l'a posé en recette : un livreur programmé sept jours sur sept n'a pas
+ * pris son jour de repos, et ce repos se règle. La mention doit se lire sans recoupement,
+ * sur la grille comme sur les exports.</p>
+ */
+export const OBSERVATION_SEPT_SUR_SEPT = 'Jour de repos non prévu : à compenser';
+
+/** Vrai quand les sept jours de la semaine sont travaillés. */
+export function estSeptSurSept(jours?: IJourProgramme[] | null): boolean {
+  const actifs = new Set((jours ?? []).filter((j) => j?.actif && j.jour).map((j) => j.jour.toUpperCase()));
+  return actifs.size >= 7;
+}

@@ -1,5 +1,14 @@
 import { apiClientHttp } from '@/lib/api-client-http';
-import { IProgramme, ICreerProgrammePayload, IJourProgramme, IAutosuffisanceJour, IEtatCarburantSemaine } from '@/features/turboys/types/programme.types';
+import type { IAuditAction } from '@/features/supervision/types';
+import {
+  IProgramme,
+  ICreerProgrammePayload,
+  IModifierProgrammePayload,
+  IAutosuffisanceJour,
+  IEtatCarburantSemaine,
+  IDupliquerSemainePayload,
+  IDuplicationSemaine,
+} from '@/features/turboys/types/programme.types';
 
 /**
  * Programmes hebdomadaires (M2). Endpoints backend déployés. On mirrore le pattern
@@ -37,11 +46,40 @@ export const programmeAPI = {
     });
   },
 
-  async modifier(id: string, jours: IJourProgramme[]): Promise<IProgramme> {
+  async modifier(id: string, payload: Omit<IModifierProgrammePayload, 'id'>): Promise<IProgramme> {
     return apiClientHttp.request<IProgramme>({
       endpoint: `/api/erp/programmes/${id}`,
       method: 'PUT',
-      data: { jours },
+      data: {
+        jours: payload.jours,
+        siteModifie: payload.siteModifie ?? false,
+        sitePartnerId: payload.sitePartnerId ?? null,
+      },
+    });
+  },
+
+  /** Copie une semaine entière vers une semaine vide ; 409 avec la raison sinon. */
+  async dupliquerSemaine(payload: IDupliquerSemainePayload): Promise<IDuplicationSemaine> {
+    return apiClientHttp.request<IDuplicationSemaine>({
+      endpoint: '/api/erp/programmes/dupliquer',
+      method: 'POST',
+      data: payload,
+    });
+  },
+
+  /** Renvoie le programme par WhatsApp, sans le republier. */
+  async renvoyerWhatsApp(id: string): Promise<IProgramme> {
+    return apiClientHttp.request<IProgramme>({
+      endpoint: `/api/erp/programmes/${id}/whatsapp`,
+      method: 'POST',
+    });
+  },
+
+  /** L'histoire d'un programme : qui a changé quoi, et quand. */
+  async historique(id: string): Promise<IAuditAction[]> {
+    return apiClientHttp.request<IAuditAction[]>({
+      endpoint: `/api/erp/programmes/${id}/historique`,
+      method: 'GET',
     });
   },
 

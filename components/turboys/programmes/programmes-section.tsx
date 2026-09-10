@@ -6,29 +6,31 @@ import React from 'react';
 import { toast } from 'sonner';
 
 import { CarburantRapideModal } from './carburant-rapide-modal';
+import { DuplicationSemaineDialog } from './duplication-semaine-dialog';
 import { EngagementCarburantConnecte } from './engagement-carburant';
 import { ProgrammeApercuModal } from './programme-apercu-modal';
 import { ProgrammeFormModal } from './programme-form-modal';
+import { ProgrammeHistoriqueModal } from './programme-historique-modal';
 import { joursAvecDates } from './weekly-jours-editor';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { SemaineProgrammes } from '@/features/programmes/refonte/semaine-programmes';
 import { useLivreursListQuery } from '@/features/tickets/queries/livreur-list.query';
-import {
-  creerProgrammeAction,
-  listerProgrammesSemaineAction,
-} from '@/features/turboys/actions/programme.actions';
+import { creerProgrammeAction } from '@/features/turboys/actions/programme.actions';
 import {
   useAutosuffisanceSemaineQuery,
+  useDupliquerSemaineMutation,
   useEnvoyerProgrammeMutation,
   usePlanifierProgrammeMutation,
   useProgrammesIndependantsQuery,
   useProgrammesSemaineQuery,
   usePublierProgrammeMutation,
+  useRenvoyerWhatsAppMutation,
   useSupprimerProgrammeMutation,
 } from '@/features/turboys/queries/programme.query';
 import { IProgramme } from '@/features/turboys/types/programme.types';
 import { totauxCarburant } from '@/features/turboys/utils/carburant.utils';
 import {
+  type ContexteExport,
   exporterProgrammesExcel,
   exporterProgrammesPdf,
 } from '@/features/turboys/utils/programmes-export.utils';
@@ -86,6 +88,7 @@ export default function ProgrammesSection() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<IProgramme | null>(null);
   const [apercu, setApercu] = React.useState<IProgramme | null>(null);
+  const [historiqueDe, setHistoriqueDe] = React.useState<IProgramme | null>(null);
   const [carburantDe, setCarburantDe] = React.useState<IProgramme[]>([]);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const [lotEnCours, setLotEnCours] = React.useState(false);
@@ -93,6 +96,7 @@ export default function ProgrammesSection() {
   const planifier = usePlanifierProgrammeMutation();
   const publier = usePublierProgrammeMutation();
   const envoyer = useEnvoyerProgrammeMutation();
+  const renvoyerWhatsApp = useRenvoyerWhatsAppMutation();
   const supprimer = useSupprimerProgrammeMutation();
 
   const changeWeek = (delta: number) => setWeek(semaineDecalee(annee, semaine, delta));
@@ -156,6 +160,17 @@ export default function ProgrammesSection() {
     () => (restaurantsQuery.data ?? []).map((r) => ({ id: r.id, nom: r.nomEtablissement })),
     [restaurantsQuery.data],
   );
+  const nomSite = React.useMemo(() => new Map(restaurants.map((r) => [r.id, r.nom])), [restaurants]);
+  // Ce que les exports savent des sites : le nom, la commune, pour les en-têtes de groupe.
+  const contexteExport = React.useMemo<ContexteExport>(
+    () => ({
+      carburantSemainePrecedente,
+      sites: new Map(
+        (restaurantsQuery.data ?? []).map((r) => [r.id, { commune: r.commune, localisation: r.localisation, nom: r.nomEtablissement }]),
+      ),
+    }),
+    [restaurantsQuery.data, carburantSemainePrecedente],
+  );
   const livreursQuery = useLivreursListQuery();
 
   const programmesFiltres = React.useMemo(() => {
@@ -164,47 +179,28 @@ export default function ProgrammesSection() {
     let liste = Array.isArray(data) ? data : [];
     if (typeFiltre !== 'TOUS') liste = liste.filter((p) => (p.typeLivreur ?? '') === typeFiltre);
     if (partenaireFiltre !== 'TOUS') {
-      liste = liste.filter((p) =>
-        (p.jours ?? []).some((j) => (j.postes ?? []).some((po) => po.restaurantId === partenaireFiltre)),
+      // Un partenaire est le site de la semaine, ou l'un des postes desservis.
+      liste = liste.filter(
+        (p) =>
+          p.siteId === partenaireFiltre ||
+          (p.jours ?? []).some((j) => (j.postes ?? []).some((po) => po.restaurantId === partenaireFiltre)),
       );
     }
     return liste;
   }, [data, typeFiltre, partenaireFiltre]);
 
-  // Importer = copier le planning de la semaine précédente (brouillons), pour
-  // les livreurs qui n'ont pas déjà un programme cette semaine. Orchestré côté
-  // front via creer + joursAvecDates (recalcule les dates de la semaine cible).
+  /*
+   * Dupliquer la semaine précédente. Le geste était une boucle côté client qui créait un
+   * brouillon par livreur manquant ; il passe au serveur, en une transaction, avec la
+   * règle validée par la direction : la cible doit être VIDE, la duplication n'écrase
+   * rien. Ce qui est copié : jours, horaires, postes, carburant par jour, site de la
+   * semaine. Le repos suit la semaine source et se déplace ensuite ligne par ligne.
+   */
   const qc = useQueryClient();
   const [importing, setImporting] = React.useState(false);
-  const copierSemainePrecedente = async () => {
-    const { annee: srcAnnee, semaine: srcSemaine } = semainePrecedente(annee, semaine);
-    setImporting(true);
-    try {
-      const sources = await listerProgrammesSemaineAction(srcAnnee, srcSemaine);
-      const dejaPresent = new Set((data ?? []).map((p) => p.livreurId));
-      const aCreer = sources.filter((p) => p.livreurId && !dejaPresent.has(p.livreurId));
-      if (aCreer.length === 0) {
-        toast.info(`Rien à importer depuis la semaine ${srcSemaine}/${srcAnnee}.`);
-        return;
-      }
-      let ok = 0;
-      for (const src of aCreer) {
-        const r = await creerProgrammeAction({
-          annee,
-          jours: joursAvecDates(src.jours, annee, semaine),
-          livreurId: src.livreurId!,
-          semaine,
-        });
-        if (r.success) ok += 1;
-      }
-      await qc.invalidateQueries({ queryKey: ['programme'] });
-      toast.success(`${ok} programme(s) importé(s) depuis la semaine ${srcSemaine}/${srcAnnee}.`);
-    } catch {
-      toast.error("Échec de l'import depuis la semaine précédente.");
-    } finally {
-      setImporting(false);
-    }
-  };
+  const [dupliquerOuvert, setDupliquerOuvert] = React.useState(false);
+  const dupliquer = useDupliquerSemaineMutation(() => setDupliquerOuvert(false));
+  const nbDejaLa = Array.isArray(data) ? data.length : 0;
 
   // Import par fichier (.xlsx/.csv) : correspondance livreur par matricule puis
   // téléphone, création de brouillons pour la semaine affichée.
@@ -296,18 +292,21 @@ export default function ProgrammesSection() {
           onApercu={setApercu}
           onCarburant={(p) => setCarburantDe([p])}
           onCarburantLot={setCarburantDe}
-          onCopierSemainePrecedente={copierSemainePrecedente}
+          onDupliquerSemainePrecedente={() => setDupliquerOuvert(true)}
           onEditer={setEditing}
           onEnvoyer={(p) => runAction(p.id, envoyer.mutateAsync)}
-          onExporterExcel={() => exporterProgrammesExcel(programmesFiltres, annee, semaine)}
+          onExporterExcel={() => exporterProgrammesExcel(programmesFiltres, annee, semaine, contexteExport)}
           onExporterPdf={() =>
             exporterProgrammesPdf(
               programmesFiltres,
               annee,
               semaine,
               TYPE_OPTIONS.find((o) => o.cle === typeFiltre)?.libelle ?? 'Tous',
+              contexteExport,
             )
           }
+          onHistorique={setHistoriqueDe}
+          onRenvoyerWhatsApp={(p) => runAction(p.id, renvoyerWhatsApp.mutateAsync)}
           onImporterFichier={() => fileRef.current?.click()}
           onNouveau={() => setCreateOpen(true)}
           onPartenaireFiltre={setPartenaireFiltre}
@@ -368,7 +367,32 @@ export default function ProgrammesSection() {
         }}
         programme={apercu}
         semaine={semaine}
+        siteNom={apercu?.siteId ? (nomSite.get(apercu.siteId) ?? null) : null}
         telephone={(livreursQuery.data ?? []).find((l) => l.id === apercu?.livreurId)?.telephone ?? null}
+      />
+      <ProgrammeHistoriqueModal
+        isOpen={!!historiqueDe}
+        onOpenChange={(open) => {
+          if (!open) setHistoriqueDe(null);
+        }}
+        programme={historiqueDe}
+        sites={nomSite}
+      />
+      <DuplicationSemaineDialog
+        enAttente={dupliquer.isPending}
+        nbDejaLa={nbDejaLa}
+        onDupliquer={() =>
+          dupliquer.mutate({
+            annee,
+            depuisAnnee: precedente.annee,
+            depuisSemaine: precedente.semaine,
+            semaine,
+          })
+        }
+        onFermer={() => setDupliquerOuvert(false)}
+        ouvert={dupliquerOuvert}
+        semaineCible={{ annee, semaine }}
+        semaineSource={precedente}
       />
     </>
   );

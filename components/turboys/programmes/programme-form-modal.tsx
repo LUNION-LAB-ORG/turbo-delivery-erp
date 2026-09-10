@@ -15,6 +15,7 @@ import React from 'react';
 import { toast } from 'sonner';
 
 import EtatErreur from '@/components/commons/EtatErreur';
+import { ChampListe } from '@/components/commons/champs-formulaire';
 import { DeliveryMan } from '@/types/models';
 import { useLivreursListQuery } from '@/features/tickets/queries/livreur-list.query';
 import {
@@ -79,16 +80,20 @@ export function ProgrammeFormModal({
   const [annee, setAnnee] = React.useState(anneeInitiale);
   const [semaine, setSemaine] = React.useState(semaineInitiale);
   const [jours, setJours] = React.useState<IJourProgramme[]>(defaultJours());
+  // Le site de la semaine : celui du programme (ou de la fiche du livreur) à l'ouverture.
+  const [siteId, setSiteId] = React.useState('');
 
   React.useEffect(() => {
     if (!isOpen) return;
     if (programme) {
       setJours(normaliserJours(programme.jours));
+      setSiteId(programme.siteId ?? '');
     } else {
       setLivreurId('');
       setAnnee(anneeInitiale);
       setSemaine(semaineInitiale);
       setJours(defaultJours());
+      setSiteId('');
     }
   }, [isOpen, programme, anneeInitiale, semaineInitiale]);
 
@@ -98,9 +103,12 @@ export function ProgrammeFormModal({
 
   const onSubmit = () => {
     if (isEdit) {
+      const siteChange = siteId !== (programme!.siteId ?? '');
       modifier.mutate({
         id: programme!.id,
         jours: joursAvecDates(jours, programme!.annee, programme!.semaine),
+        siteModifie: siteChange,
+        sitePartnerId: siteChange ? siteId || null : undefined,
       });
       return;
     }
@@ -114,7 +122,7 @@ export function ProgrammeFormModal({
       toast.error('Année ou semaine invalide.');
       return;
     }
-    creer.mutate({ annee, jours: joursAvecDates(jours, annee, semaine), livreurId, semaine });
+    creer.mutate({ annee, jours: joursAvecDates(jours, annee, semaine), livreurId, semaine, sitePartnerId: siteId || null });
   };
 
   const dejaEnvoye = isEdit && ['ACCEPTE', 'NOTIFIE', 'REFUSE'].includes(programme?.statut ?? '');
@@ -241,6 +249,31 @@ export function ProgrammeFormModal({
                   </Alert.Content>
                 </Alert>
               )}
+
+              {/*
+               * Le site de la semaine. La majorité des livreurs gardent le même site d'une
+               * semaine à l'autre ; celui-ci ne vaut que pour cette semaine, la fiche du
+               * livreur ne bouge pas. Une liste qui se cherche : les partenaires se comptent
+               * par centaines.
+               */}
+              <div className="flex flex-col gap-1">
+                <ChampListe
+                  estDesactive={isLoading || restaurantsQuery.isLoading}
+                  label="Site de la semaine"
+                  messageListeVide={restaurantsQuery.isError ? 'La liste des partenaires n’a pas pu être lue.' : undefined}
+                  onChange={setSiteId}
+                  options={restaurants.map((r) => ({ label: r.nom, value: r.id }))}
+                  placeholder={restaurantsQuery.isLoading ? 'Chargement…' : 'Celui de la fiche du livreur'}
+                  valeur={siteId}
+                />
+                <p className="text-xs text-muted">
+                  {isEdit && programme?.siteId && !programme.siteDeLaSemaine && siteId === programme.siteId
+                    ? 'Hérité de la fiche du livreur. Un autre site ne vaudra que pour cette semaine.'
+                    : siteId
+                      ? 'Ne vaut que pour cette semaine : la fiche du livreur ne change pas.'
+                      : 'Sans choix, le programme prend le site de la fiche du livreur.'}
+                </p>
+              </div>
 
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium text-foreground">Jours travaillés</p>

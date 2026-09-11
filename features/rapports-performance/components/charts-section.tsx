@@ -38,9 +38,6 @@ const GRADUATION = 'var(--muted)';
 
 const GRILLE = 'var(--separator)';
 
-/** Le nom d'une zone est un LIBELLE, pas une graduation : il se lit a pleine force. */
-const NOM_DE_ZONE = 'var(--foreground)';
-
 /*
  * Les deux series du graphe hebdomadaire, et pourquoi ces deux familles.
  *
@@ -83,14 +80,6 @@ function teinteRang(rang: number, total: number): string {
   return `color-mix(in oklab, var(--danger) ${part}%, var(--surface))`;
 }
 
-const MAX_ZONE_LABEL_CHARS = 14;
-
-interface GeographicLabelProps {
-  x?: number;
-  y?: number;
-  name?: string;
-}
-
 interface GeographicTooltipPayload {
   payload?: IGeographicLocation;
 }
@@ -99,12 +88,45 @@ interface WeeklyTooltipPayload {
   payload?: IWeeklyActivity;
 }
 
-function truncateZoneName(value: string, maxChars = MAX_ZONE_LABEL_CHARS): string {
-  if (value.length <= maxChars) {
-    return value;
-  }
-
-  return `${value.slice(0, maxChars)}...`;
+/**
+ * Une ligne de la legende du camembert : pastille, nom de zone, part.
+ *
+ * <p>Les noms etaient poses en ETIQUETTES autour du donut, tronques a 14 caracteres et
+ * suivis de points de suspension. A dix zones - la limite de la requete - ils se
+ * chevauchaient et devenaient illisibles : « Lubafrique ple... », « Rue du Pont de... »,
+ * « M'badon, Abidj... » se croisaient sur trois lignes, et aucun nom n'etait entier.</p>
+ *
+ * <p>La legende les remet a plat, dans l'ordre des parts. Le nom peut encore etre coupe
+ * faute de place, mais par le navigateur, sur un texte qui reste selectionnable et dont
+ * `title` porte la version entiere - ce qu'une troncature a la main dans un `<text>` SVG
+ * ne permet pas.</p>
+ */
+function LigneLegende({
+  nom,
+  part,
+  teinte,
+  livraisons,
+}: {
+  nom: string;
+  part: string;
+  teinte: string;
+  livraisons: number;
+}) {
+  return (
+    <li className="flex items-center gap-2.5 text-xs">
+      <span
+        aria-hidden="true"
+        className="size-2.5 shrink-0 rounded-sm"
+        style={{ backgroundColor: teinte }}
+      />
+      <span className="min-w-0 flex-1 truncate text-foreground" title={nom}>
+        {nom}
+      </span>
+      <span className="shrink-0 tabular-nums text-muted" title={`${livraisons} livraisons`}>
+        {part}
+      </span>
+    </li>
+  );
 }
 
 /**
@@ -136,17 +158,15 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
    */
   const zonesParRang = [...geographicData].sort((a, b) => b.deliveries - a.deliveries);
 
-  const renderGeographicLabel = ({ x = 0, y = 0, name = '' }: GeographicLabelProps) => {
-    if (!name) {
-      return null;
-    }
-
-    return (
-      <text x={x} y={y} fill={NOM_DE_ZONE} fontSize={11} textAnchor="middle" dominantBaseline="central">
-        {truncateZoneName(name)}
-      </text>
-    );
-  };
+  /*
+   * La part de chaque zone, calculee sur `value` - LA MEME CLE que celle qui dessine les
+   * arcs (`dataKey="value"`). La calculer sur `deliveries`, qui est l'autre nombre du jeu,
+   * donnerait une legende ou 28 % designerait un arc qui en occupe 31 : deux grandeurs
+   * proches, jamais egales, et l'ecart ne se verrait qu'a la loupe.
+   */
+  const totalParts = zonesParRang.reduce((t, z) => t + (z.value ?? 0), 0);
+  const partDeZone = (zone: IGeographicLocation): string =>
+    totalParts > 0 ? `${Math.round(((zone.value ?? 0) / totalParts) * 100)} %` : '—';
 
   const renderGeographicTooltip = ({ active, payload }: { active?: boolean; payload?: GeographicTooltipPayload[] }) => {
     if (!active || !payload?.length || !payload[0]?.payload) {
@@ -197,28 +217,53 @@ export function ChartsSection({ geographicData, weeklyActivityData }: ChartsSect
     );
   };
 
+  /*
+   * Le donut et sa legende, COTE A COTE.
+   *
+   * Le camembert ne porte plus aucune etiquette : `label` posait un `<text>` par part, et
+   * a dix parts ils se chevauchaient. Les noms sont desormais dans la liste a droite, qui
+   * a de la place pour les ecrire, les ordonne par rang - le meme ordre que les arcs, dans
+   * le meme sens - et porte la pastille qui relie chaque ligne a son arc.
+   *
+   * La liste defile au-dela de sa hauteur plutot que de pousser la carte : les deux cartes
+   * de cette rangee sont cote a cote et doivent garder la meme hauteur.
+   */
   const renderDonutChart = () => (
-    <ResponsiveContainer width="100%" height={250}>
-      <PieChart>
-        <Pie
-          data={zonesParRang}
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={100}
-          paddingAngle={2}
-          dataKey="value"
-          nameKey="name"
-          labelLine={false}
-          label={renderGeographicLabel}
-        >
-          {zonesParRang.map((zone, index) => (
-            <Cell key={`${index}-${zone.name}`} fill={teinteRang(index, zonesParRang.length)} />
-          ))}
-        </Pie>
-        <RechartsTooltip content={renderGeographicTooltip} />
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+      <div className="w-full shrink-0 sm:w-[190px]">
+        <ResponsiveContainer width="100%" height={190}>
+          <PieChart>
+            <Pie
+              data={zonesParRang}
+              cx="50%"
+              cy="50%"
+              innerRadius={48}
+              outerRadius={82}
+              paddingAngle={2}
+              dataKey="value"
+              nameKey="name"
+            >
+              {zonesParRang.map((zone, index) => (
+                <Cell key={`${index}-${zone.name}`} fill={teinteRang(index, zonesParRang.length)} />
+              ))}
+            </Pie>
+            <RechartsTooltip content={renderGeographicTooltip} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <ul className="max-h-[190px] w-full min-w-0 space-y-2 overflow-y-auto sm:flex-1">
+        {zonesParRang.map((zone, index) => (
+          <LigneLegende
+            key={`${index}-${zone.name}`}
+            livraisons={zone.deliveries}
+            nom={zone.name}
+            part={partDeZone(zone)}
+            teinte={teinteRang(index, zonesParRang.length)}
+          />
+        ))}
+      </ul>
+    </div>
   );
 
   // La colonne `revenue` somme le prix des commandes terminees : sur avril 2026 pour

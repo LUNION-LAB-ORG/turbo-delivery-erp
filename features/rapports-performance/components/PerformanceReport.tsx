@@ -140,7 +140,13 @@ export default function PerformanceReport() {
         />
       ) : (
         <div className="space-y-6">
-          <TopStatsSection debut={filters.debut} enChargement={isLoading} fin={filters.fin} mainKPIs={mainKPIs} />
+          <TopStatsSection
+            debut={filters.debut}
+            enChargement={isLoading}
+            financialDetails={financialDetails}
+            fin={filters.fin}
+            mainKPIs={mainKPIs}
+          />
           <ChartsSection geographicData={geographicData} weeklyActivityData={weeklyActivityData} />
           <MiddleStatsSection enChargement={isLoading} secondaryKPIs={secondaryKPIs} />
           <FinancialDetailsSection

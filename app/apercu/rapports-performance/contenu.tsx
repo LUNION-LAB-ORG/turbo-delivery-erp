@@ -550,6 +550,7 @@ export default function ApercuRapportsPerformance() {
                         <TopStatsSection
                             debut={DEBUT}
                             enChargement={enChargement}
+                            financialDetails={donnees.financialDetails}
                             fin={FIN}
                             mainKPIs={donnees.mainKPIs}
                         />

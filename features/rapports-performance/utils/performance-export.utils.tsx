@@ -84,8 +84,10 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#1f2937', borderBottom: '1.5pt solid #ef4444', paddingBottom: 4, marginBottom: 10, marginTop: 14 },
   kpiRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   kpiCard: { flex: 1, backgroundColor: '#f9fafb', border: '1pt solid #e5e7eb', borderRadius: 4, padding: 10 },
-  kpiLabel: { fontSize: 8, color: '#6b7280', textTransform: 'uppercase', marginBottom: 4 },
-  kpiValue: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#111' },
+  kpiLabel: { fontSize: 7, color: '#6b7280', textTransform: 'uppercase', marginBottom: 4 },
+  kpiValue: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#111' },
+  /* La decomposition sous « Montant total de livraisons », exactement comme a l'ecran. */
+  kpiNote: { fontSize: 6.5, color: '#6b7280', marginTop: 3 },
   tableHeader: { flexDirection: 'row', backgroundColor: '#fed7aa', padding: 7, borderBottom: '1pt solid #e5e7eb' },
   tableRow: { flexDirection: 'row', padding: 7, borderBottom: '1pt solid #f3f4f6' },
   tableRowAlt: { flexDirection: 'row', padding: 7, borderBottom: '1pt solid #f3f4f6', backgroundColor: '#f9fafb' },
@@ -216,14 +218,21 @@ function PerformancePdfDocument({
           </View>
         </View>
 
-        {/* KPIs principaux. Trois cartes, comme a l'ecran.
-            Deux ont ete retirees, pour deux raisons differentes :
-            - « Chiffre d'Affaires » portait mainKPIs.chiffreAffaires, qui additionnait les
-              entrees de caisse GLOBALES : le PDF de chaque partenaire emportait le meme
-              million appartenant a un autre. Ce que la carte voulait dire, la facture a
-              regler, est ecrit plus bas dans le detail financier ;
-            - « CA (Chiffre d'Affaires) » affichait financialDetails.totalOrderAmount,
-              exactement le meme nombre que la carte voisine, sous un troisieme nom. */}
+        {/*
+          * KPIs principaux : LES MEMES QUATRE CARTES QUE L'ECRAN, dans le meme ordre.
+          *
+          * C'est la regle du lot : « pareil egalement pour l'export, les stats doivent etre
+          * pareils ». Un document qui porte trois cartes quand l'ecran en montre quatre
+          * oblige son lecteur a rouvrir l'ERP pour retrouver le nombre manquant - ici, le
+          * montant que TURBO facture, qui est justement celui qu'on exporte pour l'envoyer.
+          *
+          * Deux cartes anciennes ne reviennent pas, pour deux raisons differentes :
+          * - « Chiffre d'Affaires » portait mainKPIs.chiffreAffaires, qui additionnait les
+          *   entrees de caisse GLOBALES : le PDF de chaque partenaire emportait le meme
+          *   million appartenant a un autre ;
+          * - « CA (Chiffre d'Affaires) » affichait financialDetails.totalOrderAmount,
+          *   exactement le meme nombre que la carte voisine, sous un troisieme nom.
+          */}
         <Text style={s.sectionTitle}>Indicateurs Cles de Performance</Text>
         <View style={s.kpiRow}>
           <View style={s.kpiCard}>
@@ -231,7 +240,21 @@ function PerformancePdfDocument({
             <Text style={s.kpiValue}>{fmtNum(mainKPIs?.totalDeliveries ?? 0)}</Text>
           </View>
           <View style={s.kpiCard}>
-            <Text style={s.kpiLabel}>Chiffre d&apos;affaires genere par les livraisons</Text>
+            <Text style={s.kpiLabel}>Montant total de livraisons</Text>
+            <Text style={s.kpiValue}>{fmtPdf(financialDetails?.totalFacture)}</Text>
+            {/* La decomposition n'est ecrite QUE si les deux parts existent : « Frais 0 -
+                Commission 0 » sous un total juste se lirait comme une facture sans origine. */}
+            {financialDetails?.deliveryFeesCollected != null
+              && financialDetails?.turboDeliveryServiceFees != null ? (
+              <Text style={s.kpiNote}>
+                Frais {fmtNum(Math.round(financialDetails.deliveryFeesCollected))}
+                {' - '}
+                Commission {fmtNum(Math.round(financialDetails.turboDeliveryServiceFees))}
+              </Text>
+            ) : null}
+          </View>
+          <View style={s.kpiCard}>
+            <Text style={s.kpiLabel}>Montant de commandes genere par les courses TURBO</Text>
             <Text style={s.kpiValue}>{fmtPdf(mainKPIs?.totalOrderValue)}</Text>
           </View>
           <View style={s.kpiCard}>

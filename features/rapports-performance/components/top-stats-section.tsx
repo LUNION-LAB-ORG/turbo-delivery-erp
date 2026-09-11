@@ -1,18 +1,29 @@
 'use client';
 
-import { Package, DollarSign, CheckCircle } from 'lucide-react';
+import { CheckCircle, Package, Receipt, ShoppingBag } from 'lucide-react';
 import CarteStat, { GrilleStats } from '@/components/commons/CarteStat';
-import { IMainKPIs } from '@/features/rapports-performance/types/performance.type';
+import {
+  IFinancialDetails,
+  IMainKPIs,
+} from '@/features/rapports-performance/types/performance.type';
 import { formatMontant } from '@/utils/format.utils';
 import { formatNumber } from '@/utils/formatNumber';
 
 interface TopStatsSectionProps {
   mainKPIs?: IMainKPIs;
   /**
-   * Vrai pendant la PREMIERE lecture. Sans lui, deux cartes sur trois affirmaient « 0 »
-   * le temps de la reponse, a chaque changement de periode ou de partenaire : un zero
-   * affirme se lit comme une mesure, pas comme une absence de reponse. La carte du taux,
-   * elle, disait deja un tiret.
+   * Les montants du detail financier, remontes en tete de page.
+   *
+   * <p>La carte « Montant total de livraisons » porte ce que TURBO facture. Ce nombre
+   * existait deja, mais seulement en bas de page, au terme d'une addition que le lecteur
+   * devait faire de tete : il lisait les frais, puis la commission, puis leur total, sans
+   * qu'aucun des trois ne soit en tete.</p>
+   */
+  financialDetails?: IFinancialDetails;
+  /**
+   * Vrai pendant la PREMIERE lecture. Sans lui, les cartes affirmaient « 0 » le temps de
+   * la reponse, a chaque changement de periode ou de partenaire : un zero affirme se lit
+   * comme une mesure, pas comme une absence de reponse.
    */
   enChargement?: boolean;
   /** Bornes de la periode lue, pour dire la moyenne par jour sur CETTE periode. */
@@ -47,7 +58,13 @@ function joursEcoules(debut: Date, fin: Date): number | null {
   return Math.round((arrivee - depart) / MS_PAR_JOUR) + 1;
 }
 
-export function TopStatsSection({ debut, enChargement = false, fin, mainKPIs }: TopStatsSectionProps) {
+export function TopStatsSection({
+  debut,
+  enChargement = false,
+  financialDetails,
+  fin,
+  mainKPIs,
+}: TopStatsSectionProps) {
   // La carte annoncait « Moyenne: 12.1 livraisons/jour » et « +12% vs mois precedent »,
   // deux valeurs ECRITES EN DUR depuis la maquette : aucun KPI ne les portait. Sur la
   // fiche de PLATO en avril 2026 elles cotoyaient un total de 18 livraisons sur le mois,
@@ -68,10 +85,37 @@ export function TopStatsSection({ debut, enChargement = false, fin, mainKPIs }: 
       ? `Moyenne ${moyenneParJour.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} par jour sur ${jours} jour${jours > 1 ? 's' : ''}${periodeEnCours ? ' écoulés' : ''}`
       : undefined;
 
+  /*
+   * Ce que TURBO facture, et sa DECOMPOSITION en une ligne.
+   *
+   * Le total ne se recompose pas ici a partir des deux parts : `totalFacture` est ce que
+   * le serveur facture, et c'est LUI qui fait foi. Les additionner soi-meme donnerait un
+   * total qui pourrait diverger de la facture reelle sans que rien ne le signale - et le
+   * detail financier plus bas, lui, affiche la vraie. Deux nombres pour la meme grandeur,
+   * c'est exactement la faute que la carte « Chiffre d'Affaires » avait commise.
+   *
+   * La note n'est ecrite QUE si les deux parts existent : « Frais 0 · Commission 0 » sous
+   * un total juste se lirait comme une facture sans origine.
+   */
+  const fraisLivraison = financialDetails?.deliveryFeesCollected;
+  const commission = financialDetails?.turboDeliveryServiceFees;
+  const noteMontantLivraisons =
+    fraisLivraison != null && commission != null
+      ? `Frais de livraison ${formatNumber(fraisLivraison)} · Commission ${formatNumber(commission)}`
+      : undefined;
+
   return (
-    // La fenetre reelle fait environ 1000 px de large : `lg:` (1024) ne s'ouvre jamais et
-    // la grille resterait a 2 colonnes, la troisieme carte seule sur une ligne.
-    <GrilleStats colonnes={3} className="md:grid-cols-3">
+    // Quatre cartes, et le rang de quatre n'ouvre qu'a `xl` (1280 px), pas a `lg`.
+    //
+    // Le chiffre le plus long de ce bandeau est un montant a neuf chiffres : « 74 976 175
+    // FCFA » mesure environ 192 px a 24 px en chasse tabulaire, et la carte lui ajoute
+    // 32 px de marge interne. A 1024 px de fenetre, quatre cartes de front en laissent 225,
+    // soit 193 px utiles : le montant deborde d'un cheveu, et seulement dans cette bande de
+    // largeur. A 1280 px il reste 290 px par carte, ce qui tient.
+    //
+    // La fenetre reelle du poste fait environ 1000 px : l'operateur voit donc deux rangs de
+    // deux, ce qui est le cas nominal, pas un repli.
+    <GrilleStats className="xl:grid-cols-4" colonnes={2}>
       <CarteStat
         libelle="Nombre de Livraisons"
         isLoading={enChargement}
@@ -81,18 +125,30 @@ export function TopStatsSection({ debut, enChargement = false, fin, mainKPIs }: 
         ton="danger"
       />
 
-      {/* « Valeur totale des commandes » ne disait pas a qui cet argent revient. C'est le
-          chiffre d'affaires que le partenaire realise grace a nos livraisons, exactement ce
-          que le detail financier plus bas appelle « le partenaire a vendu ». Le montant
-          exact remplace le « 0.28M » d'avant, qui arrondissait un nombre que la ligne du
-          dessous ecrivait deja en entier. */}
+      {/* Ce que TURBO facture sur la periode : frais de livraison + commission. Le meme
+          montant figure en bas de page sous le nom « Facture totale a regler » ; il est ici
+          en tete parce que c'est le nombre que la Direction vient chercher. L'accent lui
+          revient : c'est celui qui appelle un geste, encaisser. */}
       <CarteStat
-        libelle="Chiffre d'affaires généré par les livraisons"
+        libelle="Montant total de livraisons"
+        isLoading={enChargement}
+        valeur={financialDetails ? formatMontant(financialDetails.totalFacture) : '—'}
+        note={noteMontantLivraisons}
+        icone={Receipt}
+        ton="attention"
+      />
+
+      {/* « Valeur totale des commandes » ne disait pas a qui cet argent revient. C'est ce
+          que le partenaire encaisse grace a nos courses, et non ce que nous facturons -
+          d'ou le nom, et d'ou le ton neutre : ce nombre INFORME, il n'appelle aucun geste
+          de notre cote. Le detail financier plus bas l'appelle « le partenaire a vendu ». */}
+      <CarteStat
+        libelle="Montant de commandes généré par les courses TURBO"
         isLoading={enChargement}
         valeur={formatMontant(mainKPIs?.totalOrderValue ?? 0)}
         note="Ce que le partenaire a vendu grâce à nos livraisons"
-        icone={DollarSign}
-        ton="attention"
+        icone={ShoppingBag}
+        ton="neutre"
       />
 
       {/* Sans course conclue le taux n'existe pas : un tiret, pas « 0% », qui se lirait

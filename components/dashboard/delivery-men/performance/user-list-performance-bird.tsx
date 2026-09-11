@@ -74,10 +74,36 @@ export default function UserListPerformanceBird({ data }: Props) {
                 prime: l.prime,
             });
         }
-        return Array.from(par.values());
+        /*
+         * Le groupe « Aucun créneau créé » passe EN DERNIER, quoi qu'il arrive.
+         *
+         * Les groupes sortaient dans l'ordre d'insertion, c'est-a-dire dans l'ordre du
+         * serveur, qui trie par date de creation decroissante. Or les livreurs les plus
+         * recemment inscrits sont justement ceux qui n'ont pas encore de creneau : le
+         * premier groupe aurait donc ete « Aucun créneau créé », et c'est lui qui se serait
+         * ouvert par defaut.
+         */
+        const groupes = Array.from(par.values());
+        return [
+            ...groupes.filter((g) => g.cle !== SANS_CRENEAU),
+            ...groupes.filter((g) => g.cle === SANS_CRENEAU),
+        ];
     }, [data]);
 
-    const [semaineActive, setSemaineActive] = useState(() => semaines[0]?.cle ?? '');
+    /*
+     * L'onglet ouvert par defaut est une VRAIE SEMAINE, jamais le groupe des non planifies.
+     *
+     * Cet ecran porte en tete le total de commission et de prime de la semaine, et il sert a
+     * lire un etat de paie. S'ouvrir sur « Aucun créneau créé » aurait affiche
+     * « Commission de la semaine : 0 FCFA » au-dessus d'une liste de lignes a zero - un
+     * ecran juste, disant une chose fausse, sur la page ou l'on valide une paie.
+     *
+     * Le repli sur le groupe des non planifies n'a lieu que s'il est le SEUL : aucun livreur
+     * du type n'a ete programme cette semaine, et c'est alors l'information a montrer.
+     */
+    const [semaineActive, setSemaineActive] = useState(
+        () => semaines.find((s) => s.cle !== SANS_CRENEAU)?.cle ?? semaines[0]?.cle ?? '',
+    );
     const active = semaines.find((s) => s.cle === semaineActive) ?? semaines[0];
 
     if (!active) return null;

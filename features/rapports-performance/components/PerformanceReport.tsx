@@ -12,6 +12,7 @@ import { toRestaurantOptions } from '@/features/restaurants';
 
 import { decrireSelection } from '../utils/selection.utils';
 import { exportPerformancePdf } from '../utils/performance-export.utils';
+import { exporterRapportExcel } from '../utils/performance-excel.utils';
 import { ChartsSection } from './charts-section';
 import { DetailParStoreSection } from './detail-par-store/detail-par-store-section';
 import { FinancialDetailsSection } from './financial-details-section';
@@ -88,17 +89,30 @@ export default function PerformanceReport() {
     [data?.selection, filters.groupeId, filters.restaurantId, filters.restaurantIds, mode, optionsGroupes, restoOpts],
   );
 
+  /*
+   * UN SEUL jeu de parametres pour LES DEUX exports.
+   *
+   * Les construire separement laisserait les deux documents diverger a la premiere
+   * grandeur ajoutee : l'un la porterait, l'autre non, et rien ne le signalerait. C'est
+   * exactement ce que demande le retour de recette - « les stats doivent etre pareils ».
+   */
+  const parametresExport = {
+    mainKPIs,
+    secondaryKPIs,
+    financialDetails,
+    libelleSelection: selection.libelle,
+    consolide: selection.consolide,
+    parStore,
+    debut: filters.debut,
+    fin: filters.fin,
+  };
+
   const handleExportPdf = async () => {
-    await exportPerformancePdf({
-      mainKPIs,
-      secondaryKPIs,
-      financialDetails,
-      libelleSelection: selection.libelle,
-      consolide: selection.consolide,
-      parStore,
-      debut: filters.debut,
-      fin: filters.fin,
-    });
+    await exportPerformancePdf(parametresExport);
+  };
+
+  const handleExportExcel = () => {
+    exporterRapportExcel(parametresExport);
   };
 
   return (
@@ -109,6 +123,7 @@ export default function PerformanceReport() {
         fin={filters.fin}
         libelleSelection={selection.libelle}
         onDateChange={handleDateChange}
+        onExportExcel={handleExportExcel}
         onExportPdf={handleExportPdf}
         selecteur={
           <SelecteurSelection

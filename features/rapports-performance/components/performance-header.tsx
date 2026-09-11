@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Download, ListOrdered } from 'lucide-react';
+import { AlertTriangle, FileSpreadsheet, FileText, ListOrdered } from 'lucide-react';
 import { Button } from '@heroui-v3/react';
 import React from 'react';
 import { DateRange } from 'react-day-picker';
@@ -28,6 +28,7 @@ interface PerformanceHeaderProps {
   debut: Date | undefined;
   fin: Date | undefined;
   onDateChange: (value: DateRange | undefined) => void;
+  onExportExcel: () => void;
   onExportPdf: () => void;
 }
 
@@ -47,6 +48,7 @@ export function PerformanceHeader({
   fin,
   libelleSelection,
   onDateChange,
+  onExportExcel,
   onExportPdf,
   selecteur,
 }: PerformanceHeaderProps) {
@@ -89,13 +91,25 @@ export function PerformanceHeader({
             </LienAvecFiltres>
 
             {/*
-             * Le bouton portait `color="primary"` ET `bg-orange-500` : deux couleurs
-             * contradictoires posees sur le meme element, dont l'orange gagnait — une
-             * teinte qui n'appartient a aucun theme du projet.
+             * Les deux exports, et pourquoi AUCUN ne porte l'accent.
+             *
+             * Ils ne changent rien : ils recopient ce qui est deja a l'ecran. C'est la
+             * regle que le classement applique deja sur ses deux memes boutons, et les
+             * deux ecrans se lisent l'un apres l'autre - un « Exporter PDF » accentue ici
+             * et le meme bouton en retrait la-bas se lirait comme une difference de nature
+             * entre les deux gestes, alors qu'ils sont identiques.
+             *
+             * Le bouton PDF portait auparavant `color="primary"` ET `bg-orange-500` : deux
+             * couleurs contradictoires posees sur le meme element, dont l'orange gagnait -
+             * une teinte qui n'appartient a aucun theme du projet.
              */}
-            <Button onPress={onExportPdf} variant="primary">
-              <Download aria-hidden="true" className="size-4" />
-              Exporter PDF
+            <Button onPress={onExportExcel} variant="outline">
+              <FileSpreadsheet aria-hidden="true" className="size-4" />
+              Excel
+            </Button>
+            <Button onPress={onExportPdf} variant="outline">
+              <FileText aria-hidden="true" className="size-4" />
+              PDF
             </Button>
           </div>
         </div>

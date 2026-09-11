@@ -525,9 +525,11 @@ export default function ApercuRapportsPerformance() {
                         debut={DEBUT}
                         fin={FIN}
                         libelleSelection={selection.libelle}
-                        // Le banc n'exporte rien : le bouton est la pour etre REGARDE, a sa
-                        // taille et a sa couleur reelles, pas pour ecrire un PDF.
+                        // Le banc n'exporte rien : les boutons sont la pour etre REGARDES,
+                        // a leur taille et a leur couleur reelles, pas pour ecrire un
+                        // fichier. Deux depuis le retour de recette : Excel et PDF.
                         onDateChange={() => undefined}
+                        onExportExcel={() => undefined}
                         onExportPdf={() => undefined}
                         selecteur={
                             <SelecteurSelection

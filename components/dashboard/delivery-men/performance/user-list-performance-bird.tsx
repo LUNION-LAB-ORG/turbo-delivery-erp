@@ -28,6 +28,10 @@ interface Props {
     data: LivreurPerformanceBirdEndTorubo[];
 }
 
+/** La cle du groupe des livreurs sans emploi du temps sur la periode. */
+const SANS_CRENEAU = 'sans-creneau';
+const LIBELLE_SANS_CRENEAU = 'Aucun créneau créé';
+
 export default function UserListPerformanceBird({ data }: Props) {
     /** Un libellé de semaine lisible, à partir des deux bornes du créneau. */
     const libelle = (debut: string, fin: string) => {
@@ -44,9 +48,21 @@ export default function UserListPerformanceBird({ data }: Props) {
     const semaines = useMemo(() => {
         const par = new Map<string, { cle: string; libelle: string; lignes: LignePerformance[] }>();
         for (const l of data) {
-            const cle = `${l.creneau.debut}-${l.creneau.fin}`;
+            /*
+             * Un livreur SANS emploi du temps sur la periode n'a pas de creneau. Il va
+             * dans son propre groupe, nomme, plutot que de disparaitre ou de faire tomber
+             * la page : le cahier des charges « Performance de la Flotte » (2.2) demande
+             * qu'il reste visible avec un statut explicite et des indicateurs a zero.
+             *
+             * `l.creneau.debut` etait lu sans garde a cet endroit precis.
+             */
+            const cle = l.creneau ? `${l.creneau.debut}-${l.creneau.fin}` : SANS_CRENEAU;
             if (!par.has(cle)) {
-                par.set(cle, { cle, libelle: libelle(l.creneau.debut, l.creneau.fin), lignes: [] });
+                par.set(cle, {
+                    cle,
+                    libelle: l.creneau ? libelle(l.creneau.debut, l.creneau.fin) : LIBELLE_SANS_CRENEAU,
+                    lignes: [],
+                });
             }
             par.get(cle)!.lignes.push({
                 id: l.id,
@@ -68,12 +84,15 @@ export default function UserListPerformanceBird({ data }: Props) {
 
     return (
         <EtatPerformance
-            libelleSemaine={`Semaine du ${active.libelle}`}
+            libelleSemaine={active.cle === SANS_CRENEAU ? active.libelle : `Semaine du ${active.libelle}`}
             lignes={active.lignes}
             onSemaine={setSemaineActive}
             rendreActions={(l) => <DropDownActionPerformance id={l.id} />}
             semaineActive={active.cle}
-            semaines={semaines.map((s) => ({ cle: s.cle, libelle: `Semaine du ${s.libelle}` }))}
+            semaines={semaines.map((s) => ({
+                cle: s.cle,
+                libelle: s.cle === SANS_CRENEAU ? s.libelle : `Semaine du ${s.libelle}`,
+            }))}
         />
     );
 }

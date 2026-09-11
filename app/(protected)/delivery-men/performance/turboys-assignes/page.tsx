@@ -2,6 +2,7 @@ import { TurboysBird, TurboysNotSlot } from "@/types/slot"
 import Content from "./content"
 import { Metadata } from "next";
 import { getAllPerformaneTurbo } from "@/src/performance/performance.action";
+import { TAILLE_LISTE_PERFORMANCE } from "@/src/performance/performance.constants";
 
 
 // const livreur: LivreurPerformanceBirdEndTorubo[] = [
@@ -71,6 +72,6 @@ export const metadata: Metadata = {
 
 
 export default async function Page() {
-    const response = await getAllPerformaneTurbo(0, 10);
+    const response = await getAllPerformaneTurbo(0, TAILLE_LISTE_PERFORMANCE);
     return <Content initialData={response} />
 }

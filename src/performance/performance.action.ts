@@ -66,6 +66,17 @@ export async function getAllPerformanceBird(page: number = 0, size: number = 10)
             endpoint: creneauEndpoints.getAllPerformanceBird.endpoint,
             method: creneauEndpoints.getAllPerformanceBird.method,
             service: 'backend',
+            // La fonction DECLARAIT `page` et `size` et ne les envoyait pas : la requete
+            // partait sans `params`, le serveur retombait sur son defaut (`size = 5`) et
+            // l'onglet « Performance des birds » n'affichait QUE 5 livreurs. Mesure faite
+            // en production le 11/09/2026 : 5 lignes rendues pour 9 birds existants, sans
+            // pagination a l'ecran ni rien qui signale la suite. Quatre birds etaient donc
+            // invisibles, et l'ecran se lisait comme la liste complete.
+            // L'appel voisin `getAllPerformaneTurbo` transmettait bien les deux.
+            params: {
+                page: String(page),
+                size: String(size),
+            },
         });
 
         return data;
